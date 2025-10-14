@@ -1,4 +1,4 @@
-.PHONY: up down build logs restart
+.PHONY: up down build logs restart test
 
 up:
 	@docker compose up --build
@@ -15,3 +15,6 @@ logs:
 restart:
 	@docker compose down
 	@docker compose up --build -d
+
+test:
+	@python3 -m pytest

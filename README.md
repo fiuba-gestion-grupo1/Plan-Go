@@ -1,4 +1,4 @@
-# Plan&Go base
+# Plan & Go
 
 ## Tutorial de ejecución
 
