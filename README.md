@@ -43,3 +43,11 @@ make logs
 make restart
 
 ```
+
+### Ejecutar los tests unitarios
+
+```bash
+
+make test
+
+```
