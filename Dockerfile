@@ -26,7 +26,7 @@ COPY backend/ ./backend/
 
 
 # estáticos del frontend
-COPY --from=web /web/dist /frontend/dist
+COPY --from=web /web/dist /app/frontend/dist
 
 
 # FastAPI sirve la SPA desde /frontend/dist (ver main.py)

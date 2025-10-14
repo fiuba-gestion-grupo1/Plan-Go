@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from ..db import get_db
 from .. import models, security, schemas
@@ -28,14 +28,17 @@ def login(payload: schemas.UserCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=schemas.UserOut)
-def me(authorization: str | None = None, db: Session = Depends(get_db)):
+def me(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db)
+):
     if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(401, "Token faltante")
+        raise HTTPException(status_code=401, detail="Token faltante")
     token = authorization.split()[1]
     data = security.decode_token(token)
     if not data:
-        raise HTTPException(401, "Token inválido")
+        raise HTTPException(status_code=401, detail="Token inválido")
     user = db.query(models.User).get(int(data["sub"]))
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user

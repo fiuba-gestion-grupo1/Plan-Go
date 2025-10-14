@@ -2,13 +2,44 @@
 
 ## Tutorial de ejecución
 
+La aplicación se instanciará en http://localhost:8000.
+
+### Construir la imagen de la Aplicación
+
+```bash
+
+make build
+
+```
+
 ### Levantar la Aplicación
 
 ```bash
 
-docker build -t plan-go .
-docker run --env-file .env -p 8000:8000 plan-go
+make up
 
 ```
 
-La aplicación se instanciará en http://localhost:8000
+### Bajar la Aplicación
+
+```bash
+
+make down
+
+```
+
+### Ver los logs de la Aplicación
+
+```bash
+
+make logs
+
+```
+
+### Reiniciar la Aplicación
+
+```bash
+
+make restart
+
+```
