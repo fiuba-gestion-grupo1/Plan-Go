@@ -7,10 +7,10 @@ export default function Register({ setView }) {
     // Nuevo estado para controlar si el registro fue exitoso
     const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
-    async function handleRegister({ email, password }) {
+    async function handleRegister({ username, email, password }) {
         await api('/api/auth/register', {
             method: 'POST',
-            body: { email, password }
+            body: { username, email, password }
         });
         setRegistrationSuccess(true)
     }
@@ -32,5 +32,5 @@ export default function Register({ setView }) {
     }
 
     // Si no funciono elr egister (caso mail ya registrado), mostramos el formulario
-    return <AuthForm title="Registrarse" onSubmit={handleRegister} />
+    return <AuthForm title="Registrarse" onSubmit={handleRegister} isRegister={true} />
 }

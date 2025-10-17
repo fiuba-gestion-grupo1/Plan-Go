@@ -35,7 +35,7 @@ export default function App() {
                 <div className="container m-auto text-center">
                     <div className="card p-4 shadow-sm" style={{ maxWidth: '400px', margin: 'auto' }}>
                         <img src={logo} alt="Plan&Go Logo" className="mb-4" style={{ width: '150px', margin: '0 auto' }} />
-                        <p className="lead">Bienvenido, <strong>{me.email}</strong></p>
+                        <p className="lead">Bienvenido, <strong>{me.username}</strong></p>
                         <button onClick={handleLogout} className="btn btn-danger mt-3">
                             Salir
                         </button>

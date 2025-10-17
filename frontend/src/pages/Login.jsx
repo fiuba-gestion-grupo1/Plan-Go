@@ -3,10 +3,10 @@ import AuthForm from '../components/AuthForm'
 import { api } from '../api'
 
 export default function Login({ setToken }) {
-    async function handleLogin({ email, password }) {
+    async function handleLogin({ identifier, password }) {
         const { access_token } = await api('/api/auth/login', {
             method: 'POST',
-            body: { email, password }
+            body: { identifier, password }
         });
         setToken(access_token);
     }
