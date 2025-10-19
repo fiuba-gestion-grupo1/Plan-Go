@@ -7,6 +7,26 @@ from .. import models, security, schemas
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+def get_current_user(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db)
+) -> models.User:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Token faltante")
+    token = authorization.split()[1]
+    data = security.decode_token(token)
+    if not data:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
+    user_id = data.get("sub")
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Token inválido (no sub)")
+        
+    user = db.query(models.User).get(int(user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return user
+
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -39,7 +59,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     if not security.verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Contraseña incorrecta."
+            detail="Contraseña o usuario incorrecta."
         )
 
     token_data = {"sub": str(user.id), "email": user.email, "username": user.username}
@@ -47,18 +67,41 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     
     return {"access_token": token, "token_type": "bearer"}
 
+
 @router.get("/me", response_model=schemas.UserOut)
-def me(
-    authorization: str | None = Header(default=None),
+def me(user: models.User = Depends(get_current_user)):
+    return user
+
+
+@router.put("/me", response_model=schemas.UserOut)
+def update_me(
+    payload: schemas.UserUpdate, # Recibe el nuevo esquema
+    user: models.User = Depends(get_current_user), # Obtiene el usuario actual
     db: Session = Depends(get_db)
 ):
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Token faltante")
-    token = authorization.split()[1]
-    data = security.decode_token(token)
-    if not data:
-        raise HTTPException(status_code=401, detail="Token inválido")
-    user = db.query(models.User).get(int(data["sub"]))
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user.first_name = payload.first_name
+    user.last_name = payload.last_name
+    user.birth_date = payload.birth_date
+    user.travel_preferences = payload.travel_preferences
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
     return user
+
+
+#@router.get("/me", response_model=schemas.UserOut)
+#def me(
+#    authorization: str | None = Header(default=None),
+#    db: Session = Depends(get_db)
+#):
+#    if not authorization or not authorization.lower().startswith("bearer "):
+#        raise HTTPException(status_code=401, detail="Token faltante")
+#    token = authorization.split()[1]
+#    data = security.decode_token(token)
+#    if not data:
+#        raise HTTPException(status_code=401, detail="Token inválido")
+#    user = db.query(models.User).get(int(data["sub"]))
+#    if not user:
+#        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+#    return user

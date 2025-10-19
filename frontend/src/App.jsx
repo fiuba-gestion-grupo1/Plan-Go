@@ -45,7 +45,13 @@ export default function App() {
 
                 <div className="flex-grow-1">
                     {authView === 'home' && <Home me={me} />}
-                    {authView === 'profile' && <Profile me={me} />}
+                    {authView === 'profile' && (
+                        <Profile 
+                            me={me} 
+                            token={token} 
+                            setMe={setMe} 
+                        />
+                    )}
                 </div>
             </div>
         )

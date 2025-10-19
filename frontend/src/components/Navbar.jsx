@@ -22,7 +22,7 @@ export default function Navbar({ me, onLogout, setAuthView }) {
                         data-bs-toggle="dropdown"
                         aria-expanded="false"
                     >
-                        Hola, {me.username}
+                        Hola, {me.first_name || me.username}
                     </button>
 
                     <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">

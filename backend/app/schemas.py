@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
+from datetime import date, datetime
+
 try:
     from pydantic import ConfigDict
     _V2 = True
@@ -14,10 +16,36 @@ class UserLogin(BaseModel):
     identifier: str  #Puede ser username o email. Es algo generico que manda el front
     password: str
 
+class UserUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    birth_date: date | str | None = None 
+    travel_preferences: str | None = None
+
+    @validator('birth_date', pre=True)
+    def parse_birth_date(cls, v):
+        # Si el valor es un string vacío o nulo, lo convertimos en None
+        if v == '' or v is None:
+            return None
+        # Si es un string (ej: "2002-05-02"), lo convertimos a un objeto date
+        if isinstance(v, str):
+            try:
+                # El formato '%Y-%m-%d' debe coincidir con el del input HTML
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError(f"'{v}' no es una fecha válida. Usar formato AAAA-MM-DD.")
+        return v
+
+
 class UserOut(BaseModel):
     id: int
     username: str
     email: EmailStr
+    first_name: str | None = None
+    last_name: str | None = None
+    birth_date: date | None = None
+    travel_preferences: str | None = None
+
     if _V2:
         # v2
         model_config = ConfigDict(from_attributes=True)
