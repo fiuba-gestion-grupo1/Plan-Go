@@ -15,12 +15,13 @@ export default function Register({ setView }) {
         email: '',
         password: '',
         confirm_password: '',
-        security_question_1: SECURITY_QUESTIONS[0], 
+        security_question_1: SECURITY_QUESTIONS[0],
         security_answer_1: '',
-        security_question_2: SECURITY_QUESTIONS[1], 
+        security_question_2: SECURITY_QUESTIONS[1],
         security_answer_2: ''
     });
     const [error, setError] = useState('');
+    const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
     function handleChange(e) {
         const { name, value } = e.target;
@@ -32,7 +33,7 @@ export default function Register({ setView }) {
         setError('');
 
         const { password, confirm_password, ...payload } = formData;
-        
+
         if (password !== confirm_password) {
             setError('Las contraseñas no coinciden.');
             return;
@@ -46,28 +47,43 @@ export default function Register({ setView }) {
             return;
         }
         if (!payload.security_answer_1 || !payload.security_answer_2) {
-             setError('Debes responder ambas preguntas de seguridad.');
+            setError('Debes responder ambas preguntas de seguridad.');
             return;
         }
 
         try {
-            // El payload ya no incluye 'confirm_password'
             await api('/api/auth/register', { method: 'POST', body: { ...payload, password } });
-            alert('¡Registro exitoso! Ahora puedes iniciar sesión.');
-            setView('login'); // Redirige al login
+            //actualizo esto apra que aparezca un mensaje de exito en vez de una alerta de localhost
+            setRegistrationSuccess(true);
         } catch (err) {
             setError(err.detail || 'Error en el registro.');
         }
     }
 
-    // Filtramos las preguntas para que no se puedan repetir
     const available_q2 = SECURITY_QUESTIONS.filter(q => q !== formData.security_question_1);
     const available_q1 = SECURITY_QUESTIONS.filter(q => q !== formData.security_question_2);
 
+    //Si el registro fue exitoso, muestra el mensaje de confirmación
+    if (registrationSuccess) {
+        return (
+            <div className="text-center">
+                <h3 className="mb-3">✅ ¡Registro exitoso!</h3>
+                <p>Tu cuenta se ha creado correctamente. Ahora puedes iniciar sesión.</p>
+                <button
+                    onClick={() => setView('login')}
+                    className="btn btn-primary w-100 mt-2"
+                >
+                    Ir a Iniciar Sesión
+                </button>
+            </div>
+        );
+    }
+
+    //caso registro no exitoso, sigue mostrando el formulario
     return (
         <form onSubmit={handleSubmit}>
             <h3 className="mb-4">Crear cuenta</h3>
-            
+
             <div className="mb-3">
                 <label>Email</label>
                 <input type="email" name="email" className="form-control" onChange={handleChange} required />
@@ -110,7 +126,7 @@ export default function Register({ setView }) {
             </div>
 
             {error && <div className="alert alert-danger">{error}</div>}
-            
+
             <button type="submit" className="btn btn-primary w-100 mt-3">
                 Registrarse
             </button>
