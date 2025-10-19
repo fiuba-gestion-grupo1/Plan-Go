@@ -8,4 +8,7 @@ services:
       - .env
     volumes:
       - ./backend:/app/backend
+      - plango_data:/app/data
     restart: unless-stopped
+volumes:
+  plango_data:
