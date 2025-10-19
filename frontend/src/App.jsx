@@ -37,20 +37,31 @@ export default function App() {
     // --- Vista de usuario autenticado ---
     if (token && me) {
         return (
-            <div className="d-flex flex-column vh-100 bg-light">
-                <Navbar 
-                    me={me} 
-                    onLogout={handleLogout} 
-                    setAuthView={setAuthView} 
+            // 1. Quitamos 'bg-light' y usamos 'min-vh-100' para que ocupe toda la altura
+            // 2. Agregamos el objeto `style` con la imagen de fondo
+            <div
+                className="d-flex flex-column min-vh-100"
+                style={{
+                    backgroundImage: `url(${backgroundImage})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundAttachment: 'fixed'
+                }}
+            >
+                <Navbar
+                    me={me}
+                    onLogout={handleLogout}
+                    setAuthView={setAuthView}
                 />
 
                 <div className="flex-grow-1">
                     {authView === 'home' && <Home me={me} />}
                     {authView === 'profile' && (
-                        <Profile 
-                            me={me} 
-                            token={token} 
-                            setMe={setMe} 
+                        <Profile
+                            me={me}
+                            token={token}
+                            setMe={setMe}
                         />
                     )}
                 </div>
@@ -65,19 +76,19 @@ export default function App() {
             // 1. Cambiamos 'vh-100' por 'min-vh-100'
             // 2. Quitamos 'justify-content-center'
             // 3. Agregamos 'py-5' (padding vertical)
-            className="d-flex flex-column align-items-center min-vh-100 py-5" 
+            className="d-flex flex-column align-items-center min-vh-100 py-5"
             style={{
                 backgroundImage: `url(${backgroundImage})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
                 // Agregamos esto para que el fondo se adapte al scroll
-                backgroundAttachment: 'fixed' 
+                backgroundAttachment: 'fixed'
             }}
         >
             {/* Este contenedor de agrupación se mantiene igual que la vez anterior */}
             <div className="text-center" style={{ maxWidth: '480px', width: '100%' }}>
-                
+
                 <div className="mb-4">
                     <img src={logo} alt="Plan&Go Logo" style={{ width: '200px', height: 'auto' }} />
                 </div>
@@ -92,7 +103,7 @@ export default function App() {
                     <button onClick={() => setView(view === 'login' ? 'register' : 'login')} className="btn btn-link text-blue fw-bold">
                         {view === 'login' ? '¿No tenes cuenta? Registrate Acá!' : 'Ya tengo una cuenta'}
                     </button>
-                    
+
                     {view === 'login' && (
                         <div className="mt-2">
                             <button onClick={() => setView('forgot-password')} className="btn btn-link btn-sm">
