@@ -11,6 +11,10 @@ class UserCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
+    security_question_1: str
+    security_answer_1: str
+    security_question_2: str
+    security_answer_2: str
 
 class UserLogin(BaseModel):
     identifier: str  #Puede ser username o email. Es algo generico que manda el front
@@ -36,6 +40,25 @@ class UserUpdate(BaseModel):
                 raise ValueError(f"'{v}' no es una fecha válida. Usar formato AAAA-MM-DD.")
         return v
 
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
+
+class RequestQuestions(BaseModel):
+    identifier: str # Email o Username
+
+class QuestionsOut(BaseModel):
+    username: str
+    security_question_1: str
+    security_question_2: str
+
+class VerifyAnswers(BaseModel):
+    identifier: str
+    security_answer_1: str
+    security_answer_2: str
+
+class ResetPasswordWithToken(BaseModel):
+    new_password: str
 
 class UserOut(BaseModel):
     id: int

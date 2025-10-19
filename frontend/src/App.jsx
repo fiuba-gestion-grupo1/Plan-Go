@@ -7,6 +7,7 @@ import backgroundImage from './assets/images/background.png'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import Profile from './pages/Profile'
+import ForgotPassword from './pages/ForgotPassword'
 
 export default function App() {
     const [view, setView] = useState('login')
@@ -60,30 +61,45 @@ export default function App() {
     //----Vista de autenticación (Login/Register)----
     return (
         <div
-            className="d-flex vh-100"
+            // --- CAMBIOS AQUÍ ---
+            // 1. Cambiamos 'vh-100' por 'min-vh-100'
+            // 2. Quitamos 'justify-content-center'
+            // 3. Agregamos 'py-5' (padding vertical)
+            className="d-flex flex-column align-items-center min-vh-100 py-5" 
             style={{
                 backgroundImage: `url(${backgroundImage})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat'
+                backgroundRepeat: 'no-repeat',
+                // Agregamos esto para que el fondo se adapte al scroll
+                backgroundAttachment: 'fixed' 
             }}
         >
-            <div className="container m-auto" style={{ maxWidth: '480px' }}>
-                <div className="text-center mb-4">
+            {/* Este contenedor de agrupación se mantiene igual que la vez anterior */}
+            <div className="text-center" style={{ maxWidth: '480px', width: '100%' }}>
+                
+                <div className="mb-4">
                     <img src={logo} alt="Plan&Go Logo" style={{ width: '200px', height: 'auto' }} />
                 </div>
 
                 <div className="card p-4 shadow-sm">
-                    {view === 'login'
-                        ? <Login setToken={setToken} />
-                        : <Register setView={setView} />
-                    }
+                    {view === 'login' && <Login setToken={setToken} setView={setView} />}
+                    {view === 'register' && <Register setView={setView} />}
+                    {view === 'forgot-password' && <ForgotPassword setView={setView} />}
                 </div>
 
                 <div className="text-center mt-3">
                     <button onClick={() => setView(view === 'login' ? 'register' : 'login')} className="btn btn-link text-blue fw-bold">
                         {view === 'login' ? '¿No tenes cuenta? Registrate Acá!' : 'Ya tengo una cuenta'}
                     </button>
+                    
+                    {view === 'login' && (
+                        <div className="mt-2">
+                            <button onClick={() => setView('forgot-password')} className="btn btn-link btn-sm">
+                                ¿Has olvidado tu contraseña?
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

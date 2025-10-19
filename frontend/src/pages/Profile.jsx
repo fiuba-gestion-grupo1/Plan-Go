@@ -4,7 +4,7 @@ import { api } from '../api';
 
 export default function Profile({ me, token, setMe }) {
 
-    const [isEditing, setIsEditing] = useState(false);
+    const [viewMode, setViewMode] = useState('view');
     const [formData, setFormData] = useState({
         first_name: me.first_name || '', 
         last_name: me.last_name || '',
@@ -12,18 +12,34 @@ export default function Profile({ me, token, setMe }) {
         travel_preferences: me.travel_preferences || '',
     });
 
+    const [passwordData, setPasswordData] = useState({
+        current_password: '',
+        new_password: '',
+        confirm_password: '',
+    });
+
     useEffect(() => {
-        setFormData({
-            first_name: me.first_name || '',
-            last_name: me.last_name || '',
-            birth_date: me.birth_date ? me.birth_date.split('T')[0] : '', 
-            travel_preferences: me.travel_preferences || '',
-        });
-    }, [me]);
+        if (viewMode === 'edit') {
+            setFormData({
+                first_name: me.first_name || '',
+                last_name: me.last_name || '',
+                birth_date: me.birth_date ? me.birth_date.split('T')[0] : '', 
+                travel_preferences: me.travel_preferences || '',
+            });
+        }
+    }, [me, viewMode]);
 
     function handleChange(e) {
         const { name, value } = e.target;
         setFormData(prevData => ({
+            ...prevData,
+            [name]: value,
+        }));
+    }
+
+    function handlePasswordChange(e) {
+        const { name, value } = e.target;
+        setPasswordData(prevData => ({
             ...prevData,
             [name]: value,
         }));
@@ -40,11 +56,39 @@ export default function Profile({ me, token, setMe }) {
 
             setMe(updatedUser); 
             alert('¡Perfil actualizado con éxito!');
-            setIsEditing(false);
+            setViewMode('view');
 
         } catch (error) {
             console.error('Error al actualizar el perfil:', error);
             alert(`Error al actualizar el perfil: ${error.message || 'Revisa la consola.'}`);
+        }
+    }
+
+    async function handlePasswordSubmit(e) {
+        e.preventDefault();
+        const { current_password, new_password, confirm_password } = passwordData;
+
+        if (!current_password || !new_password || !confirm_password) {
+            alert('Por favor, completa todos los campos de contraseña.');
+            return;
+        }
+        if (new_password.length < 8) {
+            alert('La nueva contraseña debe tener al menos 8 caracteres.');
+            return;
+        }
+        if (new_password !== confirm_password) {
+            alert('Las nuevas contraseñas no coinciden.');
+            return;
+        }
+
+        try {
+            await api('/api/auth/change-password', { method: 'POST', token, body: { current_password, new_password } });
+            alert('¡Contraseña actualizada con éxito!');
+            setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+            setViewMode('view'); 
+        } catch (error) {
+            console.error('Error al cambiar contraseña:', error);
+            alert(`Error: ${error.detail || error.message}`);
         }
     }
 
@@ -76,8 +120,8 @@ export default function Profile({ me, token, setMe }) {
         fontWeight: 'bold',
     };
 
-    if (isEditing) {
-        // --- VISTA DE EDICIÓN (El formulario que ya tenías) ---
+    if (viewMode === 'edit') {
+        // --- VISTA DE EDICIÓN ---
         return (
             <div className="container mt-4" style={{ maxWidth: '700px' }}>
                 <div className="card shadow-sm">
@@ -152,18 +196,47 @@ export default function Profile({ me, token, setMe }) {
                                 ></textarea>
                             </div>
 
-                            {/* --- BOTONES MODIFICADOS --- */}
                             <div className="text-end mt-4">
                                 <button 
-                                    type="button" // Importante: 'type="button"' para no enviar el form
+                                    type="button" 
                                     className="btn btn-secondary btn-lg me-2" 
-                                    onClick={() => setIsEditing(false)} // Botón para cancelar
+                                    onClick={() => setViewMode('view')}
                                 >
                                     Cancelar
                                 </button>
                                 <button type="submit" className="btn btn-primary btn-lg">
                                     Guardar Cambios
                                 </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (viewMode === 'password') {
+        return (
+            <div className="container mt-4" style={{ maxWidth: '700px' }}>
+                <div className="card shadow-sm">
+                    <div className="card-body p-4 p-md-5">
+                        <form onSubmit={handlePasswordSubmit}>
+                            <h2 className="card-title text-center mb-4">Cambiar Contraseña</h2>
+                            <div className="mb-3">
+                                <label htmlFor="current_password" className="form-label">Contraseña Actual</label>
+                                <input type="password" className="form-control" id="current_password" name="current_password" value={passwordData.current_password} onChange={handlePasswordChange} required />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="new_password" className="form-label">Nueva Contraseña</label>
+                                <input type="password" className="form-control" id="new_password" name="new_password" value={passwordData.new_password} onChange={handlePasswordChange} required minLength="8" />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="confirm_password" className="form-label">Confirmar Nueva Contraseña</label>
+                                <input type="password" className="form-control" id="confirm_password" name="confirm_password" value={passwordData.confirm_password} onChange={handlePasswordChange} required minLength="8" />
+                            </div>
+                            <div className="text-end mt-4">
+                                <button type="button" className="btn btn-secondary me-2" onClick={() => setViewMode('view')}>Cancelar</button>
+                                <button type="submit" className="btn btn-primary">Actualizar Contraseña</button>
                             </div>
                         </form>
                     </div>
@@ -213,12 +286,11 @@ export default function Profile({ me, token, setMe }) {
                         {me.travel_preferences || 'No especificadas'}
                     </div>
 
-                    {/* Botón para entrar en modo edición */}
-                    <div className="text-end mt-4">
-                        <button 
-                            className="btn btn-primary btn-lg" 
-                            onClick={() => setIsEditing(true)}
-                        >
+                    <div className="d-flex justify-content-end align-items-center mt-4">
+                        <button className="btn btn-link me-3" onClick={() => setViewMode('password')}>
+                            Modificar Contraseña
+                        </button>
+                        <button className="btn btn-primary btn-lg" onClick={() => setViewMode('edit')}>
                             Editar Perfil
                         </button>
                     </div>

@@ -13,3 +13,7 @@ class User(Base):
     last_name = Column(String, nullable=True)
     birth_date = Column(Date, nullable=True) 
     travel_preferences = Column(Text, nullable=True)
+    security_question_1 = Column(String, nullable=True)
+    hashed_answer_1 = Column(String, nullable=True)
+    security_question_2 = Column(String, nullable=True)
+    hashed_answer_2 = Column(String, nullable=True)
