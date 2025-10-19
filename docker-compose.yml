@@ -10,5 +10,14 @@ services:
       - ./backend:/app/backend
       - plango_data:/app/data
     restart: unless-stopped
+  test:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+      - ./tests:/app/tests
+      - ./pytest.ini:/app/pytest.ini
+    command: ["python", "-m", "pytest"]
 volumes:
   plango_data:

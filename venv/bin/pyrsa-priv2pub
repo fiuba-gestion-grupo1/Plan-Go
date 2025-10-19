@@ -1,4 +1,4 @@
-#!/home/agustina/Escritorio/Plan-Go/venv/bin/python3
+#!/mnt/c/Users/mechi/gestion/Plan-Go/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
