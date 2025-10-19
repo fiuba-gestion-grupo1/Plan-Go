@@ -4,11 +4,15 @@ import Register from './pages/Register'
 import { api } from './api'
 import logo from './assets/images/logo.png'
 import backgroundImage from './assets/images/background.png'
+import Navbar from './components/Navbar'
+import Home from './pages/Home'
+import Profile from './pages/Profile'
 
 export default function App() {
     const [view, setView] = useState('login')
     const [token, setToken] = useState(localStorage.getItem('token') || '')
     const [me, setMe] = useState(null)
+    const [authView, setAuthView] = useState('home')
 
     useEffect(() => {
         if (token) {
@@ -26,20 +30,22 @@ export default function App() {
         localStorage.removeItem('token');
         setToken('');
         setMe(null);
+        setAuthView('home');
     }
 
     // --- Vista de usuario autenticado ---
     if (token && me) {
         return (
-            <div className="d-flex vh-100 bg-light">
-                <div className="container m-auto text-center">
-                    <div className="card p-4 shadow-sm" style={{ maxWidth: '400px', margin: 'auto' }}>
-                        <img src={logo} alt="Plan&Go Logo" className="mb-4" style={{ width: '150px', margin: '0 auto' }} />
-                        <p className="lead">Bienvenido, <strong>{me.username}</strong></p>
-                        <button onClick={handleLogout} className="btn btn-danger mt-3">
-                            Salir
-                        </button>
-                    </div>
+            <div className="d-flex flex-column vh-100 bg-light">
+                <Navbar 
+                    me={me} 
+                    onLogout={handleLogout} 
+                    setAuthView={setAuthView} 
+                />
+
+                <div className="flex-grow-1">
+                    {authView === 'home' && <Home me={me} />}
+                    {authView === 'profile' && <Profile me={me} />}
                 </div>
             </div>
         )
