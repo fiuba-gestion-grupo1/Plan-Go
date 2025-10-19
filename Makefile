@@ -17,4 +17,4 @@ restart:
 	@docker compose up --build -d
 
 test:
-	@python3 -m pytest
+	docker-compose run --build --rm test
