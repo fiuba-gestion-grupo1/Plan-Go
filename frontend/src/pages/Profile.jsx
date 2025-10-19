@@ -1,6 +1,5 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { api } from '../api';
+import React, { useState, useEffect, useRef } from 'react';
+import { api, BASE_URL } from '../api';
 
 export default function Profile({ me, token, setMe }) {
 
@@ -11,12 +10,14 @@ export default function Profile({ me, token, setMe }) {
         birth_date: me.birth_date || '',
         travel_preferences: me.travel_preferences || '',
     });
-
     const [passwordData, setPasswordData] = useState({
         current_password: '',
         new_password: '',
         confirm_password: '',
     });
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         if (viewMode === 'edit') {
@@ -92,6 +93,42 @@ export default function Profile({ me, token, setMe }) {
         }
     }
 
+    function handleFileChange(e) {
+        const file = e.target.files[0];
+        if (file) {
+            setSelectedFile(file);
+            // Creamos una URL local para la previsualización
+            setPreviewUrl(URL.createObjectURL(file));
+        }
+    }
+
+    async function handlePhotoSubmit() {
+        if (!selectedFile) {
+            alert("Por favor, selecciona una foto primero.");
+            return;
+        }
+
+        const data = new FormData();
+        data.append("file", selectedFile);
+
+        try {
+            const updatedUser = await api('/api/users/me/photo', {
+                method: 'PUT',
+                token: token,
+                body: data
+            });
+            setMe(updatedUser); // Actualiza el estado global
+            alert("¡Foto de perfil actualizada!");
+            
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            
+        } catch (error) {
+            console.error("Error al subir la foto:", error);
+            alert(`Error al subir la foto: ${error.detail || error.message}`);
+        }
+    }
+
     function formatDisplayDate(dateString) {
         if (!dateString) return 'No especificado';
         try {
@@ -106,19 +143,25 @@ export default function Profile({ me, token, setMe }) {
         }
     }
 
-    const photoPlaceholderStyle = {
+    const photoStyle = {
         width: '150px',
         height: '150px',
         backgroundColor: '#e9ecef', 
-        borderRadius: '50%', 
+        borderRadius: '50%',
+        objectFit: 'cover',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: '#6c757d', 
-        margin: '0 auto 2rem auto', 
+        margin: '0 auto 1rem auto', 
         fontSize: '1.2rem',
         fontWeight: 'bold',
+        border: '3px solid #dee2e6'
     };
+    
+    const imageUrl = me.profile_picture_url 
+        ? `${BASE_URL}${me.profile_picture_url}` 
+        : null;
 
     if (viewMode === 'edit') {
         // --- VISTA DE EDICIÓN ---
@@ -130,10 +173,24 @@ export default function Profile({ me, token, setMe }) {
                             <h2 className="card-title text-center mb-4">Editar Perfil</h2>
 
                             <div className="text-center mb-4">
-                                <div style={photoPlaceholderStyle}><span>Foto</span></div>
-                                <button type="button" className="btn btn-sm btn-link mt-2" disabled>
-                                    (Subir foto próximamente)
-                                </button>
+                                <img 
+                                    src={previewUrl || imageUrl || 'https://via.placeholder.com/150'} 
+                                    alt="Perfil" 
+                                    style={photoStyle} 
+                                    onClick={() => fileInputRef.current.click()} 
+                                />
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={handleFileChange} 
+                                    style={{ display: 'none' }} 
+                                    accept="image/png, image/jpeg"
+                                />
+                                {selectedFile && (
+                                    <button type="button" className="btn btn-success mt-2" onClick={handlePhotoSubmit}>
+                                        Guardar Foto
+                                    </button>
+                                )}
                             </div>
 
                             <div className="mb-3">
@@ -245,7 +302,7 @@ export default function Profile({ me, token, setMe }) {
         );
     }
 
-    // --- VISTA "VER PERFIL" (Solo lectura, por defecto) ---
+    // --- VISTA "VER PERFIL" ---
     return (
         <div className="container mt-4" style={{ maxWidth: '700px' }}>
             <div className="card shadow-sm">
@@ -253,10 +310,13 @@ export default function Profile({ me, token, setMe }) {
                     <h2 className="card-title text-center mb-4">Mi Perfil</h2>
 
                     <div className="text-center mb-4">
-                        <div style={photoPlaceholderStyle}><span>Foto</span></div>
+                        {imageUrl ? (
+                            <img src={imageUrl} alt="Perfil" style={photoStyle} />
+                        ) : (
+                            <div style={photoStyle}><span>Foto</span></div>
+                        )}
                     </div>
 
-                    {/* Mostramos los datos fijos */}
                     <p className="fs-5 mb-2">
                         <strong className="d-block text-muted">Nombre de usuario:</strong> {me.username}
                     </p>
@@ -267,7 +327,6 @@ export default function Profile({ me, token, setMe }) {
                     <hr className="my-4" />
                     <h4 className="h5 mb-3">Datos Adicionales</h4>
 
-                    {/* Mostramos los datos opcionales */}
                     <p className="fs-5 mb-2">
                         <strong className="d-block text-muted">Nombre:</strong> 
                         {me.first_name || 'No especificado'}
