@@ -51,6 +51,7 @@ make restart
 ```
 
 ### Ejecutar los tests unitarios
+
 La ejecucion de los tests se realiza en un contenedor de docker que contiene todas las dependencias y requerimientos necesarios instalados para correr los tests correctamente.
 
 Ejecutar el comando:
@@ -60,4 +61,5 @@ Ejecutar el comando:
 make test
 
 ```
-para levantar el contenedor y correr los tests. Automaticamente terminada la ejecucion de los tests, el conetenedor se elimina automaticamente para limpiar los recursos.
+
+Para levantar el contenedor y correr los tests. Automaticamente terminada la ejecucion de los tests, el conetenedor se elimina automaticamente para limpiar los recursos.
