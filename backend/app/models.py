@@ -23,15 +23,24 @@ class User(Base):
     
 class Publication(Base):
     __tablename__ = "publications"
-    name = Column(String, nullable=True)
-    street = Column(String, nullable=True) 
-    id = Column(Integer, primary_key=True, index=True)
+
+    # columnas legacy
+    name   = Column(String, nullable=True)     # legacy, la llenamos con place_name
+    street = Column(String, nullable=True)     # legacy, la llenamos desde address
+    number = Column(String, nullable=True)     # 🔹 NUEVA: legacy, la llenamos desde address
+
+    id         = Column(Integer, primary_key=True, index=True)
     place_name = Column(String, nullable=False)
-    country = Column(String, nullable=False)
-    province = Column(String, nullable=False)
-    city = Column(String, nullable=False)
-    address = Column(String, nullable=False)
-    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    country    = Column(String, nullable=False)
+    province   = Column(String, nullable=False)
+    city       = Column(String, nullable=False)
+    address    = Column(String, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),   # por si recreas/migras la tabla
+        default=func.now(),          # <-- default del lado de SQLAlchemy (cliente)
+    )
 
     photos = relationship(
         "PublicationPhoto",
@@ -46,5 +55,7 @@ class PublicationPhoto(Base):
     id = Column(Integer, primary_key=True, index=True)
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False)
     url = Column(String(400), nullable=False)
+
+    index_order = Column(Integer, nullable=False, server_default="0", default=0)
 
     publication = relationship("Publication", back_populates="photos")

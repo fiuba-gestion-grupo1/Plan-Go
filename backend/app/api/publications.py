@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime, timezone
 import os
+import re
 from .. import models, schemas
 from ..db import get_db
 from .auth import get_current_user  # ya existe
@@ -39,6 +41,14 @@ def list_publications(db: Session = Depends(get_db), _: models.User = Depends(re
         )
     return out
 
+_STREET_NUM_RE = re.compile(r"\s*(.+?)\s+(\d+[A-Za-z\-]*)\s*$")
+def split_street_number(address: str) -> tuple[str, str]:
+    m = _STREET_NUM_RE.match(address or "")
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    # fallback si no se puede parsear: “s/n” = sin número
+    return (address or "").strip(), "s/n"
+
 # --- CREATE ---
 @router.post("", response_model=schemas.PublicationOut, status_code=status.HTTP_201_CREATED)
 def create_publication(
@@ -59,22 +69,31 @@ def create_publication(
         if f.content_type not in ("image/jpeg", "image/png", "image/webp"):
             raise HTTPException(status_code=400, detail="Formato de imagen inválido (usa JPG/PNG/WebP)")
 
+    # dividir address en street/number (legacy), si se puede
+    street, number = address, None
+    parts = address.strip().rsplit(" ", 1)
+    if len(parts) == 2 and parts[1].isdigit():
+        street, number = parts[0], parts[1]
+
+    # crear publicación (seteamos created_at por legacy NOT NULL)
     pub = models.Publication(
         place_name=place_name,
-        name=place_name,          # compat con columna 'name'
+        name=place_name,                     # compat con columna legacy 'name'
         country=country,
         province=province,
         city=city,
         address=address,
-        street=address,           # compat con columna 'street' NOT NULL
+        street=street,                       # compat con columna legacy 'street'
+        created_at=datetime.now(timezone.utc)
     )
-    db.add(pub)
-    db.flush()
-    db.commit()
-    db.refresh(pub)
+    if hasattr(models.Publication, "number"):
+        setattr(pub, "number", number)
 
-    saved_urls: List[str] = []
+    db.add(pub)
+    db.flush()  # necesitamos pub.id para asociar fotos
+
     # guardar archivos
+    saved_urls: List[str] = []
     for idx, f in enumerate(files):
         ext = {
             "image/jpeg": ".jpg",
@@ -85,8 +104,11 @@ def create_publication(
         abs_path = os.path.join(UPLOAD_DIR, filename)
         with open(abs_path, "wb") as out:
             out.write(f.file.read())
+
         url = f"/static/uploads/publications/{filename}"
-        db.add(models.PublicationPhoto(publication_id=pub.id, url=url))
+        # importante: index_order para la tabla legacy NOT NULL
+        photo = models.PublicationPhoto(publication_id=pub.id, url=url, index_order=idx)
+        db.add(photo)
         saved_urls.append(url)
 
     db.commit()
@@ -112,7 +134,6 @@ def delete_publication(pub_id: int, db: Session = Depends(get_db), _: models.Use
 
     # borrar archivos físicos
     for ph in pub.photos:
-        # ph.url -> /static/uploads/publications/filename
         filename = ph.url.split("/static/uploads/publications/")[-1]
         abs_path = os.path.join(UPLOAD_DIR, filename)
         try:
