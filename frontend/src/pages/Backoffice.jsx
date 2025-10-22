@@ -186,12 +186,53 @@ function CreateView({ loading, error, okMsg, go, onSubmit }) {
         <h3 className="mb-0">Crear publicación</h3>
         <button className="btn btn-outline-secondary" onClick={() => go("menu")}>Volver</button>
       </div>
+
       {loading && <div className="alert alert-info mt-3 mb-0">Guardando...</div>}
       {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
       {okMsg && <div className="alert alert-success mt-3 mb-0">{okMsg}</div>}
+
       <form className="card shadow-sm mt-3 p-3" onSubmit={onSubmit}>
+        <div className="row g-3">
+          <div className="col-12">
+            <label className="form-label">Nombre del lugar *</label>
+            <input name="place_name" type="text" className="form-control" required />
+          </div>
+
+          <div className="col-md-6">
+            <label className="form-label">País *</label>
+            <input name="country" type="text" className="form-control" required />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label">Provincia/Estado *</label>
+            <input name="province" type="text" className="form-control" required />
+          </div>
+
+          <div className="col-md-6">
+            <label className="form-label">Ciudad *</label>
+            <input name="city" type="text" className="form-control" required />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label">Dirección (calle y número) *</label>
+            <input name="address" type="text" className="form-control" required />
+          </div>
+
+          <div className="col-12">
+            <label className="form-label">Fotos (hasta 4) — JPG/PNG/WebP</label>
+            <input
+              name="photos"
+              type="file"
+              className="form-control"
+              multiple
+              accept="image/jpeg,image/png,image/webp"
+            />
+            <div className="form-text">Podés seleccionar varias a la vez. Máximo 4.</div>
+          </div>
+        </div>
+
         <div className="d-flex justify-content-end gap-2 mt-3">
-          <button type="button" className="btn btn-outline-secondary" onClick={() => go("list")}>Cancelar</button>
+          <button type="button" className="btn btn-outline-secondary" onClick={() => go("list")}>
+            Cancelar
+          </button>
           <button type="submit" className="btn btn-primary">Crear</button>
         </div>
       </form>

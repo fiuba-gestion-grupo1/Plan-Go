@@ -60,13 +60,16 @@ def create_publication(
             raise HTTPException(status_code=400, detail="Formato de imagen inválido (usa JPG/PNG/WebP)")
 
     pub = models.Publication(
-        place_name=place_name.strip(),
-        country=country.strip(),
-        province=province.strip(),
-        city=city.strip(),
-        address=address.strip(),
+        place_name=place_name,
+        name=place_name,          # compat con columna 'name'
+        country=country,
+        province=province,
+        city=city,
+        address=address,
+        street=address,           # compat con columna 'street' NOT NULL
     )
     db.add(pub)
+    db.flush()
     db.commit()
     db.refresh(pub)
 

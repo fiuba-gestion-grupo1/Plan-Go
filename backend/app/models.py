@@ -23,13 +23,14 @@ class User(Base):
     
 class Publication(Base):
     __tablename__ = "publications"
-
+    name = Column(String, nullable=True)
+    street = Column(String, nullable=True) 
     id = Column(Integer, primary_key=True, index=True)
-    place_name = Column(String(200), nullable=False)
-    country = Column(String(100), nullable=False)
-    province = Column(String(100), nullable=False)
-    city = Column(String(100), nullable=False)
-    address = Column(String(200), nullable=False)
+    place_name = Column(String, nullable=False)
+    country = Column(String, nullable=False)
+    province = Column(String, nullable=False)
+    city = Column(String, nullable=False)
+    address = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
     photos = relationship(
