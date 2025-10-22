@@ -1,8 +1,10 @@
+from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from ..db import get_db
 from .. import models, security, schemas
+from ..models import User
 from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -34,19 +36,24 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado.")
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="El nombre de usuario ya existe")
+
     hashed_answer_1 = security.hash_password(payload.security_answer_1)
     hashed_answer_2 = security.hash_password(payload.security_answer_2)
-    
+
     user = models.User(
-        username=payload.username, 
-        email=payload.email, 
+        email=payload.email,
+        username=payload.username,
         hashed_password=security.hash_password(payload.password),
+        first_name=getattr(payload, "first_name", None),
+        last_name=getattr(payload, "last_name", None),
+        birth_date=getattr(payload, "birth_date", None),
+        travel_preferences=getattr(payload, "travel_preferences", None),
         security_question_1=payload.security_question_1,
         hashed_answer_1=hashed_answer_1,
         security_question_2=payload.security_question_2,
-        hashed_answer_2=hashed_answer_2
+        hashed_answer_2=hashed_answer_2,
+        role="user",  # 👈 nuevo
     )
-
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -194,9 +201,14 @@ def set_new_password_with_token(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
         
+    
     user.hashed_password = security.hash_password(payload.new_password)
     db.add(user)
     db.commit()
     
     return {"message": "Contraseña actualizada con éxito."}
-    
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
+    return current_user

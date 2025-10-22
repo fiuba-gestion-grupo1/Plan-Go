@@ -18,3 +18,5 @@ class User(Base):
     security_question_2 = Column(String, nullable=True)
     hashed_answer_2 = Column(String, nullable=True)
     profile_picture_url = Column(String, nullable=True)
+    role = Column(String(20), nullable=False, server_default="user", default="user", index=True)
+    

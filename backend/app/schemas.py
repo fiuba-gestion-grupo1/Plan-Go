@@ -69,6 +69,7 @@ class UserOut(BaseModel):
     birth_date: date | None = None
     travel_preferences: str | None = None
     profile_picture_url: str | None = None
+    role: str
 
     if _V2:
         # v2

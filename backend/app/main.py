@@ -31,3 +31,8 @@ app.include_router(users.router)
 frontend_build = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 if frontend_build.exists():
     app.mount("/", StaticFiles(directory=frontend_build, html=True), name="frontend")
+
+@app.on_event("startup")
+def init_db():
+    # Crea TODAS las tablas según tus modelos (incluye 'role')
+    Base.metadata.create_all(bind=engine)
