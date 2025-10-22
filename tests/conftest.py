@@ -1,30 +1,32 @@
 # tests/conftest.py
+import os
+
+# --- IMPORTANTÍSIMO ---
+# En CI no hay .env. Si DATABASE_URL no viene seteada, inyectamos una SQLite local
+# antes de importar cualquier módulo del backend que la lea.
+if "DATABASE_URL" not in os.environ:
+    os.environ["DATABASE_URL"] = "sqlite:///./ci_test.db"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-import os
-import shutil
 
 from backend.app.db import Base, get_db
 from backend.app.main import app
 from backend.app import models, security
 
-if "DATABASE_URL" not in os.environ:
-    os.environ["DATABASE_URL"] = "sqlite:///./ci_test.db"
-
-#base de datos SQLite en memoria para los tests
+# Base de datos SQLite en memoria para los tests (aislada del DATABASE_URL de app)
 DATABASE_URL_TEST = "sqlite:///:memory:"
 
 engine = create_engine(
     DATABASE_URL_TEST,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool, # Usar StaticPool para SQLite en memoria
+    poolclass=StaticPool,  # Usar StaticPool para SQLite en memoria
 )
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 
 def override_get_db():
     db = TestingSessionLocal()
@@ -33,25 +35,24 @@ def override_get_db():
     finally:
         db.close()
 
+# Forzamos a la app a usar la sesión de test
 app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
-    """Fixture para crear las tablas una vez por sesión de tests."""
+    """Crear las tablas una vez por sesión de tests."""
     Base.metadata.create_all(bind=engine)
     yield
 
 @pytest.fixture(scope="function")
 def db_session():
-    """Fixture para obtener una sesión de base de datos por cada test."""
-    # Abre una conexión y limpia todas las tablas
+    """Sesión limpia por test."""
     with engine.connect() as connection:
         transaction = connection.begin()
         for table in reversed(Base.metadata.sorted_tables):
             connection.execute(table.delete())
         transaction.commit()
 
-    # Crea una nueva sesión para el test
     session = TestingSessionLocal()
     try:
         yield session
@@ -59,14 +60,13 @@ def db_session():
         session.close()
 
 @pytest.fixture(scope="module")
-#cliente de prueba de FastAPI
 def client():
+    """Cliente de prueba de FastAPI."""
     with TestClient(app) as c:
         yield c
 
 @pytest.fixture(scope="function")
 def test_user_data():
-    """Datos de un usuario de prueba."""
     return {
         "username": "testuser",
         "email": "test@example.com",
@@ -74,12 +74,11 @@ def test_user_data():
         "security_question_1": "Pet's name?",
         "security_answer_1": "Fido",
         "security_question_2": "City of birth?",
-        "security_answer_2": "Testville"
+        "security_answer_2": "Testville",
     }
 
 @pytest.fixture(scope="function")
 def test_user(db_session: TestingSessionLocal, test_user_data: dict):
-    """Crea un usuario en la DB y lo devuelve."""
     user = models.User(
         username=test_user_data["username"],
         email=test_user_data["email"],
@@ -96,27 +95,19 @@ def test_user(db_session: TestingSessionLocal, test_user_data: dict):
 
 @pytest.fixture(scope="function")
 def auth_headers(client: TestClient, test_user, test_user_data: dict):
-    """Obtiene un token de autenticación para el usuario de prueba."""
-    login_data = {
-        "identifier": test_user_data["email"],
-        "password": test_user_data["password"]
-    }
+    login_data = {"identifier": test_user_data["email"], "password": test_user_data["password"]}
     response = client.post("/api/auth/login", json=login_data)
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_test_uploads():
-    """Elimina solo los archivos subidos durante los tests, sin tocar los existentes."""
+    """Eliminar SOLO archivos generados por los tests (no tocar los existentes)."""
     uploads_dir = os.path.join("backend", "app", "static", "uploads")
-    if not os.path.exists(uploads_dir):
-        os.makedirs(uploads_dir, exist_ok=True)
+    os.makedirs(uploads_dir, exist_ok=True)
 
-    # Guardar el estado inicial de los archivos antes de correr tests
     existing_files = set(os.listdir(uploads_dir))
-    yield  # Esperar a que terminen los tests
-
-    # Eliminar solo los nuevos archivos creados durante los tests
+    yield
     current_files = set(os.listdir(uploads_dir))
     new_files = current_files - existing_files
     for filename in new_files:
