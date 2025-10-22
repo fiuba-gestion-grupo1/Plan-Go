@@ -11,6 +11,9 @@ from backend.app.db import Base, get_db
 from backend.app.main import app
 from backend.app import models, security
 
+if "DATABASE_URL" not in os.environ:
+    os.environ["DATABASE_URL"] = "sqlite:///./ci_test.db"
+
 #base de datos SQLite en memoria para los tests
 DATABASE_URL_TEST = "sqlite:///:memory:"
 
