@@ -17,4 +17,5 @@ restart:
 	@docker compose up --build -d
 
 test:
-	docker-compose run --build --rm test
+	docker compose build test
+	docker compose run --rm test

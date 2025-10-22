@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 import os
+import shutil
 
 from backend.app.db import Base, get_db
 from backend.app.main import app
@@ -100,3 +101,25 @@ def auth_headers(client: TestClient, test_user, test_user_data: dict):
     response = client.post("/api/auth/login", json=login_data)
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_uploads():
+    """Elimina solo los archivos subidos durante los tests, sin tocar los existentes."""
+    uploads_dir = os.path.join("backend", "app", "static", "uploads")
+    if not os.path.exists(uploads_dir):
+        os.makedirs(uploads_dir, exist_ok=True)
+
+    # Guardar el estado inicial de los archivos antes de correr tests
+    existing_files = set(os.listdir(uploads_dir))
+    yield  # Esperar a que terminen los tests
+
+    # Eliminar solo los nuevos archivos creados durante los tests
+    current_files = set(os.listdir(uploads_dir))
+    new_files = current_files - existing_files
+    for filename in new_files:
+        path = os.path.join(uploads_dir, filename)
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+        except Exception as e:
+            print(f"⚠️ No se pudo borrar {path}: {e}")
