@@ -145,3 +145,23 @@ def delete_publication(pub_id: int, db: Session = Depends(get_db), _: models.Use
     db.delete(pub)
     db.commit()
     return {"message": "Publicación eliminada"}
+
+# --- GET PUBLICATION FOR USERS ---
+@router.get("/public", response_model=List[schemas.PublicationOut])
+def list_publications_public(db: Session = Depends(get_db)):
+    pubs = db.query(models.Publication).order_by(models.Publication.created_at.desc()).all()
+    out: List[schemas.PublicationOut] = []
+    for p in pubs:
+        out.append(
+            schemas.PublicationOut(
+                id=p.id,
+                place_name=p.place_name,
+                country=p.country,
+                province=p.province,
+                city=p.city,
+                address=p.address,
+                created_at=p.created_at.isoformat() if p.created_at else "",
+                photos=[ph.url for ph in p.photos],
+            )
+        )
+    return out
