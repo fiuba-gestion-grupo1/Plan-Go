@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, validator, Field
+from typing import List, Optional
 from datetime import date, datetime
 
 try:
@@ -82,3 +83,23 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class PublicationCreate(BaseModel):
+    place_name: str = Field(..., min_length=2, max_length=200)
+    country: str = Field(..., min_length=2, max_length=100)
+    province: str = Field(..., min_length=2, max_length=100)
+    city: str = Field(..., min_length=1, max_length=100)
+    address: str = Field(..., min_length=3, max_length=200)
+
+class PublicationOut(BaseModel):
+    id: int
+    place_name: str
+    country: str
+    province: str
+    city: str
+    address: str
+    created_at: str
+    photos: List[str] = []
+
+    class Config:
+        from_attributes = True

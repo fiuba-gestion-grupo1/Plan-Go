@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from .db import Base, engine
-from .api import auth, health, users
+from .api import auth, health, users, publications
 
 app = FastAPI(title="Plan&Go API")
 
@@ -26,6 +26,7 @@ Base.metadata.create_all(bind=engine)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(publications.router)
 
 # Servir frontend compilado
 frontend_build = Path(__file__).resolve().parents[2] / "frontend" / "dist"
