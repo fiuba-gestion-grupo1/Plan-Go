@@ -98,8 +98,11 @@ class PublicationOut(BaseModel):
     province: str
     city: str
     address: str
+    status: str = "approved"
+    created_by_user_id: int | None = None
     created_at: str
     photos: List[str] = []
+    is_favorite: bool = False
 
     class Config:
         from_attributes = True

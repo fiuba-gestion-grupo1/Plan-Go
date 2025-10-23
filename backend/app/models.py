@@ -35,6 +35,8 @@ class Publication(Base):
     province   = Column(String, nullable=False)
     city       = Column(String, nullable=False)
     address    = Column(String, nullable=False)
+    status     = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -42,6 +44,7 @@ class Publication(Base):
         default=func.now(),          # <-- default del lado de SQLAlchemy (cliente)
     )
 
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
     photos = relationship(
         "PublicationPhoto",
         back_populates="publication",
@@ -59,3 +62,15 @@ class PublicationPhoto(Base):
     index_order = Column(Integer, nullable=False, server_default="0", default=0)
 
     publication = relationship("Publication", back_populates="photos")
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    publication = relationship("Publication")
