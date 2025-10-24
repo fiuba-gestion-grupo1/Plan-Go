@@ -239,6 +239,11 @@ def list_my_submissions(db: Session = Depends(get_db), current_user: models.User
         models.Publication.created_by_user_id == current_user.id
     ).order_by(models.Publication.created_at.desc()).all()
     
+    # Obtener IDs de publicaciones con solicitud de eliminación pendiente
+    pending_deletion_ids = {req.publication_id for req in db.query(models.DeletionRequest).filter(
+        models.DeletionRequest.status == "pending"
+    ).all()}
+    
     out: List[schemas.PublicationOut] = []
     for p in pubs:
         out.append(
@@ -253,6 +258,7 @@ def list_my_submissions(db: Session = Depends(get_db), current_user: models.User
                 created_by_user_id=p.created_by_user_id,
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
+                has_pending_deletion=p.id in pending_deletion_ids,
             )
         )
     return out
@@ -461,3 +467,137 @@ def list_my_favorites(db: Session = Depends(get_db), current_user: models.User =
                 )
             )
     return out
+
+
+# --- REQUEST DELETION (usuarios básicos) ---
+@router.post("/{pub_id}/request-deletion", status_code=status.HTTP_200_OK)
+def request_deletion(pub_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Un usuario solicita eliminar una publicación (debe ser aprobada por admin)
+    """
+    pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    # Verificar si ya existe una solicitud pendiente
+    existing_request = db.query(models.DeletionRequest).filter(
+        models.DeletionRequest.publication_id == pub_id,
+        models.DeletionRequest.status == "pending"
+    ).first()
+    
+    if existing_request:
+        raise HTTPException(status_code=400, detail="Ya existe una solicitud de eliminación pendiente para esta publicación")
+    
+    # Crear nueva solicitud
+    new_request = models.DeletionRequest(
+        publication_id=pub_id,
+        requested_by_user_id=current_user.id
+    )
+    db.add(new_request)
+    db.commit()
+    
+    return {"message": "Solicitud de eliminación enviada. Será revisada por un administrador."}
+
+
+# --- GET PENDING DELETION REQUESTS (solo admin) ---
+@router.get("/deletion-requests/pending", response_model=List[schemas.DeletionRequestOut])
+def list_pending_deletion_requests(db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    """
+    Lista todas las solicitudes de eliminación pendientes
+    """
+    requests = db.query(models.DeletionRequest).filter(
+        models.DeletionRequest.status == "pending"
+    ).order_by(models.DeletionRequest.created_at.desc()).all()
+    
+    out: List[schemas.DeletionRequestOut] = []
+    for req in requests:
+        p = req.publication
+        if p:
+            # Obtener fotos
+            favorite_ids = set()
+            pub_out = schemas.PublicationOut(
+                id=p.id,
+                place_name=p.place_name,
+                country=p.country,
+                province=p.province,
+                city=p.city,
+                address=p.address,
+                status=p.status,
+                created_by_user_id=p.created_by_user_id,
+                created_at=p.created_at.isoformat() if p.created_at else "",
+                photos=[ph.url for ph in p.photos],
+                is_favorite=False,
+                has_pending_deletion=True
+            )
+            
+            out.append(
+                schemas.DeletionRequestOut(
+                    id=req.id,
+                    publication_id=req.publication_id,
+                    requested_by_user_id=req.requested_by_user_id,
+                    status=req.status,
+                    created_at=req.created_at.isoformat() if req.created_at else "",
+                    publication=pub_out
+                )
+            )
+    return out
+
+
+# --- APPROVE DELETION REQUEST (solo admin) ---
+@router.put("/deletion-requests/{request_id}/approve", status_code=status.HTTP_200_OK)
+def approve_deletion_request(request_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    """
+    Aprueba la solicitud de eliminación y elimina la publicación
+    """
+    req = db.query(models.DeletionRequest).filter(models.DeletionRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+    
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail="Esta solicitud ya fue procesada")
+    
+    # Obtener la publicación
+    pub = req.publication
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    
+    # Borrar archivos físicos
+    for ph in pub.photos:
+        filename = ph.url.split("/static/uploads/publications/")[-1]
+        abs_path = os.path.join(UPLOAD_DIR, filename)
+        try:
+            if os.path.exists(abs_path):
+                os.remove(abs_path)
+        except Exception:
+            pass
+    
+    # Eliminar la publicación (cascada eliminará fotos y solicitud)
+    db.delete(pub)
+    
+    # Actualizar estado de la solicitud
+    req.status = "approved"
+    req.resolved_at = datetime.now(timezone.utc)
+    
+    db.commit()
+    
+    return {"message": "Solicitud aprobada. Publicación eliminada."}
+
+
+# --- REJECT DELETION REQUEST (solo admin) ---
+@router.put("/deletion-requests/{request_id}/reject", status_code=status.HTTP_200_OK)
+def reject_deletion_request(request_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    """
+    Rechaza la solicitud de eliminación
+    """
+    req = db.query(models.DeletionRequest).filter(models.DeletionRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+    
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail="Esta solicitud ya fue procesada")
+    
+    req.status = "rejected"
+    req.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+    
+    return {"message": "Solicitud de eliminación rechazada."}

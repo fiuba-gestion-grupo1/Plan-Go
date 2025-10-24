@@ -57,3 +57,21 @@ def ensure_min_schema(engine):
         # Crear índices para la tabla favorites
         conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)")
         conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_favorites_publication_id ON favorites(publication_id)")
+        
+        # Crear tabla de solicitudes de eliminación si no existe
+        conn.exec_driver_sql("""
+            CREATE TABLE IF NOT EXISTS deletion_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                publication_id INTEGER NOT NULL,
+                requested_by_user_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT (datetime('now')),
+                resolved_at TIMESTAMP,
+                FOREIGN KEY (publication_id) REFERENCES publications(id) ON DELETE CASCADE,
+                FOREIGN KEY (requested_by_user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Crear índices para la tabla deletion_requests
+        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_deletion_requests_publication_id ON deletion_requests(publication_id)")
+        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS idx_deletion_requests_status ON deletion_requests(status)")

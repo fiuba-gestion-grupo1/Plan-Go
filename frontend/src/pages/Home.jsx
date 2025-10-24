@@ -90,6 +90,32 @@ export default function Home({ me }) {
     }
   }
 
+  async function requestDeletion(pubId) {
+    if (!window.confirm("¿Deseas solicitar la eliminación de esta publicación? Un administrador deberá aprobarla.")) {
+      return;
+    }
+    
+    try {
+      await request(`/api/publications/${pubId}/request-deletion`, { 
+        method: "POST", 
+        token 
+      });
+      
+      setSuccessMsg("Solicitud de eliminación enviada. Será revisada por un administrador.");
+      
+      // Actualizar la lista de mis publicaciones
+      setMyPubs(prevPubs => 
+        prevPubs.map(p => 
+          p.id === pubId ? { ...p, has_pending_deletion: true } : p
+        )
+      );
+      
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   function handleSearch(query) {
     setSearchQuery(query);
     fetchPublications(query);
@@ -149,11 +175,14 @@ export default function Home({ me }) {
         pubs={myPubs}
         loading={loading}
         error={error}
+        successMsg={successMsg}
         onBack={() => {
           setShowMySubmissions(false);
           setError("");
+          setSuccessMsg("");
         }}
         onLoad={fetchMySubmissions}
+        onRequestDeletion={requestDeletion}
       />
     );
   }
@@ -332,7 +361,7 @@ export default function Home({ me }) {
   );
 }
 
-function MySubmissionsView({ pubs, loading, error, onBack, onLoad }) {
+function MySubmissionsView({ pubs, loading, error, successMsg, onBack, onLoad, onRequestDeletion }) {
   React.useEffect(() => {
     onLoad();
   }, []);
@@ -355,6 +384,7 @@ function MySubmissionsView({ pubs, loading, error, onBack, onLoad }) {
 
       {loading && <div className="alert alert-info">Cargando...</div>}
       {error && <div className="alert alert-danger">{error}</div>}
+      {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
       <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
         {pubs.map((p) => (
@@ -362,12 +392,38 @@ function MySubmissionsView({ pubs, loading, error, onBack, onLoad }) {
             <div className="card shadow-sm h-100">
               <div className="card-body pb-0">
                 <div className="d-flex justify-content-between align-items-start mb-2">
-                  <h5 className="card-title mb-1">{p.place_name}</h5>
-                  {getStatusBadge(p.status)}
+                  <div className="flex-grow-1">
+                    <h5 className="card-title mb-1">{p.place_name}</h5>
+                    <small className="text-muted d-block">
+                      {p.address}, {p.city}, {p.province}, {p.country}
+                    </small>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    {getStatusBadge(p.status)}
+                    {p.status === "approved" && !p.has_pending_deletion && (
+                      <div className="dropdown">
+                        <button
+                          className="btn btn-sm btn-link text-muted p-0"
+                          data-bs-toggle="dropdown"
+                          aria-expanded="false"
+                          title="Más acciones"
+                        >
+                          ⋯
+                        </button>
+                        <ul className="dropdown-menu dropdown-menu-end">
+                          <li>
+                            <button
+                              className="dropdown-item text-danger"
+                              onClick={() => onRequestDeletion(p.id)}
+                            >
+                              Solicitar eliminación
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <small className="text-muted">
-                  {p.address}, {p.city}, {p.province}, {p.country}
-                </small>
               </div>
 
               {p.photos?.length ? (
@@ -424,6 +480,11 @@ function MySubmissionsView({ pubs, loading, error, onBack, onLoad }) {
                 {p.status === "pending" && (
                   <small className="text-warning d-block mt-1">
                     ⏳ En revisión por un administrador.
+                  </small>
+                )}
+                {p.has_pending_deletion && (
+                  <small className="text-info d-block mt-1">
+                    🕒 Solicitud de eliminación pendiente de aprobación.
                   </small>
                 )}
               </div>

@@ -103,6 +103,19 @@ class PublicationOut(BaseModel):
     created_at: str
     photos: List[str] = []
     is_favorite: bool = False
+    has_pending_deletion: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class DeletionRequestOut(BaseModel):
+    id: int
+    publication_id: int
+    requested_by_user_id: int
+    status: str
+    created_at: str
+    publication: PublicationOut
 
     class Config:
         from_attributes = True

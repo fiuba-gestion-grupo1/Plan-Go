@@ -74,3 +74,17 @@ class Favorite(Base):
 
     user = relationship("User")
     publication = relationship("Publication")
+
+
+class DeletionRequest(Base):
+    __tablename__ = "deletion_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
+    requested_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending, approved, rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    publication = relationship("Publication")
+    requested_by = relationship("User")
