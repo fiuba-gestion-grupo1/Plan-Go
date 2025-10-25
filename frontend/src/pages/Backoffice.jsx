@@ -21,6 +21,18 @@ async function request(
   return res.json().catch(() => ({}));
 }
 
+function Stars({ value = 0 }) {
+  const pct = Math.max(0, Math.min(100, (Number(value) / 5) * 100));
+  return (
+    <span className="position-relative" aria-label={`Rating ${value}/5`}>
+      <span className="text-muted" style={{ letterSpacing: 1 }}>★★★★★</span>
+      <span className="position-absolute top-0 start-0 overflow-hidden" style={{ width: `${pct}%` }}>
+        <span className="text-warning" style={{ letterSpacing: 1 }}>★★★★★</span>
+      </span>
+    </span>
+  );
+}
+
 export default function Backoffice({ me }) {
   const [view, setView] = useState("menu");
   const [loading, setLoading] = useState(false);
@@ -186,6 +198,17 @@ function ListView({ pubs, loading, error, okMsg, go, onDelete }) {
                     <small className="text-muted">
                       {p.address}, {p.city}, {p.province}, {p.country}
                     </small>
+                    <div className="mt-2 d-flex flex-wrap gap-2">
+                      <span className="badge bg-light text-dark border">
+                        <Stars value={p.rating_avg || 0} />{" "}
+                        <span className="ms-1">
+                          {Number(p.rating_avg || 0).toFixed(1)} • {p.rating_count || 0} reseña{(p.rating_count||0)===1?"":"s"}
+                        </span>
+                      </span>
+                      {(p.categories || []).map((c) => (
+                        <span key={c} className="badge bg-secondary-subtle text-secondary border">{c}</span>
+                      ))}
+                    </div>
                   </div>
                   <div className="dropdown">
                     <button
@@ -334,6 +357,12 @@ function CreateView({ loading, error, okMsg, go, onSubmit }) {
           <div className="col-md-6">
             <label className="form-label">Dirección (calle y número) *</label>
             <input name="address" type="text" className="form-control" required />
+          </div>
+
+          <div className="col-12">
+            <label className="form-label">Categorías (CSV) *</label>
+            <input name="categories" type="text" className="form-control" placeholder="ej: aventura,cultura" required />
+            <div className="form-text">Usá slugs: aventura, cultura, gastronomia</div>
           </div>
 
           <div className="col-12">

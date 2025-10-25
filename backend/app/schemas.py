@@ -90,6 +90,7 @@ class PublicationCreate(BaseModel):
     province: str = Field(..., min_length=2, max_length=100)
     city: str = Field(..., min_length=1, max_length=100)
     address: str = Field(..., min_length=3, max_length=200)
+    categories: Optional[List[str]] = None  # slugs
 
 class PublicationOut(BaseModel):
     id: int
@@ -100,6 +101,30 @@ class PublicationOut(BaseModel):
     address: str
     created_at: str
     photos: List[str] = []
+    rating_avg: float = 0.0
+    rating_count: int = 0
+    categories: List[str] = []
 
-    class Config:
-        from_attributes = True
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class ReviewCreate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = None
+
+class ReviewOut(BaseModel):
+    id: int
+    rating: int
+    comment: Optional[str] = None
+    author_username: str
+    created_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True

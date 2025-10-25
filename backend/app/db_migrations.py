@@ -8,6 +8,8 @@ PUBLICATIONS_COLUMNS = [
     ("city", "TEXT"),
     ("address", "TEXT"),
     ("created_at", "TIMESTAMP"),
+    ("rating_avg", "REAL"),     # nuevo
+    ("rating_count", "INTEGER") # nuevo
 ]
 
 def ensure_min_schema(engine):
