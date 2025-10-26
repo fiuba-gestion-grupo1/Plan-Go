@@ -19,7 +19,7 @@ def upload_profile_photo(
     db: Session = Depends(get_db)
 ):
     if file.content_type not in ["image/jpeg", "image/png"]:
-        raise HTTPException(status_code=400, detail="Tipo de archivo inválido. Solo se permiten JPG y PNG.")
+        raise HTTPException(status_code=400, detail="Tipo de archivo inválido. Solo se permiten JPG y PNG.")    
 
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid.uuid4()}.{file_extension}"

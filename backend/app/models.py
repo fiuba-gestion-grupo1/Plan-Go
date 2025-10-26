@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, Date, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, func, Date, Text, ForeignKey, Table, Float
 from sqlalchemy.orm import relationship
 from .db import Base
-
 
 class User(Base):
     __tablename__ = "users"
@@ -12,7 +11,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
-    birth_date = Column(Date, nullable=True) 
+    birth_date = Column(Date, nullable=True)
     travel_preferences = Column(Text, nullable=True)
     security_question_1 = Column(String, nullable=True)
     hashed_answer_1 = Column(String, nullable=True)
@@ -20,14 +19,28 @@ class User(Base):
     hashed_answer_2 = Column(String, nullable=True)
     profile_picture_url = Column(String, nullable=True)
     role = Column(String(20), nullable=False, server_default="user", default="user", index=True)
-    
+
+# Asociación N–N
+publication_categories = Table(
+    "publication_categories",
+    Base.metadata,
+    Column("publication_id", Integer, ForeignKey("publications.id", ondelete="CASCADE"), primary_key=True),
+    Column("category_id", Integer, ForeignKey("categories.id", ondelete="CASCADE"), primary_key=True),
+)
+
+class Category(Base):
+    __tablename__ = "categories"
+    id = Column(Integer, primary_key=True)
+    slug = Column(String(50), unique=True, index=True, nullable=False)  # aventura|cultura|gastronomia
+    name = Column(String(100), nullable=False)
+
 class Publication(Base):
     __tablename__ = "publications"
 
-    # columnas legacy
-    name   = Column(String, nullable=True)     # legacy, la llenamos con place_name
-    street = Column(String, nullable=True)     # legacy, la llenamos desde address
-    number = Column(String, nullable=True)     # 🔹 NUEVA: legacy, la llenamos desde address
+    # legacy
+    name   = Column(String, nullable=True)
+    street = Column(String, nullable=True)
+    number = Column(String, nullable=True)
 
     id         = Column(Integer, primary_key=True, index=True)
     place_name = Column(String, nullable=False)
@@ -35,27 +48,33 @@ class Publication(Base):
     province   = Column(String, nullable=False)
     city       = Column(String, nullable=False)
     address    = Column(String, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),   # por si recreas/migras la tabla
-        default=func.now(),          # <-- default del lado de SQLAlchemy (cliente)
-    )
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=func.now())
 
-    photos = relationship(
-        "PublicationPhoto",
-        back_populates="publication",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
+    # US-5.1
+    rating_avg   = Column(Float,  nullable=False, server_default="0")
+    rating_count = Column(Integer, nullable=False, server_default="0")
+
+    photos = relationship("PublicationPhoto", back_populates="publication", cascade="all, delete-orphan", passive_deletes=True)
+
+    # US-4.4
+    categories = relationship("Category", secondary=publication_categories, backref="publications")
 
 class PublicationPhoto(Base):
     __tablename__ = "publication_photos"
-
     id = Column(Integer, primary_key=True, index=True)
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False)
     url = Column(String(400), nullable=False)
-
     index_order = Column(Integer, nullable=False, server_default="0", default=0)
-
     publication = relationship("Publication", back_populates="photos")
+
+class Review(Base):
+    __tablename__ = "reviews"
+    id = Column(Integer, primary_key=True)
+    publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
+    author_id      = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    rating   = Column(Integer, nullable=False)  # 1..5
+    comment  = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    publication = relationship("Publication", backref="reviews")
+    author      = relationship("User")
