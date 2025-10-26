@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /* Helper fetch */
 async function request(path, { method = "GET", token, body, isForm = false } = {}) {
@@ -33,29 +33,63 @@ function RatingBadge({ avg = 0, count = 0 }) {
   );
 }
 
-/* --- Chips de categorías --- */
-const ALL_CATS = ["aventura", "cultura", "gastronomia"];
-function CategoryChips({ selected = [], onToggle }) {
+/* --- Dropdown multiselect --- */
+function useOnClickOutside(ref, handler) {
+  useEffect(() => {
+    function listener(e) {
+      if (!ref.current || ref.current.contains(e.target)) return;
+      handler(e);
+    }
+    document.addEventListener("mousedown", listener);
+    return () => document.removeEventListener("mousedown", listener);
+  }, [ref, handler]);
+}
+
+function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload }) {
+  const [open, setOpen] = useState(false);
+  const [temp, setTemp] = useState(selected);
+  const boxRef = useRef(null);
+
+  useEffect(() => { if (open) setTemp(selected); }, [open, selected]);
+  useOnClickOutside(boxRef, () => setOpen(false));
+
+  function toggle(c) {
+    setTemp(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  }
+  function clear() { setTemp([]); }
+  function apply() { onApply(temp); setOpen(false); }
+
   return (
-    <div className="d-flex flex-wrap gap-2">
-      {ALL_CATS.map((c) => {
-        const active = selected.includes(c);
-        return (
-          <button
-            key={c}
-            type="button"
-            className={`btn btn-sm ${active ? "btn-primary" : "btn-outline-primary"}`}
-            onClick={() => onToggle(c)}
-          >
-            {c}
-          </button>
-        );
-      })}
+    <div className="position-relative">
+      <button type="button" className="btn btn-outline-primary dropdown-toggle" onClick={() => { setOpen(o => !o); if (!open && onReload) onReload(); }}>
+        Categorías
+      </button>
+      {open && (
+        <div ref={boxRef} className="position-absolute end-0 mt-2 p-3 bg-white border rounded-3 shadow" style={{ minWidth: 280, zIndex: 1000, maxHeight: 360, overflow: "auto" }}>
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <div className="fw-semibold text-muted small">Tipo de categoría</div>
+            <button className="btn btn-sm btn-link" type="button" onClick={onReload} title="Actualizar lista">↻</button>
+          </div>
+          <ul className="list-unstyled mb-3" style={{ columnGap: 24 }}>
+            {allCats.length === 0 && <li className="text-muted small">Sin categorías aún.</li>}
+            {allCats.map((c) => (
+              <li key={c} className="form-check mb-2">
+                <input id={`cat-${c}`} type="checkbox" className="form-check-input" checked={temp.includes(c)} onChange={() => toggle(c)} />
+                <label className="form-check-label ms-1 text-capitalize" htmlFor={`cat-${c}`}>{c}</label>
+              </li>
+            ))}
+          </ul>
+          <div className="d-flex justify-content-between gap-2">
+            <button className="btn btn-outline-secondary" type="button" onClick={clear}>Limpiar</button>
+            <button className="btn btn-primary" type="button" onClick={apply}>Ver resultados</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* --- Modal de reseñas --- */
+/* --- Modal reseñas --- */
 function ReviewsModal({ open, pub, token, onClose }) {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -146,7 +180,6 @@ function ReviewsModal({ open, pub, token, onClose }) {
               <button className="btn btn-primary w-100" type="submit">Publicar</button>
             </div>
           </div>
-          {!token && <div className="form-text">Necesitás iniciar sesión para publicar reseñas.</div>}
         </form>
       </div>
     </div>
@@ -158,11 +191,25 @@ export default function Home({ me }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const token = useMemo(() => localStorage.getItem("token") || "", []);
-  const [cats, setCats] = useState([]);           // categorías seleccionadas
+
+  const [cats, setCats] = useState([]);            // categorías aplicadas
+  const [allCats, setAllCats] = useState([]);      // disponibles (dinámicas)
+
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(null);
 
   const qs = cats.length ? `?category=${encodeURIComponent(cats.join(","))}` : "";
+
+  async function reloadCats() {
+    try {
+      const list = await request("/api/categories");
+      setAllCats(list);
+    } catch (e) {
+      // silencio: si no hay endpoint aún, la UI sigue funcionando
+    }
+  }
+
+  useEffect(() => { reloadCats(); }, []); // cargar al montar
 
   useEffect(() => {
     (async () => {
@@ -179,14 +226,7 @@ export default function Home({ me }) {
     })();
   }, [qs]);
 
-  function toggleCat(cat) {
-    setCats((prev) => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
-  }
-
-  function openReviews(p) {
-    setCurrent(p);
-    setOpen(true);
-  }
+  function openReviews(p) { setCurrent(p); setOpen(true); }
 
   return (
     <div className="container mt-4">
@@ -199,7 +239,12 @@ export default function Home({ me }) {
 
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h3 className="mb-0">Publicaciones</h3>
-        <CategoryChips selected={cats} onToggle={toggleCat} />
+        <MultiCategoryDropdown
+          allCats={allCats}
+          selected={cats}
+          onApply={setCats}
+          onReload={reloadCats}
+        />
       </div>
 
       {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
@@ -219,7 +264,7 @@ export default function Home({ me }) {
                     <div className="mt-2 d-flex flex-wrap gap-2">
                       <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                       {(p.categories || []).map((c) => (
-                        <span key={c} className="badge bg-secondary-subtle text-secondary border">{c}</span>
+                        <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
                       ))}
                     </div>
                   </div>
