@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useEffect, useState } from "react";
-import api from "../api";
+import * as api from "../api";
 
 /* Helper fetch */
 async function request(path, { method = "GET", token, body, isForm = false } = {}) {
@@ -188,6 +187,7 @@ function ReviewsModal({ open, pub, token, onClose }) {
   );
 }
 
+/* ---------- PÁGINA PRINCIPAL ---------- */
 export default function Home({ me }) {
   const [pubs, setPubs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -206,7 +206,7 @@ export default function Home({ me }) {
     try {
       const list = await request("/api/categories");
       setAllCats(list);
-    } catch (e) {
+    } catch {
       // silencio: si no hay endpoint aún, la UI sigue funcionando
     }
   }
@@ -234,7 +234,7 @@ export default function Home({ me }) {
     <div className="container mt-4">
       <div className="p-5 mb-4 bg-light rounded-3">
         <div className="container-fluid py-5">
-          <h1 className="display-6 fw-bold">¡Bienvenido a Plan&Go, {me.username}!</h1>
+          <h1 className="display-6 fw-bold">¡Bienvenido a Plan&Go{me?.username ? `, ${me.username}` : ""}!</h1>
           <p className="col-md-8 fs-5">Usá los filtros para encontrar actividades/lugares y mirá las reseñas antes de decidir.</p>
         </div>
       </div>
@@ -321,21 +321,29 @@ export default function Home({ me }) {
       )}
 
       <ReviewsModal open={open} pub={current} token={token} onClose={() => setOpen(false)} />
+
+      {/* Sección de sugerencias (opcional). Quitá esta línea si no querés mostrarla acá. */}
+      <div className="mt-5">
+        <Suggestions />
+      </div>
     </div>
   );
 }
 
-export default function Home() {
+/* ---------- Componente nombrado: Sugerencias ---------- */
+export function Suggestions() {
   const [items, setItems] = useState([]);
   useEffect(() => { api.get("/api/suggestions").then(setItems); }, []);
   return (
     <div className="p-4">
       <h2 className="text-lg font-bold mb-2">Sugerencias para vos</h2>
       <ul className="space-y-2">
-        {items.map(it => <li key={it.id} className="border p-2 rounded">
-          <div className="font-semibold">{it.title}</div>
-          <div className="text-sm opacity-70">score: {it.score}</div>
-        </li>)}
+        {items.map(it => (
+          <li key={it.id} className="border p-2 rounded">
+            <div className="font-semibold">{it.title}</div>
+            <div className="text-sm opacity-70">score: {it.score}</div>
+          </li>
+        ))}
       </ul>
     </div>
   );
