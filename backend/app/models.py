@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, Date, Text, ForeignKey, Table, Float
+from sqlalchemy import Column, Integer, String, DateTime, func, Date, Text, ForeignKey, Table, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .db import Base
+from sqlalchemy.types import JSON
 
 class User(Base):
     __tablename__ = "users"
@@ -78,3 +79,19 @@ class Review(Base):
 
     publication = relationship("Publication", backref="reviews")
     author      = relationship("User")
+
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+
+    # Campos de preferencia que se podrian usar para buscar cuando implementemos IA
+    budget_min = Column(Float, nullable=True)
+    budget_max = Column(Float, nullable=True)
+    climates = Column(JSON, nullable=True)          # ["templado","frio","tropical"]
+    activities = Column(JSON, nullable=True)        # ["playa","montaña","gastronomía"]
+    continents = Column(JSON, nullable=True)        # ["europa","américa"]
+    duration_min_days = Column(Integer, nullable=True)
+    duration_max_days = Column(Integer, nullable=True)
+
+    user = relationship("User", backref="preference", uselist=False)

@@ -128,3 +128,19 @@ class ReviewOut(BaseModel):
     else:
         class Config:
             orm_mode = True
+
+
+from pydantic import BaseModel, Field
+from typing import List, Optional
+
+class UserPreferenceIn(BaseModel):
+    budget_min: Optional[float] = None
+    budget_max: Optional[float] = None
+    climates: Optional[List[str]] = None
+    activities: Optional[List[str]] = None
+    continents: Optional[List[str]] = None
+    duration_min_days: Optional[int] = None
+    duration_max_days: Optional[int] = None
+
+class UserPreferenceOut(UserPreferenceIn):
+    pass #no hay cambios en la salida porque son los mismos campos que la entrada
