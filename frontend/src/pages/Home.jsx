@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import * as api from "../api";
 
 /* Helper fetch */
 async function request(path, { method = "GET", token, body, isForm = false } = {}) {
@@ -187,15 +186,118 @@ function ReviewsModal({ open, pub, token, onClose }) {
   );
 }
 
-/* ---------- PÁGINA PRINCIPAL ---------- */
+/* --- NUEVO BLOQUE: Configurar preferencias --- */
+function PreferencesBox({ token }) {
+  const [prefs, setPrefs] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await request("/api/preferences", { token });
+        setPrefs(data);
+      } catch {
+        setPrefs({});
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [token]);
+
+  async function savePreferences() {
+    setSaving(true);
+    try {
+      await request("/api/preferences", { method: "PUT", token, body: prefs });
+      alert("Preferencias guardadas correctamente");
+    } catch (e) {
+      alert("Error guardando preferencias: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function toggleList(key, val) {
+    const list = prefs[key] || [];
+    const updated = list.includes(val)
+      ? list.filter((v) => v !== val)
+      : [...list, val];
+    setPrefs({ ...prefs, [key]: updated });
+  }
+
+  if (loading) return <div className="text-muted">Cargando preferencias…</div>;
+
+  return (
+    <div className="border rounded-3 p-3 bg-white shadow-sm mb-4">
+      <h5 className="mb-3">Configurar preferencias</h5>
+
+      <div className="row g-2 mb-3">
+        <div className="col-md-3">
+          <label className="form-label">Presupuesto mín. (USD)</label>
+          <input type="number" className="form-control"
+            value={prefs.budget_min || ""}
+            onChange={(e) => setPrefs({ ...prefs, budget_min: Number(e.target.value) || null })} />
+        </div>
+        <div className="col-md-3">
+          <label className="form-label">Presupuesto máx. (USD)</label>
+          <input type="number" className="form-control"
+            value={prefs.budget_max || ""}
+            onChange={(e) => setPrefs({ ...prefs, budget_max: Number(e.target.value) || null })} />
+        </div>
+        <div className="col-md-3">
+          <label className="form-label">Duración mín. (días)</label>
+          <input type="number" className="form-control"
+            value={prefs.duration_min_days || ""}
+            onChange={(e) => setPrefs({ ...prefs, duration_min_days: Number(e.target.value) || null })} />
+        </div>
+        <div className="col-md-3">
+          <label className="form-label">Duración máx. (días)</label>
+          <input type="number" className="form-control"
+            value={prefs.duration_max_days || ""}
+            onChange={(e) => setPrefs({ ...prefs, duration_max_days: Number(e.target.value) || null })} />
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <strong>Climas:</strong>{" "}
+        {["templado","frio","tropical","seco"].map(v => (
+          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.climates?.includes(v) ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => toggleList("climates", v)}>{v}</button>
+        ))}
+      </div>
+
+      <div className="mb-3">
+        <strong>Actividades:</strong>{" "}
+        {["playa","montaña","ciudad","gastronomía","historia","noche"].map(v => (
+          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.activities?.includes(v) ? "btn-success" : "btn-outline-success"}`}
+            onClick={() => toggleList("activities", v)}>{v}</button>
+        ))}
+      </div>
+
+      <div className="mb-3">
+        <strong>Continentes:</strong>{" "}
+        {["américa","europa","asia","áfrica","oceanía"].map(v => (
+          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.continents?.includes(v) ? "btn-secondary" : "btn-outline-secondary"}`}
+            onClick={() => toggleList("continents", v)}>{v}</button>
+        ))}
+      </div>
+
+      <button className="btn btn-dark" disabled={saving} onClick={savePreferences}>
+        {saving ? "Guardando..." : "Guardar preferencias"}
+      </button>
+    </div>
+  );
+}
+
+/* --- MAIN HOME --- */
 export default function Home({ me }) {
   const [pubs, setPubs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const token = useMemo(() => localStorage.getItem("token") || "", []);
 
-  const [cats, setCats] = useState([]);            // categorías aplicadas
-  const [allCats, setAllCats] = useState([]);      // disponibles (dinámicas)
+  const [cats, setCats] = useState([]);
+  const [allCats, setAllCats] = useState([]);
 
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(null);
@@ -206,12 +308,10 @@ export default function Home({ me }) {
     try {
       const list = await request("/api/categories");
       setAllCats(list);
-    } catch {
-      // silencio: si no hay endpoint aún, la UI sigue funcionando
-    }
+    } catch {}
   }
 
-  useEffect(() => { reloadCats(); }, []); // cargar al montar
+  useEffect(() => { reloadCats(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -234,10 +334,13 @@ export default function Home({ me }) {
     <div className="container mt-4">
       <div className="p-5 mb-4 bg-light rounded-3">
         <div className="container-fluid py-5">
-          <h1 className="display-6 fw-bold">¡Bienvenido a Plan&Go{me?.username ? `, ${me.username}` : ""}!</h1>
+          <h1 className="display-6 fw-bold">¡Bienvenido a Plan&Go, {me.username}!</h1>
           <p className="col-md-8 fs-5">Usá los filtros para encontrar actividades/lugares y mirá las reseñas antes de decidir.</p>
         </div>
       </div>
+
+      {/* 🔹 NUEVA SECCIÓN: CONFIGURAR PREFERENCIAS */}
+      <PreferencesBox token={token} />
 
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h3 className="mb-0">Publicaciones</h3>
@@ -321,30 +424,6 @@ export default function Home({ me }) {
       )}
 
       <ReviewsModal open={open} pub={current} token={token} onClose={() => setOpen(false)} />
-
-      {/* Sección de sugerencias (opcional). Quitá esta línea si no querés mostrarla acá. */}
-      <div className="mt-5">
-        <Suggestions />
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Componente nombrado: Sugerencias ---------- */
-export function Suggestions() {
-  const [items, setItems] = useState([]);
-  useEffect(() => { api.get("/api/suggestions").then(setItems); }, []);
-  return (
-    <div className="p-4">
-      <h2 className="text-lg font-bold mb-2">Sugerencias para vos</h2>
-      <ul className="space-y-2">
-        {items.map(it => (
-          <li key={it.id} className="border p-2 rounded">
-            <div className="font-semibold">{it.title}</div>
-            <div className="text-sm opacity-70">score: {it.score}</div>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
