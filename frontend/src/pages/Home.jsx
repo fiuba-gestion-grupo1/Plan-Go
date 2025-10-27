@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import api from "../api";
 
 /* Helper fetch */
 async function request(path, { method = "GET", token, body, isForm = false } = {}) {
@@ -319,6 +321,22 @@ export default function Home({ me }) {
       )}
 
       <ReviewsModal open={open} pub={current} token={token} onClose={() => setOpen(false)} />
+    </div>
+  );
+}
+
+export default function Home() {
+  const [items, setItems] = useState([]);
+  useEffect(() => { api.get("/api/suggestions").then(setItems); }, []);
+  return (
+    <div className="p-4">
+      <h2 className="text-lg font-bold mb-2">Sugerencias para vos</h2>
+      <ul className="space-y-2">
+        {items.map(it => <li key={it.id} className="border p-2 rounded">
+          <div className="font-semibold">{it.title}</div>
+          <div className="text-sm opacity-70">score: {it.score}</div>
+        </li>)}
+      </ul>
     </div>
   );
 }
