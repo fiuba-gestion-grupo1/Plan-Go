@@ -89,13 +89,14 @@ function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload 
   );
 }
 
-/* --- Modal reseñas --- */
-function ReviewsModal({ open, pub, token, onClose }) {
+function ReviewsModal({ open, pub, token, me, onClose }) {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+
+  const isPremium = me?.role === "premium" || me?.username === "admin"; // si no querés que admin publique, quitá la segunda condición
 
   useEffect(() => {
     if (!open || !pub?.id) return;
@@ -117,6 +118,7 @@ function ReviewsModal({ open, pub, token, onClose }) {
 
   async function submitReview(e) {
     e.preventDefault();
+    if (!isPremium) { return; }
     if (!token) { alert("Iniciá sesión para publicar una reseña."); return; }
     try {
       await request(`/api/publications/${pub.id}/reviews`, {
@@ -124,8 +126,7 @@ function ReviewsModal({ open, pub, token, onClose }) {
         token,
         body: { rating: Number(rating), comment: comment || undefined }
       });
-      setComment("");
-      setRating(5);
+      setComment(""); setRating(5);
       const rows = await request(`/api/publications/${pub.id}/reviews`);
       setList(rows);
     } catch (e) {
@@ -164,23 +165,32 @@ function ReviewsModal({ open, pub, token, onClose }) {
           </ul>
         </div>
 
-        <form className="p-3 border-top" onSubmit={submitReview}>
-          <div className="row g-2">
-            <div className="col-12 col-md-2">
-              <label className="form-label mb-1">Rating</label>
-              <select className="form-select" value={rating} onChange={(e) => setRating(e.target.value)}>
-                {[5,4,3,2,1].map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
+        {/* Área de creación condicionada por rol */}
+        {isPremium ? (
+          <form className="p-3 border-top" onSubmit={submitReview}>
+            <div className="row g-2">
+              <div className="col-12 col-md-2">
+                <label className="form-label mb-1">Rating</label>
+                <select className="form-select" value={rating} onChange={(e) => setRating(e.target.value)}>
+                  {[5,4,3,2,1].map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div className="col-12 col-md-8">
+                <label className="form-label mb-1">Comentario (opcional)</label>
+                <input className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Contanos tu experiencia" />
+              </div>
+              <div className="col-12 col-md-2 d-flex align-items-end">
+                <button className="btn btn-primary w-100" type="submit">Publicar</button>
+              </div>
             </div>
-            <div className="col-12 col-md-8">
-              <label className="form-label mb-1">Comentario (opcional)</label>
-              <input className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Contanos tu experiencia" />
-            </div>
-            <div className="col-12 col-md-2 d-flex align-items-end">
-              <button className="btn btn-primary w-100" type="submit">Publicar</button>
+          </form>
+        ) : (
+          <div className="p-3 border-top">
+            <div className="alert alert-secondary mb-0">
+              Solo los <strong>usuarios premium</strong> pueden publicar reseñas.
             </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );
@@ -318,7 +328,7 @@ export default function Home({ me }) {
         <div className="alert alert-secondary mt-3">No hay publicaciones para los filtros seleccionados.</div>
       )}
 
-      <ReviewsModal open={open} pub={current} token={token} onClose={() => setOpen(false)} />
+      <ReviewsModal open={open} pub={current} token={token} me={me} onClose={() => setOpen(false)} />
     </div>
   );
 }
