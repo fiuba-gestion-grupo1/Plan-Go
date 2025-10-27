@@ -15,6 +15,14 @@ def require_admin(current_user: models.User = Depends(get_current_user)) -> mode
         raise HTTPException(status_code=403, detail="Solo administradores")
     return current_user
 
+def require_premium_or_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
+    # Si QUERÉS que solo premium (sin admin) puedan reseñar, cambiá la línea de abajo por:  if current_user.role != "premium":
+    if current_user.role not in ("premium", "admin"):
+        raise HTTPException(status_code=403, detail="Solo usuarios premium pueden publicar reseñas")
+    return current_user
+
+
+
 UPLOAD_DIR = os.path.join("backend", "app", "static", "uploads", "publications")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -194,8 +202,9 @@ def _update_publication_rating(db: Session, pub_id: int) -> None:
     pub.rating_count = int(count_ or 0)
     db.add(pub)
 
-@router.post("/{pub_id}/reviews", response_model=schemas.ReviewOut, status_code=status.HTTP_201_CREATED)
-def create_review(pub_id: int, payload: schemas.ReviewCreate, user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+
+@router.post("/{pub_id}/reviews", status_code=status.HTTP_201_CREATED)
+def create_review(pub_id: int, payload: dict, db: Session = Depends(get_db), user: models.User = Depends(require_premium_or_admin)):
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
