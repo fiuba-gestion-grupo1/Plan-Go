@@ -364,6 +364,70 @@ function CreateView({ loading, error, okMsg, go, onSubmit }) {
             <input name="categories" type="text" className="form-control" placeholder="ej: aventura,cultura" required />
             <div className="form-text">Usá slugs: aventura, cultura, gastronomia</div>
           </div>
+        
+                  {/* Informacion para relacionar con preferencias*/}
+          <hr className="my-3" />
+          <div className="col-12">
+            <h6 className="text-muted mb-0">Informacion del destino</h6>
+            <small className="text-muted">
+              Estos campos ayudan al sistema a recomendar destinos según las preferencias de los usuarios.
+            </small>
+          </div>
+
+          <div className="col-md-6">
+            <label className="form-label">Continente</label>
+            <select className="form-select" name="continent" defaultValue="">
+              <option value="">—</option>
+              <option value="américa">América</option>
+              <option value="europa">Europa</option>
+              <option value="asia">Asia</option>
+              <option value="áfrica">África</option>
+              <option value="oceanía">Oceanía</option>
+            </select>
+          </div>
+
+          <div className="col-md-6">
+            <label className="form-label">Clima</label>
+            <select className="form-select" name="climate" defaultValue="">
+              <option value="">—</option>
+              <option value="templado">Templado</option>
+              <option value="tropical">Tropical</option>
+              <option value="frio">Frío</option>
+              <option value="seco">Seco</option>
+            </select>
+          </div>
+
+          <div className="col-12">
+            <label className="form-label">Actividades</label>
+            <input
+              name="activities"
+              type="text"
+              className="form-control"
+              placeholder="ej: playa,gastronomía,noche"
+            />
+            <div className="form-text">Separá por comas. Se guardan en minúsculas.</div>
+          </div>
+
+          <div className="col-md-6">
+            <label className="form-label">Costo por día (USD)</label>
+            <input
+              name="cost_per_day"
+              type="number"
+              className="form-control"
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          <div className="col-md-6">
+            <label className="form-label">Duración (días)</label>
+            <input
+              name="duration_days"
+              type="number"
+              className="form-control"
+              min="1"
+            />
+          </div>
 
           <div className="col-12">
             <label className="form-label">Fotos (hasta 4) — JPG/PNG/WebP</label>

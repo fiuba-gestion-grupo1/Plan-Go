@@ -51,7 +51,19 @@ export default function Navbar({ me, onLogout, onNavigate }) {
                   Ver Perfil
                 </button>
               </li>
+
+              {/* ✅ NUEVA OPCIÓN */}
+              <li>
+                <button
+                  className="dropdown-item"
+                  onClick={() => onNavigate('suggestions')}
+                >
+                  Sugerencias
+                </button>
+              </li>
+
               <li><hr className="dropdown-divider" /></li>
+
               <li>
                 <button className="dropdown-item text-danger" onClick={onLogout}>
                   Cerrar Sesión

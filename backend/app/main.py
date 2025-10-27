@@ -3,9 +3,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+
+from backend.app.api import suggestions
 from .db import Base, engine, log_db_info
-from .api import auth, health, users, publications, debug, categories
+from .api import auth, health, users, publications, debug, categories, preferences
 from .db_migrations import ensure_min_schema
+
 
 app = FastAPI(title="Plan&Go API")
 
@@ -20,8 +23,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Crear tablas
-Base.metadata.create_all(bind=engine)
+# ❌ Quitar esta línea para evitar duplicado
+# Base.metadata.create_all(bind=engine)
 
 # API routers
 app.include_router(health.router)
@@ -29,6 +32,8 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(publications.router)
 app.include_router(categories.router)
+app.include_router(preferences.router)
+app.include_router(suggestions.router) 
 if os.getenv("ENV", "dev") == "dev":
     try:
         from .api import debug as debug_router  # backend/app/api/debug.py
@@ -44,10 +49,10 @@ if frontend_build.exists():
 @app.on_event("startup")
 def on_startup():
     log_db_info()
+    # ✅ crear tablas y luego asegurar columnas mínimas
     Base.metadata.create_all(bind=engine)
     try:
         ensure_min_schema(engine)
         print("[DB] ensure_min_schema OK")
     except Exception as e:
         print(f"[DB] ensure_min_schema skipped/error: {e}")
-    

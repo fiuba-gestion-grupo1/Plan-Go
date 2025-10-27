@@ -196,14 +196,128 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
   );
 }
 
+/* --- NUEVO BLOQUE: Configurar preferencias --- */
+function PreferencesBox({ token }) {
+  const [prefs, setPrefs] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await request("/api/preferences", { token });
+        setPrefs(data);
+      } catch {
+        setPrefs({});
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [token]);
+
+  async function savePreferences() {
+    setSaving(true);
+    try {
+      await request("/api/preferences", { method: "PUT", token, body: prefs });
+      alert("Preferencias guardadas correctamente");
+    } catch (e) {
+      alert("Error guardando preferencias: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function toggleList(key, val) {
+    const list = prefs[key] || [];
+    const updated = list.includes(val)
+      ? list.filter((v) => v !== val)
+      : [...list, val];
+    setPrefs({ ...prefs, [key]: updated });
+  }
+
+  if (loading) return <div className="text-muted">Cargando preferencias…</div>;
+
+  return (
+    <div className="border rounded-3 p-3 bg-white shadow-sm mb-4">
+      <h5 className="mb-3">Configurar preferencias</h5>
+
+      <div className="row g-2 mb-3">
+        <div className="col-md-3">
+          <label className="form-label">Presupuesto mín. (USD)</label>
+          <input type="number" className="form-control"
+            value={prefs.budget_min || ""}
+            onChange={(e) => setPrefs({ ...prefs, budget_min: Number(e.target.value) || null })} />
+        </div>
+        <div className="col-md-3">
+          <label className="form-label">Presupuesto máx. (USD)</label>
+          <input type="number" className="form-control"
+            value={prefs.budget_max || ""}
+            onChange={(e) => setPrefs({ ...prefs, budget_max: Number(e.target.value) || null })} />
+        </div>
+        <div className="col-md-3">
+          <label className="form-label">Duración mín. (días)</label>
+          <input type="number" className="form-control"
+            value={prefs.duration_min_days || ""}
+            onChange={(e) => setPrefs({ ...prefs, duration_min_days: Number(e.target.value) || null })} />
+        </div>
+        <div className="col-md-3">
+          <label className="form-label">Duración máx. (días)</label>
+          <input type="number" className="form-control"
+            value={prefs.duration_max_days || ""}
+            onChange={(e) => setPrefs({ ...prefs, duration_max_days: Number(e.target.value) || null })} />
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <strong>Climas:</strong>{" "}
+        {["templado","frio","tropical","seco"].map(v => (
+          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.climates?.includes(v) ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => toggleList("climates", v)}>{v}</button>
+        ))}
+      </div>
+
+      <div className="mb-3">
+        <strong>Actividades:</strong>{" "}
+        {["playa","montaña","ciudad","gastronomía","historia","noche"].map(v => (
+          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.activities?.includes(v) ? "btn-success" : "btn-outline-success"}`}
+            onClick={() => toggleList("activities", v)}>{v}</button>
+        ))}
+      </div>
+
+      <div className="mb-3">
+        <strong>Continentes:</strong>{" "}
+        {["américa","europa","asia","áfrica","oceanía"].map(v => (
+          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.continents?.includes(v) ? "btn-secondary" : "btn-outline-secondary"}`}
+            onClick={() => toggleList("continents", v)}>{v}</button>
+        ))}
+      </div>
+
+      <button className="btn btn-dark" disabled={saving} onClick={savePreferences}>
+        {saving ? "Guardando..." : "Guardar preferencias"}
+      </button>
+    </div>
+  );
+}
+
+/* --- MAIN HOME --- */
 export default function Home({ me }) {
   const [pubs, setPubs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const token = useMemo(() => localStorage.getItem("token") || "", []);
+  // Estado para leer el parámetro ?pub=ID desde la URL solo una vez
+  const [paramPubId] = useState(() => {
+    try {
+      const id = new URL(window.location.href).searchParams.get("pub");
+      return id ? Number(id) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  const [cats, setCats] = useState([]);            // categorías aplicadas
-  const [allCats, setAllCats] = useState([]);      // disponibles (dinámicas)
+
+  const [cats, setCats] = useState([]);
+  const [allCats, setAllCats] = useState([]);
 
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(null);
@@ -214,12 +328,10 @@ export default function Home({ me }) {
     try {
       const list = await request("/api/categories");
       setAllCats(list);
-    } catch (e) {
-      // silencio: si no hay endpoint aún, la UI sigue funcionando
-    }
+    } catch {}
   }
 
-  useEffect(() => { reloadCats(); }, []); // cargar al montar
+  useEffect(() => { reloadCats(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -235,6 +347,25 @@ export default function Home({ me }) {
       }
     })();
   }, [qs]);
+  // Si viene ?pub=ID en la URL, abre automáticamente esa publicación
+  useEffect(() => {
+    if (!paramPubId) return;
+    if (!Array.isArray(pubs) || pubs.length === 0) return;
+
+    const found = pubs.find(p => p.id === paramPubId);
+    if (found) {
+      setCurrent(found);
+      setOpen(true);
+
+      // Limpia la query de la URL para no reabrir cada vez
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("pub");
+        window.history.replaceState({}, "", url.pathname);
+      } catch {}
+    }
+  }, [paramPubId, pubs]);
+
 
   function openReviews(p) { setCurrent(p); setOpen(true); }
 
@@ -246,6 +377,9 @@ export default function Home({ me }) {
           <p className="col-md-8 fs-5">Usá los filtros para encontrar actividades/lugares y mirá las reseñas antes de decidir.</p>
         </div>
       </div>
+
+      {/* 🔹 NUEVA SECCIÓN: CONFIGURAR PREFERENCIAS */}
+      <PreferencesBox token={token} />
 
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h3 className="mb-0">Publicaciones</h3>

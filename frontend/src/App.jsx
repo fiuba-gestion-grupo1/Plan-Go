@@ -9,6 +9,8 @@ import Home from './pages/Home'
 import Profile from './pages/Profile'
 import ForgotPassword from './pages/ForgotPassword'
 import Backoffice from "./pages/Backoffice";
+import Suggestions from "./pages/Suggestions";
+
 
 export default function App() {
   const [view, setView] = useState('login') // login | register | forgot-password (solo para la vista pública)
@@ -82,6 +84,7 @@ export default function App() {
             />
           )}
           {authView === 'backoffice' && <Backoffice me={me} />}
+          {authView === 'suggestions' && <Suggestions me={me} token={token} />}
         </div>
       </div>
     )

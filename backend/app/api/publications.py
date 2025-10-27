@@ -21,7 +21,41 @@ def require_premium_or_admin(current_user: models.User = Depends(get_current_use
         raise HTTPException(status_code=403, detail="Solo usuarios premium pueden publicar reseñas")
     return current_user
 
+# --- Helpers mínimos para normalizar campos opcionales ---
+_ALLOWED_CONTINENTS = {"américa", "europa", "asia", "áfrica", "oceanía"}
 
+def _norm_text_or_none(s: Optional[str]) -> Optional[str]:
+    s = (s or "").strip()
+    return s or None
+
+def _norm_continent(s: Optional[str]) -> Optional[str]:
+    s = _norm_text_or_none(s)
+    if not s:
+        return None
+    s = s.lower()
+    # Acepta variantes simples
+    aliases = {
+        "america": "américa", "latam": "américa", "north america": "américa", "south america": "américa",
+        "europe": "europa", "asia": "asia", "africa": "áfrica", "oceania": "oceanía", "australia": "oceanía"
+    }
+    s = aliases.get(s, s)
+    return s if s in _ALLOWED_CONTINENTS else s  # no rechazo, solo normalizo
+
+def _norm_climate(s: Optional[str]) -> Optional[str]:
+    s = _norm_text_or_none(s)
+    if not s:
+        return None
+    # Lo dejamos en minúsculas, sin validar duro (templado, tropical, etc.)
+    return s.lower()
+
+def _csv_to_list(csv_: Optional[str]) -> Optional[list]:
+    csv_ = _norm_text_or_none(csv_)
+    if not csv_:
+        return None
+    vals = [v.strip() for v in csv_.split(",")]
+    vals = [v for v in vals if v]
+    # normalizo a minúsculas para consistencia:
+    return [v.lower() for v in vals] or None
 
 UPLOAD_DIR = os.path.join("backend", "app", "static", "uploads", "publications")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -74,6 +108,14 @@ def create_publication(
     address: str = Form(...),
     categories: Optional[str] = Form(None),  # CSV: aventura,cultura
     photos: Optional[List[UploadFile]] = File(None),
+
+    # 🔹 NUEVOS CAMPOS (todos opcionales)
+    continent: Optional[str] = Form(None),       # ej: europa / américa
+    climate: Optional[str] = Form(None),         # ej: templado / tropical
+    activities: Optional[str] = Form(None),      # CSV: playa,gastronomía
+    cost_per_day: Optional[float] = Form(None),  # ej: 80.0
+    duration_days: Optional[int] = Form(None),   # ej: 7
+
     db: Session = Depends(get_db),
     _: models.User = Depends(require_admin),
 ):
@@ -90,6 +132,11 @@ def create_publication(
     if len(parts) == 2 and parts[1].isdigit():
         street, number = parts[0], parts[1]
 
+    # 🔹 Normalizaciones nuevas
+    continent_norm  = _norm_continent(continent)
+    climate_norm    = _norm_climate(climate)
+    activities_list = _csv_to_list(activities)
+
     pub = models.Publication(
         place_name=place_name,
         name=place_name,
@@ -99,6 +146,13 @@ def create_publication(
         address=address,
         street=street,
         created_at=datetime.now(timezone.utc),
+
+        # 🔹 Seteo de los campos nuevos (son opcionales; si el modelo no los tuviera, no pasa nada)
+        continent=continent_norm,
+        climate=climate_norm,
+        activities=activities_list,
+        cost_per_day=cost_per_day,
+        duration_days=duration_days,
     )
     if hasattr(models.Publication, "number"):
         setattr(pub, "number", number)
@@ -142,6 +196,7 @@ def create_publication(
         rating_count=pub.rating_count or 0,
         categories=slugs if slugs else [c.slug for c in pub.categories],
     )
+
 
 @router.delete("/{pub_id}", status_code=status.HTTP_200_OK)
 def delete_publication(pub_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
@@ -242,3 +297,4 @@ def list_reviews(pub_id: int, db: Session = Depends(get_db)):
             )
         )
     return out
+
