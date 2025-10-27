@@ -305,6 +305,16 @@ export default function Home({ me }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const token = useMemo(() => localStorage.getItem("token") || "", []);
+  // Estado para leer el parámetro ?pub=ID desde la URL solo una vez
+  const [paramPubId] = useState(() => {
+    try {
+      const id = new URL(window.location.href).searchParams.get("pub");
+      return id ? Number(id) : null;
+    } catch {
+      return null;
+    }
+  });
+
 
   const [cats, setCats] = useState([]);
   const [allCats, setAllCats] = useState([]);
@@ -337,6 +347,25 @@ export default function Home({ me }) {
       }
     })();
   }, [qs]);
+  // Si viene ?pub=ID en la URL, abre automáticamente esa publicación
+  useEffect(() => {
+    if (!paramPubId) return;
+    if (!Array.isArray(pubs) || pubs.length === 0) return;
+
+    const found = pubs.find(p => p.id === paramPubId);
+    if (found) {
+      setCurrent(found);
+      setOpen(true);
+
+      // Limpia la query de la URL para no reabrir cada vez
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("pub");
+        window.history.replaceState({}, "", url.pathname);
+      } catch {}
+    }
+  }, [paramPubId, pubs]);
+
 
   function openReviews(p) { setCurrent(p); setOpen(true); }
 

@@ -26,20 +26,33 @@ def get_suggestions(db: Session = Depends(get_db), user=Depends(get_current_user
         return []  # sin preferencias ⇒ sin ranking
 
     qs = db.query(models.Publication).all()
+
     ranked = sorted(qs, key=lambda d: score(d, pref), reverse=True)
 
     def _title_of(d):
-        # usa title si alguna vez existe; si no, place_name
         return getattr(d, "title", None) or getattr(d, "place_name", "") or f"Publicación #{d.id}"
+
+    # 🔹 Filtrar solo las publicaciones con score > 0
+    filtered = [d for d in ranked if score(d, pref) > 0]
+
+    # 🔹 Tomar las top 10
+    top10 = filtered[:10]
 
     return [
         {
             "id": d.id,
             "title": _title_of(d),
             "score": score(d, pref),
+            "city": d.city,
+            "province": d.province,
+            "country": d.country,
+            "rating_avg": getattr(d, "rating_avg", 0),
+            "rating_count": getattr(d, "rating_count", 0),
+            "photos": [p.url for p in (d.photos or [])],
         }
-        for d in ranked[:20]
+        for d in top10
     ]
+
 
 ## LA idea es que estos campos se puedan usar para sugerir destinos a los usuarios según sus preferencias.
 ## el tema es que tiene que haber una correlacion de campos o quizas con alguna IA ( mas dificil) para hacer el scoring de las sugerencias.

@@ -51,8 +51,12 @@ export default function Suggestions({ token, me }) {
                 <p className="card-text">
                   Puntaje: <strong>{it.score}</strong>
                 </p>
-                <a className="btn btn-sm btn-outline-primary" href="#" title="Ver detalle">
-                  Ver publicación
+                <a
+                className="btn btn-sm btn-outline-primary"
+                href={`/?pub=${it.id}`}
+                title="Ver reseñas"
+                >
+                Ver reseñas
                 </a>
               </div>
             </div>
