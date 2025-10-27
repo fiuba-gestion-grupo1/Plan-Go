@@ -4,8 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from .db import Base, engine, log_db_info
-from .api import auth, health, users, publications, debug, categories
+from .api import auth, health, users, publications, debug, categories, preferences
 from .db_migrations import ensure_min_schema
+
 
 app = FastAPI(title="Plan&Go API")
 
@@ -29,6 +30,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(publications.router)
 app.include_router(categories.router)
+app.include_router(preferences.router)
 if os.getenv("ENV", "dev") == "dev":
     try:
         from .api import debug as debug_router  # backend/app/api/debug.py
