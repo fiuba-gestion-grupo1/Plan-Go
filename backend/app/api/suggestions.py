@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..db import get_db
-from ..security import get_current_user
+from .auth import get_current_user
 from .. import models
 
 router = APIRouter(prefix="/api/suggestions", tags=["suggestions"])
@@ -25,11 +25,21 @@ def get_suggestions(db: Session = Depends(get_db), user=Depends(get_current_user
     if not pref:
         return []  # sin preferencias ⇒ sin ranking
 
-    # Traé tus destinos/publications; ajustá el modelo real
     qs = db.query(models.Publication).all()
-
     ranked = sorted(qs, key=lambda d: score(d, pref), reverse=True)
-    return [{"id": d.id, "title": d.title, "score": score(d, pref)} for d in ranked[:20]]
+
+    def _title_of(d):
+        # usa title si alguna vez existe; si no, place_name
+        return getattr(d, "title", None) or getattr(d, "place_name", "") or f"Publicación #{d.id}"
+
+    return [
+        {
+            "id": d.id,
+            "title": _title_of(d),
+            "score": score(d, pref),
+        }
+        for d in ranked[:20]
+    ]
 
 ## LA idea es que estos campos se puedan usar para sugerir destinos a los usuarios según sus preferencias.
 ## el tema es que tiene que haber una correlacion de campos o quizas con alguna IA ( mas dificil) para hacer el scoring de las sugerencias.
