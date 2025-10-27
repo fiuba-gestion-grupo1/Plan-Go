@@ -9,7 +9,12 @@ PUBLICATIONS_COLUMNS = [
     ("address", "TEXT"),
     ("created_at", "TIMESTAMP"),
     ("rating_avg", "REAL"),     # nuevo
-    ("rating_count", "INTEGER") # nuevo
+    ("rating_count", "INTEGER"),  # 👈 faltaba esta coma
+    ("continent", "TEXT"),        # 👇 campos nuevos
+    ("climate", "TEXT"),
+    ("activities", "TEXT"),
+    ("cost_per_day", "REAL"),
+    ("duration_days", "INTEGER"),
 ]
 
 def ensure_min_schema(engine):

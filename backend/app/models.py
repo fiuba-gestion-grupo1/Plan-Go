@@ -50,6 +50,12 @@ class Publication(Base):
     city       = Column(String, nullable=False)
     address    = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=func.now())
+    # 🔹 NUEVOS CAMPOS que coinciden con UserPreference
+    continent = Column(String, nullable=True)        # Ej: "américa", "europa"
+    climate = Column(String, nullable=True)          # Ej: "templado", "tropical"
+    activities = Column(JSON, nullable=True)         # Ej: ["playa", "gastronomía"]
+    cost_per_day = Column(Float, nullable=True)      # Para comparar con budget_max
+    duration_days = Column(Integer, nullable=True)   # Para comparar con duration_min/max
 
     # US-5.1
     rating_avg   = Column(Float,  nullable=False, server_default="0")

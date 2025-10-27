@@ -21,8 +21,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Crear tablas
-Base.metadata.create_all(bind=engine)
+# ❌ Quitar esta línea para evitar duplicado
+# Base.metadata.create_all(bind=engine)
 
 # API routers
 app.include_router(health.router)
@@ -46,10 +46,10 @@ if frontend_build.exists():
 @app.on_event("startup")
 def on_startup():
     log_db_info()
+    # ✅ crear tablas y luego asegurar columnas mínimas
     Base.metadata.create_all(bind=engine)
     try:
         ensure_min_schema(engine)
         print("[DB] ensure_min_schema OK")
     except Exception as e:
         print(f"[DB] ensure_min_schema skipped/error: {e}")
-    
