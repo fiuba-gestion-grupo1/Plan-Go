@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..db import get_db
-from ..security import get_current_user  # devuelve el user
+from .auth import get_current_user  # devuelve el user
 from .. import models, schemas
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
