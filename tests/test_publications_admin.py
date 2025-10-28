@@ -77,7 +77,7 @@ def track_created_files():
             pass
 
 
-# ---------- tests ----------
+# ---------- tests publications admin ----------
 
 def test_admin_create_publication_with_photos_success(
     client: TestClient, admin_headers: dict, db_session: Session, track_created_files
@@ -173,7 +173,7 @@ def test_public_list_returns_items(
     for url in created["photos"]:
         track_created_files.append(_url_to_abspath(url))
 
-    resp = client.get("/api/publications/public")
+    resp = client.get("/api/publications/public", headers=admin_headers)
     assert resp.status_code == 200
     items = resp.json()
     # debería estar al menos la que acabamos de crear
@@ -211,3 +211,5 @@ def test_delete_publication_removes_files(
     # ahora los archivos de ESA publicación ya no deben existir
     for p in abs_paths:
         assert not os.path.exists(p)
+
+

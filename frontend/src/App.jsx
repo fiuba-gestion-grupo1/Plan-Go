@@ -16,7 +16,7 @@ export default function App() {
   const [view, setView] = useState('login') // login | register | forgot-password (solo para la vista pública)
   const [token, setToken] = useState(localStorage.getItem('token') || '')
   const [me, setMe] = useState(null)
-  const [authView, setAuthView] = useState('home') // home | profile | backoffice (dentro de sesión)
+  const [authView, setAuthView] = useState('home') // home | profile | backoffice (dentro de sesión) 
 
   useEffect(() => {
     if (token) {

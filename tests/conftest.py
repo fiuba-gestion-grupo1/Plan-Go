@@ -93,11 +93,43 @@ def test_user(db_session: TestingSessionLocal, test_user_data: dict):
     db_session.refresh(user)
     return user
 
+
+@pytest.fixture(scope="function")
+def admin_user(db_session: TestingSessionLocal):
+    """Crea un usuario con rol admin en la DB de test."""
+    user = models.User(
+        username="admin_test",
+        email="admin@test.local",
+        role="admin",
+        hashed_password=security.hash_password("adminpass"),
+        security_question_1="q1",
+        hashed_answer_1=security.hash_password("a1"),
+        security_question_2="q2",
+        hashed_answer_2=security.hash_password("a2"),
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
 @pytest.fixture(scope="function")
 def auth_headers(client: TestClient, test_user, test_user_data: dict):
     login_data = {"identifier": test_user_data["email"], "password": test_user_data["password"]}
     response = client.post("/api/auth/login", json=login_data)
     token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="function")
+def admin_headers(client: TestClient, admin_user):
+    """Token Bearer para el admin."""
+    resp = client.post("/api/auth/login", json={
+        "identifier": admin_user.email,
+        "password": "adminpass"
+    })
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture(scope="session", autouse=True)

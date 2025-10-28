@@ -5,6 +5,7 @@ import logo from '../assets/images/logo.png';
 // - me: usuario actual
 // - onLogout: función para cerrar sesión
 // - onNavigate: función para cambiar la vista interna (home|profile|backoffice)
+// - onSearch: función para manejar búsquedas
 export default function Navbar({ me, onLogout, onNavigate }) {
   const isAdmin = me?.role === 'admin' || me?.username === 'admin';
 
@@ -19,7 +20,7 @@ export default function Navbar({ me, onLogout, onNavigate }) {
           <img src={logo} alt="Plan&Go Logo" style={{ width: '100px' }} />
         </a>
 
-        <div className="ms-auto d-flex align-items-center">
+        <div className="d-flex align-items-center ms-auto">
           {/* Acceso visible sólo para admins */}
           {isAdmin && (
             <button

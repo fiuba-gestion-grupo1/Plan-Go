@@ -1,8 +1,15 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, Date, Text, ForeignKey, Table, Float, UniqueConstraint
+from sqlalchemy import (
+    Column, Integer, String, DateTime, func, Date, Text,
+    ForeignKey, Table, Float, UniqueConstraint
+)
 from sqlalchemy.orm import relationship
-from .db import Base
 from sqlalchemy.types import JSON
+from .db import Base
 
+
+# ---------------------------
+# User
+# ---------------------------
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -21,7 +28,10 @@ class User(Base):
     profile_picture_url = Column(String, nullable=True)
     role = Column(String(20), nullable=False, server_default="user", default="user", index=True)
 
-# Asociación N–N
+
+# ---------------------------
+# Categories (N-N)
+# ---------------------------
 publication_categories = Table(
     "publication_categories",
     Base.metadata,
@@ -32,13 +42,17 @@ publication_categories = Table(
 class Category(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True)
-    slug = Column(String(50), unique=True, index=True, nullable=False)  # aventura|cultura|gastronomia
+    slug = Column(String(50), unique=True, index=True, nullable=False)  # ej: aventura|cultura|gastronomia
     name = Column(String(100), nullable=False)
 
+
+# ---------------------------
+# Publications
+# ---------------------------
 class Publication(Base):
     __tablename__ = "publications"
 
-    # legacy
+    # Legacy
     name   = Column(String, nullable=True)
     street = Column(String, nullable=True)
     number = Column(String, nullable=True)
@@ -49,22 +63,33 @@ class Publication(Base):
     province   = Column(String, nullable=False)
     city       = Column(String, nullable=False)
     address    = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=func.now())
-    # 🔹 NUEVOS CAMPOS que coinciden con UserPreference
-    continent = Column(String, nullable=True)        # Ej: "américa", "europa"
-    climate = Column(String, nullable=True)          # Ej: "templado", "tropical"
-    activities = Column(JSON, nullable=True)         # Ej: ["playa", "gastronomía"]
-    cost_per_day = Column(Float, nullable=True)      # Para comparar con budget_max
-    duration_days = Column(Integer, nullable=True)   # Para comparar con duration_min/max
 
-    # US-5.1
+    # Workflow / autoría
+    status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=func.now())
+
+    # Enriquecimiento (opcionales)
+    continent     = Column(String, nullable=True)   # ej: "américa", "europa"
+    climate       = Column(String, nullable=True)   # ej: "templado", "tropical"
+    activities    = Column(JSON, nullable=True)     # ej: ["playa", "gastronomía"]
+    cost_per_day  = Column(Float, nullable=True)
+    duration_days = Column(Integer, nullable=True)
+
+    # Ratings (US-5.1)
     rating_avg   = Column(Float,  nullable=False, server_default="0")
     rating_count = Column(Integer, nullable=False, server_default="0")
 
-    photos = relationship("PublicationPhoto", back_populates="publication", cascade="all, delete-orphan", passive_deletes=True)
-
-    # US-4.4
+    # Rels
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
+    photos = relationship(
+        "PublicationPhoto",
+        back_populates="publication",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     categories = relationship("Category", secondary=publication_categories, backref="publications")
+
 
 class PublicationPhoto(Base):
     __tablename__ = "publication_photos"
@@ -74,6 +99,10 @@ class PublicationPhoto(Base):
     index_order = Column(Integer, nullable=False, server_default="0", default=0)
     publication = relationship("Publication", back_populates="photos")
 
+
+# ---------------------------
+# Reviews
+# ---------------------------
 class Review(Base):
     __tablename__ = "reviews"
     id = Column(Integer, primary_key=True)
@@ -86,18 +115,57 @@ class Review(Base):
     publication = relationship("Publication", backref="reviews")
     author      = relationship("User")
 
+
+# ---------------------------
+# User Preferences (1-1)
+# ---------------------------
 class UserPreference(Base):
     __tablename__ = "user_preferences"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
 
-    # Campos de preferencia que se podrian usar para buscar cuando implementemos IA
     budget_min = Column(Float, nullable=True)
     budget_max = Column(Float, nullable=True)
-    climates = Column(JSON, nullable=True)          # ["templado","frio","tropical"]
+    climates   = Column(JSON, nullable=True)        # ["templado","frio","tropical"]
     activities = Column(JSON, nullable=True)        # ["playa","montaña","gastronomía"]
     continents = Column(JSON, nullable=True)        # ["europa","américa"]
     duration_min_days = Column(Integer, nullable=True)
     duration_max_days = Column(Integer, nullable=True)
 
     user = relationship("User", backref="preference", uselist=False)
+
+
+# ---------------------------
+# Favorites (UNIQUE user_id, publication_id)
+# ---------------------------
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    publication = relationship("Publication")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "publication_id", name="uq_favorite_user_pub"),
+    )
+
+
+# ---------------------------
+# Deletion Requests
+# ---------------------------
+class DeletionRequest(Base):
+    __tablename__ = "deletion_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
+    requested_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|approved|rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    publication = relationship("Publication")
+    requested_by = relationship("User")

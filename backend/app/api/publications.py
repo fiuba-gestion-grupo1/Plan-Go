@@ -85,7 +85,13 @@ def _get_or_create_category(db: Session, slug: str, name: Optional[str] = None) 
 
 @router.get("", response_model=List[schemas.PublicationOut])
 def list_publications(db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
-    pubs = db.query(models.Publication).order_by(models.Publication.created_at.desc()).all()
+    # Solo mostrar publicaciones APROBADAS en la lista principal (admin puede ver pendientes en /pending)
+    pubs = (
+        db.query(models.Publication)
+        .filter(models.Publication.status == "approved")
+        .order_by(models.Publication.created_at.desc())
+        .all()
+    )
     out: List[schemas.PublicationOut] = []
     for p in pubs:
         out.append(
@@ -96,6 +102,8 @@ def list_publications(db: Session = Depends(get_db), _: models.User = Depends(re
                 province=p.province,
                 city=p.city,
                 address=p.address,
+                status=p.status,
+                created_by_user_id=p.created_by_user_id,
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
                 rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
@@ -125,7 +133,7 @@ def create_publication(
     duration_days: Optional[int] = Form(None),   # ej: 7
 
     db: Session = Depends(get_db),
-    _: models.User = Depends(require_admin),
+    current_user: models.User = Depends(require_admin),
 ):
     files = photos or []
     if len(files) > 4:
@@ -145,6 +153,7 @@ def create_publication(
     climate_norm    = _norm_climate(climate)
     activities_list = _csv_to_list(activities)
 
+    # Crear con campos siempre presentes
     pub = models.Publication(
         place_name=place_name,
         name=place_name,
@@ -152,18 +161,25 @@ def create_publication(
         province=province,
         city=city,
         address=address,
-        street=street,
+        street=street,                       # compat con columna legacy 'street'
+        status="approved",                   # por defecto aprobado cuando lo crea un admin
+        created_by_user_id=current_user.id,  # registrar quién lo creó
         created_at=datetime.now(timezone.utc),
-
-        # 🔹 Seteo de los campos nuevos (si existen en tu modelo)
-        continent=continent_norm if hasattr(models.Publication, "continent") else None,
-        climate=climate_norm if hasattr(models.Publication, "climate") else None,
-        activities=activities_list if hasattr(models.Publication, "activities") else None,
-        cost_per_day=cost_per_day if hasattr(models.Publication, "cost_per_day") else None,
-        duration_days=duration_days if hasattr(models.Publication, "duration_days") else None,
     )
     if hasattr(models.Publication, "number"):
         setattr(pub, "number", number)
+
+    # Setear condicionalmente ONLY si el atributo existe en el modelo
+    if hasattr(pub, "continent"):
+        pub.continent = continent_norm
+    if hasattr(pub, "climate"):
+        pub.climate = climate_norm
+    if hasattr(pub, "activities"):
+        pub.activities = activities_list
+    if hasattr(pub, "cost_per_day"):
+        pub.cost_per_day = cost_per_day
+    if hasattr(pub, "duration_days"):
+        pub.duration_days = duration_days
 
     # categorías (opc)
     slugs: List[str] = []
@@ -199,6 +215,8 @@ def create_publication(
         province=pub.province,
         city=pub.city,
         address=pub.address,
+        status=pub.status,
+        created_by_user_id=pub.created_by_user_id,
         created_at=pub.created_at.isoformat() if pub.created_at else "",
         photos=saved_urls,
         rating_avg=getattr(pub, "rating_avg", 0.0) or 0.0,
@@ -223,12 +241,211 @@ def delete_publication(pub_id: int, db: Session = Depends(get_db), _: models.Use
     db.commit()
     return {"message": "Publicación eliminada"}
 
+# --- SUBMIT PUBLICATION (usuarios básicos) ---
+@router.post("/submit", response_model=schemas.PublicationOut, status_code=status.HTTP_201_CREATED)
+def submit_publication(
+    place_name: str = Form(...),
+    country: str = Form(...),
+    province: str = Form(...),
+    city: str = Form(...),
+    address: str = Form(...),
+
+    # mismos campos que en el backoffice
+    categories: Optional[str] = Form(None),        # CSV: aventura,cultura
+    continent: Optional[str] = Form(None),         # ej: europa / américa
+    climate: Optional[str] = Form(None),           # ej: templado / tropical
+    activities: Optional[str] = Form(None),        # CSV: playa,gastronomía
+    cost_per_day: Optional[float] = Form(None),    # ej: 80.0
+    duration_days: Optional[int] = Form(None),     # ej: 7
+
+    photos: Optional[List[UploadFile]] = File(None),
+
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # validar fotos
+    files = photos or []
+    if len(files) > 4:
+        raise HTTPException(status_code=400, detail="Máximo 4 fotos por publicación")
+    for f in files:
+        if f.content_type not in ("image/jpeg", "image/png", "image/webp"):
+            raise HTTPException(status_code=400, detail="Formato de imagen inválido (usa JPG/PNG/WebP)")
+
+    # street/number legacy
+    street, number = address, None
+    parts = address.strip().rsplit(" ", 1)
+    if len(parts) == 2 and parts[1].isdigit():
+        street, number = parts[0], parts[1]
+
+    # normalizaciones
+    continent_norm  = _norm_continent(continent)
+    climate_norm    = _norm_climate(climate)
+    activities_list = _csv_to_list(activities)
+
+    # crear publicación PENDING
+    pub = models.Publication(
+        place_name=place_name,
+        name=place_name,
+        country=country,
+        province=province,
+        city=city,
+        address=address,
+        street=street,
+        status="pending",
+        created_by_user_id=current_user.id,
+        created_at=datetime.now(timezone.utc),
+
+        # mismos campos que backoffice (si existen en el modelo)
+        continent=continent_norm if hasattr(models.Publication, "continent") else None,
+        climate=climate_norm if hasattr(models.Publication, "climate") else None,
+        activities=activities_list if hasattr(models.Publication, "activities") else None,
+        cost_per_day=cost_per_day if hasattr(models.Publication, "cost_per_day") else None,
+        duration_days=duration_days if hasattr(models.Publication, "duration_days") else None,
+    )
+    if hasattr(models.Publication, "number"):
+        setattr(pub, "number", number)
+
+    # categorías
+    slugs: List[str] = []
+    if categories:
+        slugs = [_normalize_slug(s) for s in categories.split(",") if _normalize_slug(s)]
+        for slug in slugs:
+            cat = _get_or_create_category(db, slug)
+            if hasattr(pub, "categories"):
+                pub.categories.append(cat)
+
+    db.add(pub)
+    db.flush()
+
+    # guardar fotos
+    saved_urls: List[str] = []
+    for idx, f in enumerate(files):
+        ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(f.content_type, ".bin")
+        filename = f"pub_{pub.id}_{idx}{ext}"
+        abs_path = os.path.join(UPLOAD_DIR, filename)
+        with open(abs_path, "wb") as out:
+            out.write(f.file.read())
+        url = f"/static/uploads/publications/{filename}"
+        photo = models.PublicationPhoto(publication_id=pub.id, url=url, index_order=idx)
+        db.add(photo)
+        saved_urls.append(url)
+
+    db.commit()
+    db.refresh(pub)
+
+    return schemas.PublicationOut(
+        id=pub.id,
+        place_name=pub.place_name,
+        country=pub.country,
+        province=pub.province,
+        city=pub.city,
+        address=pub.address,
+        status=pub.status,
+        created_by_user_id=pub.created_by_user_id,
+        created_at=pub.created_at.isoformat() if pub.created_at else "",
+        photos=saved_urls,
+        # si tu schema incluye estos campos, se completan
+        **({"rating_avg": getattr(pub, "rating_avg", 0.0) or 0.0} if hasattr(schemas.PublicationOut, "model_fields") or hasattr(schemas.PublicationOut, "__fields__") else {}),
+    )
+
+# --- GET MY SUBMISSIONS (usuarios ven sus propias publicaciones) ---
+@router.get("/my-submissions", response_model=List[schemas.PublicationOut])
+def list_my_submissions(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    pubs = db.query(models.Publication).filter(
+        models.Publication.created_by_user_id == current_user.id
+    ).order_by(models.Publication.created_at.desc()).all()
+
+    # Obtener IDs de publicaciones con solicitud de eliminación pendiente
+    pending_deletion_ids = {
+        req.publication_id
+        for req in db.query(models.DeletionRequest).filter(
+            models.DeletionRequest.status == "pending"
+        ).all()
+    }
+
+    out: List[schemas.PublicationOut] = []
+    for p in pubs:
+        out.append(
+            schemas.PublicationOut(
+                id=p.id,
+                place_name=p.place_name,
+                country=p.country,
+                province=p.province,
+                city=p.city,
+                address=p.address,
+                status=p.status,
+                created_by_user_id=p.created_by_user_id,
+                created_at=p.created_at.isoformat() if p.created_at else "",
+                photos=[ph.url for ph in p.photos],
+                has_pending_deletion=p.id in pending_deletion_ids,
+            )
+        )
+    return out
+
+# --- SEARCH PUBLICATIONS ---
+@router.get("/search", response_model=List[schemas.PublicationOut])
+def search_publications(
+    q: str = "",
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Busca publicaciones aprobadas por: país, provincia, ciudad, lugar o dirección
+    """
+    if not q or len(q.strip()) < 2:
+        # Si no hay búsqueda o es muy corta, devolver todas las aprobadas
+        pubs = db.query(models.Publication).filter(
+            models.Publication.status == "approved"
+        ).order_by(models.Publication.created_at.desc()).all()
+    else:
+        search_term = f"%{q.lower()}%"
+        pubs = db.query(models.Publication).filter(
+            models.Publication.status == "approved",
+            (
+                models.Publication.place_name.ilike(search_term) |
+                models.Publication.country.ilike(search_term) |
+                models.Publication.province.ilike(search_term) |
+                models.Publication.city.ilike(search_term) |
+                models.Publication.address.ilike(search_term)
+            )
+        ).order_by(models.Publication.created_at.desc()).all()
+
+    # Obtener IDs de favoritos del usuario actual
+    favorite_ids = {
+        fav.publication_id
+        for fav in db.query(models.Favorite).filter(models.Favorite.user_id == current_user.id).all()
+    }
+
+    out: List[schemas.PublicationOut] = []
+    for p in pubs:
+        out.append(
+            schemas.PublicationOut(
+                id=p.id,
+                place_name=p.place_name,
+                country=p.country,
+                province=p.province,
+                city=p.city,
+                address=p.address,
+                status=p.status,
+                created_by_user_id=p.created_by_user_id,
+                created_at=p.created_at.isoformat() if p.created_at else "",
+                photos=[ph.url for ph in p.photos],
+                is_favorite=p.id in favorite_ids,
+            )
+        )
+    return out
+
+# --- LIST PUBLIC (sin auth, con filtro de categorías) ---
 @router.get("/public", response_model=List[schemas.PublicationOut])
 def list_publications_public(
     category: Optional[str] = Query(None, description="Slugs separados por coma, ej: aventura,cultura"),
     db: Session = Depends(get_db),
 ):
-    q = db.query(models.Publication)
+    """
+    Lista publicaciones aprobadas. Permite filtrar por una o varias categorías usando slugs.
+    No requiere autenticación.
+    """
+    q = db.query(models.Publication).filter(models.Publication.status == "approved")
     slugs: List[str] = []
     if category:
         slugs = [_normalize_slug(s) for s in category.split(",") if _normalize_slug(s)]
@@ -247,6 +464,38 @@ def list_publications_public(
                 province=p.province,
                 city=p.city,
                 address=p.address,
+                status=p.status,
+                created_by_user_id=p.created_by_user_id,
+                created_at=p.created_at.isoformat() if p.created_at else "",
+                photos=[ph.url for ph in p.photos],
+                rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
+                rating_count=getattr(p, "rating_count", 0) or 0,
+                categories=[c.slug for c in getattr(p, "categories", [])],
+            )
+        )
+    return out
+
+# --- GET PENDING PUBLICATIONS (solo admin) ---
+@router.get("/pending", response_model=List[schemas.PublicationOut])
+def list_pending_publications(db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    pubs = (
+        db.query(models.Publication)
+        .filter(models.Publication.status == "pending")
+        .order_by(models.Publication.created_at.desc())
+        .all()
+    )
+    out: List[schemas.PublicationOut] = []
+    for p in pubs:
+        out.append(
+            schemas.PublicationOut(
+                id=p.id,
+                place_name=p.place_name,
+                country=p.country,
+                province=p.province,
+                city=p.city,
+                address=p.address,
+                status=p.status,
+                created_by_user_id=p.created_by_user_id,
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
                 rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
@@ -271,7 +520,7 @@ def create_review(
     pub_id: int,
     payload: schemas.ReviewCreate,                # <-- Pydantic, evita dict crudo
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_premium), # <-- ahora sí existe
+    user: models.User = Depends(require_premium), # <-- premium requerido
 ):
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
     if not pub:
@@ -304,7 +553,7 @@ def create_review(
         created_at=review.created_at.isoformat()[:19],
     )
 
-@router.get("/{pub_id}/reviews", response_model=list[schemas.ReviewOut])
+@router.get("/{pub_id}/reviews", response_model=List[schemas.ReviewOut])
 def list_reviews(pub_id: int, db: Session = Depends(get_db)):
     rows = (
         db.query(models.Review, models.User.username)
@@ -313,7 +562,7 @@ def list_reviews(pub_id: int, db: Session = Depends(get_db)):
         .order_by(models.Review.created_at.desc())
         .all()
     )
-    out = []
+    out: List[schemas.ReviewOut] = []
     for r, username in rows:
         out.append(
             schemas.ReviewOut(
@@ -325,3 +574,244 @@ def list_reviews(pub_id: int, db: Session = Depends(get_db)):
             )
         )
     return out
+
+# --- APPROVE PUBLICATION (solo admin) ---
+@router.put("/{pub_id}/approve", response_model=schemas.PublicationOut)
+def approve_publication(pub_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    pub.status = "approved"
+    db.commit()
+    db.refresh(pub)
+
+    return schemas.PublicationOut(
+        id=pub.id,
+        place_name=pub.place_name,
+        country=pub.country,
+        province=pub.province,
+        city=pub.city,
+        address=pub.address,
+        status=pub.status,
+        created_by_user_id=pub.created_by_user_id,
+        created_at=pub.created_at.isoformat() if pub.created_at else "",
+        photos=[ph.url for ph in pub.photos],
+    )
+
+# --- REJECT PUBLICATION (solo admin) - Cambia status a "rejected" ---
+@router.put("/{pub_id}/reject", response_model=schemas.PublicationOut)
+def reject_publication(pub_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    pub.status = "rejected"
+    db.commit()
+    db.refresh(pub)
+
+    return schemas.PublicationOut(
+        id=pub.id,
+        place_name=pub.place_name,
+        country=pub.country,
+        province=pub.province,
+        city=pub.city,
+        address=pub.address,
+        status=pub.status,
+        created_by_user_id=pub.created_by_user_id,
+        created_at=pub.created_at.isoformat() if pub.created_at else "",
+        photos=[ph.url for ph in pub.photos],
+    )
+
+# --- TOGGLE FAVORITE ---
+@router.post("/{pub_id}/favorite", status_code=status.HTTP_200_OK)
+def toggle_favorite(pub_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Agrega o quita una publicación de favoritos
+    """
+    pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    # Verificar si ya existe el favorito
+    existing_fav = db.query(models.Favorite).filter(
+        models.Favorite.user_id == current_user.id,
+        models.Favorite.publication_id == pub_id
+    ).first()
+
+    if existing_fav:
+        # Si existe, lo eliminamos (unfavorite)
+        db.delete(existing_fav)
+        db.commit()
+        return {"message": "Eliminado de favoritos", "is_favorite": False}
+    else:
+        # Si no existe, lo agregamos
+        new_fav = models.Favorite(user_id=current_user.id, publication_id=pub_id)
+        db.add(new_fav)
+        db.commit()
+        return {"message": "Agregado a favoritos", "is_favorite": True}
+
+# --- GET MY FAVORITES ---
+@router.get("/favorites", response_model=List[schemas.PublicationOut])
+def list_my_favorites(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Devuelve todas las publicaciones favoritas del usuario actual
+    """
+    favorites = (
+        db.query(models.Favorite)
+        .filter(models.Favorite.user_id == current_user.id)
+        .order_by(models.Favorite.created_at.desc())
+        .all()
+    )
+
+    out: List[schemas.PublicationOut] = []
+    for fav in favorites:
+        p = fav.publication
+        if p and p.status == "approved":  # Solo mostrar si está aprobada
+            out.append(
+                schemas.PublicationOut(
+                    id=p.id,
+                    place_name=p.place_name,
+                    country=p.country,
+                    province=p.province,
+                    city=p.city,
+                    address=p.address,
+                    status=p.status,
+                    created_by_user_id=p.created_by_user_id,
+                    created_at=p.created_at.isoformat() if p.created_at else "",
+                    photos=[ph.url for ph in p.photos],
+                    is_favorite=True,
+                )
+            )
+    return out
+
+# --- REQUEST DELETION (usuarios básicos) ---
+@router.post("/{pub_id}/request-deletion", status_code=status.HTTP_200_OK)
+def request_deletion(pub_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Un usuario solicita eliminar una publicación (debe ser aprobada por admin)
+    """
+    pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    # Verificar si ya existe una solicitud pendiente
+    existing_request = db.query(models.DeletionRequest).filter(
+        models.DeletionRequest.publication_id == pub_id,
+        models.DeletionRequest.status == "pending"
+    ).first()
+
+    if existing_request:
+        raise HTTPException(status_code=400, detail="Ya existe una solicitud de eliminación pendiente para esta publicación")
+
+    # Crear nueva solicitud
+    new_request = models.DeletionRequest(
+        publication_id=pub_id,
+        requested_by_user_id=current_user.id
+    )
+    db.add(new_request)
+    db.commit()
+
+    return {"message": "Solicitud de eliminación enviada. Será revisada por un administrador."}
+
+# --- GET PENDING DELETION REQUESTS (solo admin) ---
+@router.get("/deletion-requests/pending", response_model=List[schemas.DeletionRequestOut])
+def list_pending_deletion_requests(db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    """
+    Lista todas las solicitudes de eliminación pendientes
+    """
+    requests = (
+        db.query(models.DeletionRequest)
+        .filter(models.DeletionRequest.status == "pending")
+        .order_by(models.DeletionRequest.created_at.desc())
+        .all()
+    )
+
+    out: List[schemas.DeletionRequestOut] = []
+    for req in requests:
+        p = req.publication
+        if p:
+            pub_out = schemas.PublicationOut(
+                id=p.id,
+                place_name=p.place_name,
+                country=p.country,
+                province=p.province,
+                city=p.city,
+                address=p.address,
+                status=p.status,
+                created_by_user_id=p.created_by_user_id,
+                created_at=p.created_at.isoformat() if p.created_at else "",
+                photos=[ph.url for ph in p.photos],
+                is_favorite=False,
+                has_pending_deletion=True
+            )
+
+            out.append(
+                schemas.DeletionRequestOut(
+                    id=req.id,
+                    publication_id=req.publication_id,
+                    requested_by_user_id=req.requested_by_user_id,
+                    status=req.status,
+                    created_at=req.created_at.isoformat() if req.created_at else "",
+                    publication=pub_out
+                )
+            )
+    return out
+
+# --- APPROVE DELETION REQUEST (solo admin) ---
+@router.put("/deletion-requests/{request_id}/approve", status_code=status.HTTP_200_OK)
+def approve_deletion_request(request_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    """
+    Aprueba la solicitud de eliminación y elimina la publicación
+    """
+    req = db.query(models.DeletionRequest).filter(models.DeletionRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail="Esta solicitud ya fue procesada")
+
+    # Obtener la publicación
+    pub = req.publication
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    # Borrar archivos físicos
+    for ph in pub.photos:
+        filename = ph.url.split("/static/uploads/publications/")[-1]
+        abs_path = os.path.join(UPLOAD_DIR, filename)
+        try:
+            if os.path.exists(abs_path):
+                os.remove(abs_path)
+        except Exception:
+            pass
+
+    # Eliminar la publicación (cascada eliminará fotos y solicitud)
+    db.delete(pub)
+
+    # Actualizar estado de la solicitud
+    req.status = "approved"
+    req.resolved_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return {"message": "Solicitud aprobada. Publicación eliminada."}
+
+# --- REJECT DELETION REQUEST (solo admin) ---
+@router.put("/deletion-requests/{request_id}/reject", status_code=status.HTTP_200_OK)
+def reject_deletion_request(request_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    """
+    Rechaza la solicitud de eliminación
+    """
+    req = db.query(models.DeletionRequest).filter(models.DeletionRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail="Esta solicitud ya fue procesada")
+
+    req.status = "rejected"
+    req.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return {"message": "Solicitud de eliminación rechazada."}

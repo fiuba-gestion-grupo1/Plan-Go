@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import CreatePublicationForm from "../components/CreatePublicationForm";
 
 /* Helper fetch */
 async function request(path, { method = "GET", token, body, isForm = false } = {}) {
@@ -61,11 +62,19 @@ function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload 
 
   return (
     <div className="position-relative">
-      <button type="button" className="btn btn-outline-primary dropdown-toggle" onClick={() => { setOpen(o => !o); if (!open && onReload) onReload(); }}>
+      <button
+        type="button"
+        className="btn btn-outline-primary dropdown-toggle"
+        onClick={() => { setOpen(o => !o); if (!open && onReload) onReload(); }}
+      >
         Categorías
       </button>
       {open && (
-        <div ref={boxRef} className="position-absolute end-0 mt-2 p-3 bg-white border rounded-3 shadow" style={{ minWidth: 280, zIndex: 1000, maxHeight: 360, overflow: "auto" }}>
+        <div
+          ref={boxRef}
+          className="position-absolute end-0 mt-2 p-3 bg-white border rounded-3 shadow"
+          style={{ minWidth: 280, zIndex: 1000, maxHeight: 360, overflow: "auto" }}
+        >
           <div className="d-flex align-items-center justify-content-between mb-2">
             <div className="fw-semibold text-muted small">Tipo de categoría</div>
             <button className="btn btn-sm btn-link" type="button" onClick={onReload} title="Actualizar lista">↻</button>
@@ -165,7 +174,6 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
           </ul>
         </div>
 
-        {/* Área de creación condicionada por rol */}
         {isPremium ? (
           <form className="p-3 border-top" onSubmit={submitReview}>
             <div className="row g-2">
@@ -302,10 +310,17 @@ function PreferencesBox({ token }) {
 /* --- MAIN HOME --- */
 export default function Home({ me }) {
   const [pubs, setPubs] = useState([]);
+  const [myPubs, setMyPubs] = useState([]);
+  const [favPubs, setFavPubs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showMySubmissions, setShowMySubmissions] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const token = useMemo(() => localStorage.getItem("token") || "", []);
-  // Estado para leer el parámetro ?pub=ID desde la URL solo una vez
+  // leer ?pub=ID una sola vez
   const [paramPubId] = useState(() => {
     try {
       const id = new URL(window.location.href).searchParams.get("pub");
@@ -315,49 +330,61 @@ export default function Home({ me }) {
     }
   });
 
-
   const [cats, setCats] = useState([]);
   const [allCats, setAllCats] = useState([]);
 
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(null);
 
-  const qs = cats.length ? `?category=${encodeURIComponent(cats.join(","))}` : "";
-
   async function reloadCats() {
     try {
       const list = await request("/api/categories");
       setAllCats(list);
-    } catch {}
+    } catch {
+      // si no existe endpoint, ignoramos
+      setAllCats([]);
+    }
   }
 
   useEffect(() => { reloadCats(); }, []);
 
+  // Construye endpoint según búsqueda o categorías
+  function buildPublicationsEndpoint(query, categories) {
+    if (query && query.trim().length >= 2) {
+      return `/api/publications/search?q=${encodeURIComponent(query.trim())}`;
+    }
+    const qs = categories?.length ? `?category=${encodeURIComponent(categories.join(","))}` : "";
+    return `/api/publications/public${qs}`;
+  }
+
+  async function fetchPublications(query = "", categories = cats) {
+    setLoading(true);
+    setError("");
+    try {
+      const endpoint = buildPublicationsEndpoint(query, categories);
+      const data = await request(endpoint, { token });
+      setPubs(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // carga inicial y cuando cambian categorías
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await request(`/api/publications/public${qs}`);
-        setPubs(data);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [qs]);
-  // Si viene ?pub=ID en la URL, abre automáticamente esa publicación
+    fetchPublications(searchQuery, cats);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, JSON.stringify(cats)]);
+
+  // Si viene ?pub=ID en la URL, abre automáticamente esa publicación cuando hay datos
   useEffect(() => {
     if (!paramPubId) return;
     if (!Array.isArray(pubs) || pubs.length === 0) return;
-
     const found = pubs.find(p => p.id === paramPubId);
     if (found) {
       setCurrent(found);
       setOpen(true);
-
-      // Limpia la query de la URL para no reabrir cada vez
       try {
         const url = new URL(window.location.href);
         url.searchParams.delete("pub");
@@ -366,11 +393,170 @@ export default function Home({ me }) {
     }
   }, [paramPubId, pubs]);
 
-
   function openReviews(p) { setCurrent(p); setOpen(true); }
+
+  async function fetchMySubmissions() {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await request("/api/publications/my-submissions", { token });
+      setMyPubs(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchFavorites() {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await request("/api/publications/favorites", { token });
+      setFavPubs(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggleFavorite(pubId) {
+    try {
+      const data = await request(`/api/publications/${pubId}/favorite`, {
+        method: "POST",
+        token
+      });
+      setPubs(prevPubs =>
+        prevPubs.map(p =>
+          p.id === pubId ? { ...p, is_favorite: data.is_favorite } : p
+        )
+      );
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function requestDeletion(pubId) {
+    if (!window.confirm("¿Deseas solicitar la eliminación de esta publicación? Un administrador deberá aprobarla.")) {
+      return;
+    }
+    try {
+      await request(`/api/publications/${pubId}/request-deletion`, {
+        method: "POST",
+        token
+      });
+      setSuccessMsg("Solicitud de eliminación enviada. Será revisada por un administrador.");
+      setMyPubs(prevPubs =>
+        prevPubs.map(p =>
+          p.id === pubId ? { ...p, has_pending_deletion: true } : p
+        )
+      );
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  function handleSearch(query) {
+    setSearchQuery(query);
+    fetchPublications(query, cats);
+  }
+
+  async function handleCreateSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setSuccessMsg("");
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const files = form.photos.files || [];
+    if (files.length > 4) {
+      setError("Máximo 4 fotos por publicación.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await request("/api/publications/submit", {
+        method: "POST",
+        token,
+        body: fd,
+        isForm: true,
+      });
+      setSuccessMsg("¡Publicación enviada! Será revisada por un administrador.");
+      form.reset();
+      setTimeout(() => {
+        setShowCreateForm(false);
+        setSuccessMsg("");
+      }, 2000);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (showCreateForm) {
+    return (
+      <CreatePublicationForm
+        onSubmit={handleCreateSubmit}
+        onCancel={() => {
+          setShowCreateForm(false);
+          setError("");
+          setSuccessMsg("");
+        }}
+        loading={loading}
+        error={error}
+        successMsg={successMsg}
+      />
+    );
+  }
+
+  if (showMySubmissions) {
+    return (
+      <MySubmissionsView
+        pubs={myPubs}
+        loading={loading}
+        error={error}
+        successMsg={successMsg}
+        onBack={() => {
+          setShowMySubmissions(false);
+          setError("");
+          setSuccessMsg("");
+        }}
+        onLoad={fetchMySubmissions}
+        onRequestDeletion={requestDeletion}
+      />
+    );
+  }
+
+  if (showFavorites) {
+    return (
+      <FavoritesView
+        pubs={favPubs}
+        loading={loading}
+        error={error}
+        onBack={() => {
+          setShowFavorites(false);
+          setError("");
+        }}
+        onLoad={fetchFavorites}
+        onToggleFavorite={async (pubId) => {
+          await toggleFavorite(pubId);
+          fetchFavorites(); // recargar lista luego de quitar uno
+        }}
+      />
+    );
+  }
+
+  function handleSearchSubmit(e) {
+    e.preventDefault();
+    const searchValue = e.target.search.value.trim();
+    handleSearch(searchValue);
+  }
 
   return (
     <div className="container mt-4">
+      {/* Hero */}
       <div className="p-5 mb-4 bg-light rounded-3">
         <div className="container-fluid py-5">
           <h1 className="display-6 fw-bold">¡Bienvenido a Plan&Go, {me.username}!</h1>
@@ -378,18 +564,65 @@ export default function Home({ me }) {
         </div>
       </div>
 
-      {/* 🔹 NUEVA SECCIÓN: CONFIGURAR PREFERENCIAS */}
+      {/* Preferencias */}
       <PreferencesBox token={token} />
 
+      {/* Título + Filtros + Acciones */}
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h3 className="mb-0">Publicaciones</h3>
-        <MultiCategoryDropdown
-          allCats={allCats}
-          selected={cats}
-          onApply={setCats}
-          onReload={reloadCats}
-        />
+        <div className="d-flex align-items-center gap-2">
+          <MultiCategoryDropdown
+            allCats={allCats}
+            selected={cats}
+            onApply={(sel) => { setCats(sel); /* fetchPublications se dispara por useEffect */ }}
+            onReload={reloadCats}
+          />
+          <button
+            className="btn btn-outline-danger"
+            onClick={() => { setShowFavorites(true); fetchFavorites(); }}
+          >
+            ❤️ Mis Favoritos
+          </button>
+          <button
+            className="btn btn-outline-secondary"
+            onClick={() => { setShowMySubmissions(true); fetchMySubmissions(); }}
+          >
+            Mis Publicaciones
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowCreateForm(true)}
+          >
+            + Agregar Publicación
+          </button>
+        </div>
       </div>
+
+      {/* Búsqueda */}
+      <form className="d-flex mt-3" onSubmit={handleSearchSubmit}>
+        <input
+          className="form-control"
+          type="search"
+          name="search"
+          defaultValue={searchQuery}
+          placeholder="Buscar por país, ciudad, lugar..."
+          aria-label="Buscar"
+        />
+      </form>
+
+      {searchQuery && (
+        <div className="alert alert-info d-flex justify-content-between align-items-center mt-3" role="alert">
+          <span>
+            <strong>Búsqueda:</strong> "{searchQuery}" - {pubs.length} resultado{pubs.length !== 1 ? "s" : ""} encontrado{pubs.length !== 1 ? "s" : ""}
+          </span>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            onClick={() => handleSearch("")}
+          >
+            Limpiar
+          </button>
+        </div>
+      )}
 
       {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
       {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
@@ -400,7 +633,7 @@ export default function Home({ me }) {
             <div className="card shadow-sm h-100">
               <div className="card-body pb-0">
                 <div className="d-flex justify-content-between align-items-start">
-                  <div>
+                  <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
                     <small className="text-muted">
                       {p.address}, {p.city}, {p.province}, {p.country}
@@ -412,8 +645,13 @@ export default function Home({ me }) {
                       ))}
                     </div>
                   </div>
-                  <button className="btn btn-sm btn-outline-primary" onClick={() => openReviews(p)}>
-                    Ver reseñas
+                  <button
+                    className="btn btn-link p-0 ms-2"
+                    onClick={() => toggleFavorite(p.id)}
+                    style={{ fontSize: "1.5rem", textDecoration: "none" }}
+                    title={p.is_favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+                  >
+                    {p.is_favorite ? "❤️" : "🤍"}
                   </button>
                 </div>
               </div>
@@ -463,6 +701,242 @@ export default function Home({ me }) {
       )}
 
       <ReviewsModal open={open} pub={current} token={token} me={me} onClose={() => setOpen(false)} />
+    </div>
+  );
+}
+
+function MySubmissionsView({ pubs, loading, error, successMsg, onBack, onLoad, onRequestDeletion }) {
+  React.useEffect(() => { onLoad(); }, []);
+
+  const getStatusBadge = (status) => {
+    if (status === "approved") return <span className="badge bg-success">Aprobada</span>;
+    if (status === "pending") return <span className="badge bg-warning text-dark">Pendiente</span>;
+    if (status === "rejected") return <span className="badge bg-danger">Rechazada</span>;
+    return <span className="badge bg-secondary">{status}</span>;
+  };
+
+  return (
+    <div className="container mt-4">
+      <div className="d-flex align-items-center justify-content-between mb-4">
+        <h3 className="mb-0">Mis Publicaciones</h3>
+        <button className="btn btn-outline-secondary" onClick={onBack}>Volver</button>
+      </div>
+
+      {loading && <div className="alert alert-info">Cargando...</div>}
+      {error && <div className="alert alert-danger">{error}</div>}
+      {successMsg && <div className="alert alert-success">{successMsg}</div>}
+
+      <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+        {pubs.map((p) => (
+          <div className="col" key={p.id}>
+            <div className="card shadow-sm h-100">
+              <div className="card-body pb-0">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div className="flex-grow-1">
+                    <h5 className="card-title mb-1">{p.place_name}</h5>
+                    <small className="text-muted d-block">
+                      {p.address}, {p.city}, {p.province}, {p.country}
+                    </small>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    {getStatusBadge(p.status)}
+                    {p.status === "approved" && !p.has_pending_deletion && (
+                      <div className="dropdown">
+                        <button
+                          className="btn btn-sm btn-link text-muted p-0"
+                          data-bs-toggle="dropdown"
+                          aria-expanded="false"
+                          title="Más acciones"
+                        >
+                          ⋯
+                        </button>
+                        <ul className="dropdown-menu dropdown-menu-end">
+                          <li>
+                            <button
+                              className="dropdown-item text-danger"
+                              onClick={() => onRequestDeletion(p.id)}
+                            >
+                              Solicitar eliminación
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {p.photos?.length ? (
+                <div id={`my-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                  <div className="carousel-inner">
+                    {p.photos.map((url, idx) => (
+                      <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                        <img
+                          src={url}
+                          className="d-block w-100"
+                          alt={`Foto ${idx + 1}`}
+                          style={{ height: 260, objectFit: "cover" }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {p.photos.length > 1 && (
+                    <>
+                      <button
+                        className="carousel-control-prev"
+                        type="button"
+                        data-bs-target={`#my-carousel-${p.id}`}
+                        data-bs-slide="prev"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                      >
+                        <span className="carousel-control-prev-icon" />
+                      </button>
+                      <button
+                        className="carousel-control-next"
+                        type="button"
+                        data-bs-target={`#my-carousel-${p.id}`}
+                        data-bs-slide="next"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                      >
+                        <span className="carousel-control-next-icon" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-muted">Sin fotos</div>
+              )}
+
+              <div className="card-footer bg-white">
+                <small className="text-muted d-block">
+                  Enviado: {new Date(p.created_at).toLocaleString()}
+                </small>
+                {p.status === "rejected" && (
+                  <small className="text-danger d-block mt-1">
+                    ❌ Esta publicación fue rechazada por un administrador.
+                  </small>
+                )}
+                {p.status === "pending" && (
+                  <small className="text-warning d-block mt-1">
+                    ⏳ En revisión por un administrador.
+                  </small>
+                )}
+                {p.has_pending_deletion && (
+                  <small className="text-info d-block mt-1">
+                    🕒 Solicitud de eliminación pendiente de aprobación.
+                  </small>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {!loading && pubs.length === 0 && (
+        <div className="alert alert-secondary mt-3">
+          No has enviado ninguna publicación aún.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FavoritesView({ pubs, loading, error, onBack, onLoad, onToggleFavorite }) {
+  React.useEffect(() => { onLoad(); }, []);
+
+  return (
+    <div className="container mt-4">
+      <div className="d-flex align-items-center justify-content-between mb-4">
+        <h3 className="mb-0">❤️ Mis Favoritos</h3>
+        <button className="btn btn-outline-secondary" onClick={onBack}>
+          Volver
+        </button>
+      </div>
+
+      {loading && <div className="alert alert-info">Cargando...</div>}
+      {error && <div className="alert alert-danger">{error}</div>}
+
+      <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+        {pubs.map((p) => (
+          <div className="col" key={p.id}>
+            <div className="card shadow-sm h-100 border-danger">
+              <div className="card-body pb-0">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div className="flex-grow-1">
+                    <h5 className="card-title mb-1">{p.place_name}</h5>
+                    <small className="text-muted">
+                      {p.address}, {p.city}, {p.province}, {p.country}
+                    </small>
+                  </div>
+                  <button
+                    className="btn btn-link p-0 ms-2"
+                    onClick={() => onToggleFavorite(p.id)}
+                    style={{ fontSize: "1.5rem", textDecoration: "none" }}
+                    title="Quitar de favoritos"
+                  >
+                    ❤️
+                  </button>
+                </div>
+              </div>
+
+              {p.photos?.length ? (
+                <div id={`fav-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                  <div className="carousel-inner">
+                    {p.photos.map((url, idx) => (
+                      <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                        <img
+                          src={url}
+                          className="d-block w-100"
+                          alt={`Foto ${idx + 1}`}
+                          style={{ height: 260, objectFit: "cover" }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {p.photos.length > 1 && (
+                    <>
+                      <button
+                        className="carousel-control-prev"
+                        type="button"
+                        data-bs-target={`#fav-carousel-${p.id}`}
+                        data-bs-slide="prev"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                      >
+                        <span className="carousel-control-prev-icon" />
+                      </button>
+                      <button
+                        className="carousel-control-next"
+                        type="button"
+                        data-bs-target={`#fav-carousel-${p.id}`}
+                        data-bs-slide="next"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                      >
+                        <span className="carousel-control-next-icon" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-muted">Sin fotos</div>
+              )}
+
+              <div className="card-footer bg-white">
+                <small className="text-muted">
+                  Creado: {new Date(p.created_at).toLocaleString()}
+                </small>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {!loading && pubs.length === 0 && (
+        <div className="alert alert-secondary mt-3">
+          No tienes publicaciones favoritas aún. ¡Empieza a explorar y agrega tus lugares favoritos! 💝
+        </div>
+      )}
     </div>
   );
 }

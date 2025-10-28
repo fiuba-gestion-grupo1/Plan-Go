@@ -48,9 +48,6 @@ export default function Suggestions({ token, me }) {
             <div className="card h-100">
               <div className="card-body">
                 <h5 className="card-title">{it.title || it.place_name || `Pub #${it.id}`}</h5>
-                <p className="card-text">
-                  Puntaje: <strong>{it.score}</strong>
-                </p>
                 <a
                 className="btn btn-sm btn-outline-primary"
                 href={`/?pub=${it.id}`}
