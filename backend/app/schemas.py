@@ -61,6 +61,24 @@ class VerifyAnswers(BaseModel):
 class ResetPasswordWithToken(BaseModel):
     new_password: str
 
+class ReviewCreate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = None
+
+class ReviewOut(BaseModel):
+    id: int
+    rating: int
+    comment: Optional[str] = None
+    author_username: str
+    created_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
 class UserOut(BaseModel):
     id: int
     username: str

@@ -10,13 +10,21 @@ from .auth import get_current_user
 
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
+# --- helpers de permisos ---
 def require_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
-    if not (current_user.role == "admin" or current_user.username == "admin"):
+    # Permití admin por rol o por username "admin" (como venías usando)
+    if current_user.role != "admin" and current_user.username != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores")
     return current_user
 
+def require_premium(current_user: models.User = Depends(get_current_user)) -> models.User:
+    # Solo usuarios "premium" pueden reseñar (como pediste)
+    if current_user.role != "premium":
+        raise HTTPException(status_code=403, detail="Solo usuarios premium pueden publicar reseñas")
+    return current_user
+
 def require_premium_or_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
-    # Si QUERÉS que solo premium (sin admin) puedan reseñar, cambiá la línea de abajo por:  if current_user.role != "premium":
+    # Útil si alguna vez querés que admin también pueda reseñar
     if current_user.role not in ("premium", "admin"):
         raise HTTPException(status_code=403, detail="Solo usuarios premium pueden publicar reseñas")
     return current_user
@@ -90,9 +98,9 @@ def list_publications(db: Session = Depends(get_db), _: models.User = Depends(re
                 address=p.address,
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
-                rating_avg=p.rating_avg or 0.0,
-                rating_count=p.rating_count or 0,
-                categories=[c.slug for c in p.categories],
+                rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
+                rating_count=getattr(p, "rating_count", 0) or 0,
+                categories=[c.slug for c in getattr(p, "categories", [])],
             )
         )
     return out
@@ -147,12 +155,12 @@ def create_publication(
         street=street,
         created_at=datetime.now(timezone.utc),
 
-        # 🔹 Seteo de los campos nuevos (son opcionales; si el modelo no los tuviera, no pasa nada)
-        continent=continent_norm,
-        climate=climate_norm,
-        activities=activities_list,
-        cost_per_day=cost_per_day,
-        duration_days=duration_days,
+        # 🔹 Seteo de los campos nuevos (si existen en tu modelo)
+        continent=continent_norm if hasattr(models.Publication, "continent") else None,
+        climate=climate_norm if hasattr(models.Publication, "climate") else None,
+        activities=activities_list if hasattr(models.Publication, "activities") else None,
+        cost_per_day=cost_per_day if hasattr(models.Publication, "cost_per_day") else None,
+        duration_days=duration_days if hasattr(models.Publication, "duration_days") else None,
     )
     if hasattr(models.Publication, "number"):
         setattr(pub, "number", number)
@@ -163,6 +171,7 @@ def create_publication(
         slugs = [_normalize_slug(s) for s in categories.split(",") if _normalize_slug(s)]
         for slug in slugs:
             cat = _get_or_create_category(db, slug)
+            # requiere que tengas `categories = relationship("Category", secondary=publication_categories, ...)`
             pub.categories.append(cat)
 
     db.add(pub)
@@ -192,11 +201,10 @@ def create_publication(
         address=pub.address,
         created_at=pub.created_at.isoformat() if pub.created_at else "",
         photos=saved_urls,
-        rating_avg=pub.rating_avg or 0.0,
-        rating_count=pub.rating_count or 0,
-        categories=slugs if slugs else [c.slug for c in pub.categories],
+        rating_avg=getattr(pub, "rating_avg", 0.0) or 0.0,
+        rating_count=getattr(pub, "rating_count", 0) or 0,
+        categories=slugs if slugs else [c.slug for c in getattr(pub, "categories", [])],
     )
-
 
 @router.delete("/{pub_id}", status_code=status.HTTP_200_OK)
 def delete_publication(pub_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
@@ -225,10 +233,9 @@ def list_publications_public(
     if category:
         slugs = [_normalize_slug(s) for s in category.split(",") if _normalize_slug(s)]
         if slugs:
-            q = (q.join(models.publication_categories)
-                   .join(models.Category)
-                   .filter(models.Category.slug.in_(slugs))
-                   .distinct())
+            # join por la relación para evitar referenciar la tabla intermedia directamente
+            q = q.join(models.Publication.categories).filter(models.Category.slug.in_(slugs)).distinct()
+
     pubs = q.order_by(models.Publication.created_at.desc()).all()
     out: List[schemas.PublicationOut] = []
     for p in pubs:
@@ -242,9 +249,9 @@ def list_publications_public(
                 address=p.address,
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
-                rating_avg=p.rating_avg or 0.0,
-                rating_count=p.rating_count or 0,
-                categories=[c.slug for c in p.categories],
+                rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
+                rating_count=getattr(p, "rating_count", 0) or 0,
+                categories=[c.slug for c in getattr(p, "categories", [])],
             )
         )
     return out
@@ -253,48 +260,68 @@ def _update_publication_rating(db: Session, pub_id: int) -> None:
     avg_, count_ = db.query(func.avg(models.Review.rating), func.count(models.Review.id)) \
         .filter(models.Review.publication_id == pub_id).one()
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
-    pub.rating_avg = round(float(avg_ or 0.0), 1)
-    pub.rating_count = int(count_ or 0)
+    if hasattr(pub, "rating_avg"):
+        pub.rating_avg = round(float(avg_ or 0.0), 1)
+    if hasattr(pub, "rating_count"):
+        pub.rating_count = int(count_ or 0)
     db.add(pub)
 
-
-@router.post("/{pub_id}/reviews", status_code=status.HTTP_201_CREATED)
-def create_review(pub_id: int, payload: dict, db: Session = Depends(get_db), user: models.User = Depends(require_premium_or_admin)):
+@router.post("/{pub_id}/reviews", response_model=schemas.ReviewOut, status_code=status.HTTP_201_CREATED)
+def create_review(
+    pub_id: int,
+    payload: schemas.ReviewCreate,                # <-- Pydantic, evita dict crudo
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_premium), # <-- ahora sí existe
+):
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
-    if not (1 <= payload.rating <= 5):
-        raise HTTPException(status_code=400, detail="El rating debe estar entre 1 y 5")
-    review = models.Review(publication_id=pub_id, author_id=user.id, rating=payload.rating, comment=(payload.comment or "").strip() or None)
+
+    review = models.Review(
+        publication_id=pub_id,
+        author_id=user.id,
+        rating=payload.rating,                     # validado (1..5) por Pydantic
+        comment=(payload.comment or "").strip(),
+        created_at=datetime.now(timezone.utc),
+    )
     db.add(review)
     db.flush()
-    _update_publication_rating(db, pub_id)
+
+    # Actualizar agregados si existen en el modelo
+    try:
+        _update_publication_rating(db, pub_id)
+    except Exception:
+        pass
+
     db.commit()
     db.refresh(review)
+
     return schemas.ReviewOut(
-        id=review.id, rating=review.rating, comment=review.comment,
+        id=review.id,
+        rating=review.rating,
+        comment=review.comment,
         author_username=user.username,
-        created_at=review.created_at.isoformat() if review.created_at else "",
+        created_at=review.created_at.isoformat()[:19],
     )
 
-@router.get("/{pub_id}/reviews", response_model=List[schemas.ReviewOut])
+@router.get("/{pub_id}/reviews", response_model=list[schemas.ReviewOut])
 def list_reviews(pub_id: int, db: Session = Depends(get_db)):
-    pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
-    if not pub:
-        raise HTTPException(status_code=404, detail="Publicación no encontrada")
-    rows = (db.query(models.Review, models.User.username)
-              .join(models.User, models.User.id == models.Review.author_id)
-              .filter(models.Review.publication_id == pub_id)
-              .order_by(models.Review.created_at.desc())
-              .all())
-    out: List[schemas.ReviewOut] = []
+    rows = (
+        db.query(models.Review, models.User.username)
+        .join(models.User, models.User.id == models.Review.author_id)
+        .filter(models.Review.publication_id == pub_id)
+        .order_by(models.Review.created_at.desc())
+        .all()
+    )
+    out = []
     for r, username in rows:
         out.append(
             schemas.ReviewOut(
-                id=r.id, rating=r.rating, comment=r.comment,
+                id=r.id,
+                rating=r.rating,
+                comment=r.comment,
                 author_username=username,
-                created_at=r.created_at.isoformat() if r.created_at else "",
+                created_at=r.created_at.isoformat()[:19],
             )
         )
     return out
-
