@@ -4,30 +4,31 @@ import './Sidebar.css';
 
 export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
   const isAdmin = me?.role === 'admin' || me?.username === 'admin';
+  const isPremium = me?.role === 'premium';
 
   const menuItems = isAdmin ? [
     { id: 'approved-publications', label: 'Publicaciones Aprobadas' },
     { id: 'all-publications', label: 'Todas las Publicaciones' },
     { id: 'pending-approvals', label: 'Solicitudes de aprobación' },
     { id: 'deletion-requests', label: 'Solicitudes de eliminación' },
-    { id: 'itinerary', label: 'Generar itinerario con IA' }
   ] : [
-    { id: 'publications', label: 'Publicaciones' },
-    { id: 'my-publications', label: 'Mis publicaciones' },
-    { id: 'favorites', label: 'Mis favoritos' },
-    { id: 'preferences', label: 'Configurar preferencias' },
-    { id: 'itinerary', label: 'Generar itinerario con IA' },
-    { id: 'my-itineraries', label: 'Mis itinerarios' }
+    { id: 'publications', label: '📰 Publicaciones' },
+    // Mostrar "Mis publicaciones" solo si el usuario es premium
+    ...(isPremium ? [{ id: 'my-publications', label: '✏️ Mis publicaciones' }] : []),
+    { id: 'favorites', label: '❤️ Mis favoritos' },
+    { id: 'preferences', label: '⚙️ Configurar preferencias' },
+    { id: 'itinerary', label: '🤖🗺️Generar itinerario con IA' },
+    { id: 'my-itineraries', label: '📅 Mis itinerarios' }
   ];
 
   return (
-    <div 
+    <div
       className="d-flex flex-column text-dark vh-100 position-fixed shadow-lg"
-      style={{ 
-        width: '280px', 
-        top: 0, 
-        left: 0, 
-        overflowY: 'auto', 
+      style={{
+        width: '280px',
+        top: 0,
+        left: 0,
+        overflowY: 'auto',
         zIndex: 1000,
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         backdropFilter: 'blur(10px)'
@@ -44,9 +45,8 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className={`btn w-100 text-start mb-1 sidebar-menu-item ${
-              activeView === item.id ? 'active' : 'btn-light text-dark'
-            }`}
+            className={`btn w-100 text-start mb-1 sidebar-menu-item ${activeView === item.id ? 'active' : 'btn-light text-dark'
+              }`}
             onClick={() => onNavigate(item.id)}
             style={{
               borderRadius: '8px',
@@ -74,7 +74,7 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
             onClick={() => onNavigate('suggestions')}
             style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
           >
-           Sugerencias
+            Sugerencias
           </button>
         )}
         <button

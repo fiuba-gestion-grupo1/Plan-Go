@@ -72,8 +72,8 @@ function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload 
     <div className="position-relative">
       <button
         type="button"
-        className="btn btn-outline-custom dropdown-toggle"
-         style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
+        style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
+        className="btn btn-celeste dropdown-toggle"
         onClick={() => { setOpen(o => !o); if (!open && onReload) onReload(); }}
       >
         Categorías
@@ -99,7 +99,7 @@ function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload 
           </ul>
           <div className="d-flex justify-content-between gap-2">
             <button className="btn btn-outline-secondary" type="button" onClick={clear}>Limpiar</button>
-            <button className="btn btn-outline-custom"  style={{ borderColor: '#3A92B5', color: '#3A92B5' }} type="button" onClick={apply}>Ver resultados</button>
+            <button className="btn btn-outline-custom" style={{ borderColor: '#3A92B5', color: '#3A92B5' }} type="button" onClick={apply}>Ver resultados</button>
           </div>
         </div>
       )}
@@ -189,7 +189,7 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
               <div className="col-12 col-md-2">
                 <label className="form-label mb-1">Rating</label>
                 <select className="form-select" value={rating} onChange={(e) => setRating(e.target.value)}>
-                  {[5,4,3,2,1].map(v => <option key={v} value={v}>{v}</option>)}
+                  {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
               <div className="col-12 col-md-8">
@@ -287,7 +287,7 @@ function PreferencesBox({ token }) {
 
       <div className="mb-3">
         <strong>Climas:</strong>{" "}
-        {["templado","frio","tropical","seco"].map(v => (
+        {["templado", "frio", "tropical", "seco"].map(v => (
           <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.climates?.includes(v) ? "btn-primary" : "btn-outline-primary"}`}
             onClick={() => toggleList("climates", v)}>{v}</button>
         ))}
@@ -295,7 +295,7 @@ function PreferencesBox({ token }) {
 
       <div className="mb-3">
         <strong>Actividades:</strong>{" "}
-        {["playa","montaña","ciudad","gastronomía","historia","noche"].map(v => (
+        {["playa", "montaña", "ciudad", "gastronomía", "historia", "noche"].map(v => (
           <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.activities?.includes(v) ? "btn-success" : "btn-outline-success"}`}
             onClick={() => toggleList("activities", v)}>{v}</button>
         ))}
@@ -303,7 +303,7 @@ function PreferencesBox({ token }) {
 
       <div className="mb-3">
         <strong>Continentes:</strong>{" "}
-        {["américa","europa","asia","áfrica","oceanía"].map(v => (
+        {["américa", "europa", "asia", "áfrica", "oceanía"].map(v => (
           <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.continents?.includes(v) ? "btn-secondary" : "btn-outline-secondary"}`}
             onClick={() => toggleList("continents", v)}>{v}</button>
         ))}
@@ -323,7 +323,7 @@ export default function Home({ me, view = "publications" }) {
   const [favPubs, setFavPubs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [subView, setSubView] = useState(null); 
+  const [subView, setSubView] = useState(null);
   const [selectedItinerary, setSelectedItinerary] = useState(null);
   const [myItineraries, setMyItineraries] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
@@ -406,7 +406,7 @@ export default function Home({ me, view = "publications" }) {
         const url = new URL(window.location.href);
         url.searchParams.delete("pub");
         window.history.replaceState({}, "", url.pathname);
-      } catch {}
+      } catch { }
     }
   }, [paramPubId, pubs]);
 
@@ -526,11 +526,11 @@ export default function Home({ me, view = "publications" }) {
       });
 
       setSuccessMsg("Itinerario eliminado exitosamente");
-      
+
       if (selectedItinerary && selectedItinerary.id === itineraryId) {
         setSelectedItinerary(null);
       }
-      
+
       await fetchMyItineraries();
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e) {
@@ -551,29 +551,29 @@ export default function Home({ me, view = "publications" }) {
     setSuccessMsg("");
     const form = e.currentTarget;
     const fd = new FormData(form);
-    
+
     // Convertir campos numéricos de string a number
     const costPerDay = fd.get('cost_per_day');
     const durationDays = fd.get('duration_days');
-    
+
     if (costPerDay && costPerDay.trim() !== '') {
       fd.set('cost_per_day', parseFloat(costPerDay));
     } else {
       fd.delete('cost_per_day');
     }
-    
+
     if (durationDays && durationDays.trim() !== '') {
       fd.set('duration_days', parseInt(durationDays, 10));
     } else {
       fd.delete('duration_days');
     }
-    
+
     // Debug: mostrar qué se está enviando
     console.log("Datos del formulario:");
     for (let pair of fd.entries()) {
       console.log(pair[0] + ': ' + pair[1]);
     }
-    
+
     const files = form.photos.files || [];
     if (files.length > 4) {
       setError("Máximo 4 fotos por publicación.");
@@ -659,10 +659,10 @@ export default function Home({ me, view = "publications" }) {
   if (view === 'itinerary' || selectedItinerary) {
     const formatDate = (dateStr) => {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('es-ES', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
     };
 
@@ -673,8 +673,8 @@ export default function Home({ me, view = "publications" }) {
           <div className="d-flex align-items-center justify-content-between mb-4">
             <h3 className="mb-0">Itinerario: {selectedItinerary.destination}</h3>
             <div className="d-flex gap-2">
-              <button 
-                className="btn btn-outline-secondary" 
+              <button
+                className="btn btn-outline-secondary"
                 onClick={() => {
                   setSelectedItinerary(null);
                   setError("");
@@ -683,8 +683,8 @@ export default function Home({ me, view = "publications" }) {
               >
                 Volver
               </button>
-              <button 
-                className="btn btn-outline-danger" 
+              <button
+                className="btn btn-outline-danger"
                 onClick={() => handleDeleteItinerary(selectedItinerary.id)}
                 disabled={loading}
               >
@@ -732,7 +732,7 @@ export default function Home({ me, view = "publications" }) {
           <div className="card shadow-sm">
             <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Itinerario Generado por IA</h5>
-              <button 
+              <button
                 className="btn btn-sm btn-light"
                 onClick={() => {
                   navigator.clipboard.writeText(selectedItinerary.generated_itinerary || '');
@@ -744,8 +744,8 @@ export default function Home({ me, view = "publications" }) {
             </div>
             <div className="card-body">
               {selectedItinerary.status === 'completed' ? (
-                <div style={{ 
-                  whiteSpace: 'pre-wrap', 
+                <div style={{
+                  whiteSpace: 'pre-wrap',
                   fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
                   lineHeight: '1.8',
                   fontSize: '0.95rem',
@@ -849,7 +849,7 @@ export default function Home({ me, view = "publications" }) {
 
         <div className="row justify-content-center">
           <div className="col-lg-10">
-            <ItineraryRequestForm 
+            <ItineraryRequestForm
               onSubmit={handleItinerarySubmit}
               isLoading={loading}
             />
@@ -863,10 +863,10 @@ export default function Home({ me, view = "publications" }) {
   if (view === 'my-itineraries') {
     const formatDate = (dateStr) => {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('es-ES', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
     };
 
@@ -897,25 +897,25 @@ export default function Home({ me, view = "publications" }) {
                       <span className="badge bg-danger">Error</span>
                     )}
                   </div>
-                  
+
                   <p className="text-muted small mb-2">
-                     {formatDate(itinerary.start_date)} - {formatDate(itinerary.end_date)}
+                    {formatDate(itinerary.start_date)} - {formatDate(itinerary.end_date)}
                   </p>
-                  
+
                   <p className="mb-2">
                     <strong>Tipo:</strong> {itinerary.trip_type}
                   </p>
-                  
+
                   <p className="mb-2">
                     <strong>Presupuesto:</strong> US${itinerary.budget}
                   </p>
-                  
+
                   <p className="mb-3">
                     <strong>Personas:</strong> {itinerary.cant_persons}
                   </p>
-                  
+
                   <div className="d-flex gap-2">
-                    <button 
+                    <button
                       className="btn btn-sm btn-outline-custom flex-grow-1"
                       onClick={() => {
                         setSelectedItinerary(itinerary);
@@ -923,7 +923,7 @@ export default function Home({ me, view = "publications" }) {
                     >
                       Ver Itinerario
                     </button>
-                    <button 
+                    <button
                       className="btn btn-sm btn-outline-danger"
                       onClick={() => handleDeleteItinerary(itinerary.id)}
                       title="Eliminar itinerario"
@@ -933,7 +933,7 @@ export default function Home({ me, view = "publications" }) {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="card-footer text-muted small">
                   Creado: {new Date(itinerary.created_at).toLocaleString('es-ES')}
                 </div>
@@ -977,7 +977,7 @@ export default function Home({ me, view = "publications" }) {
             onApply={(sel) => { setCats(sel); }}
             onReload={reloadCats}
           />
-         
+
         </div>
       </div>
 
@@ -1104,14 +1104,14 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
         <h3 className="mb-0">Mis Publicaciones</h3>
         <div className="d-flex align-items-center gap-2 flex-wrap">
-           <button
-            className="btn btn-outline-custom"
-             style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
+          <button
+            className="btn btn-celeste"
+            style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
             onClick={() => setSubView('create-publication')}
           >
             + Agregar Publicación
           </button>
-         
+
         </div>
       </div>
 
