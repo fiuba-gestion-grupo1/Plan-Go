@@ -61,5 +61,29 @@ Ejecutar el comando:
 make test
 
 ```
-
 Para levantar el contenedor y correr los tests. Automaticamente terminada la ejecucion de los tests, el conetenedor se elimina automaticamente para limpiar los recursos.
+
+## Tutorial de Ejecución de Comandos del Backend para actualizar la BDD
+
+### Abrir el contenedor de docker
+```bash
+docker exec -it plan-go-app bash
+```
+### Instalar SQLite3 y Salir de la terminar de contenedor
+```bash
+apt-get update && apt-get install -y sqlite3
+ctrl d
+```
+
+### Ejecutar el comando de sql
+```bash
+docker exec -it plan-go-app sqlite3 /app/data/plan_go.db "UPDATE users SET role='admin' WHERE username='your_username';"
+ctrl d
+```
+
+## Tutorial de Ejecución del Script de Publicaciones
+make up
+
+desde otra terminal:
+docker ps para obtener el nombre del contenedor
+docker exec <tu-contenedor-app> python -m backend.app.seed_db
