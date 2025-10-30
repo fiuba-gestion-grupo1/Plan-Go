@@ -1,14 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, timezone
+from pydantic import BaseModel
 import os, re
 from .. import models, schemas
 from ..db import get_db
 from .auth import get_current_user
 
 router = APIRouter(prefix="/api/publications", tags=["publications"])
+
+# Schema para rechazar o eliminar con motivo
+class RejectRequest(BaseModel):
+    reason: Optional[str] = None
 
 # --- helpers de permisos ---
 def require_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
@@ -82,6 +87,36 @@ def _get_or_create_category(db: Session, slug: str, name: Optional[str] = None) 
     db.add(cat)
     db.flush()
     return cat
+
+@router.get("/all", response_model=List[schemas.PublicationOut])
+def list_all_publications(db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    # Mostrar TODAS las publicaciones (aprobadas, rechazadas, pendientes, eliminadas)
+    pubs = (
+        db.query(models.Publication)
+        .order_by(models.Publication.created_at.desc())
+        .all()
+    )
+    out: List[schemas.PublicationOut] = []
+    for p in pubs:
+        out.append(
+            schemas.PublicationOut(
+                id=p.id,
+                place_name=p.place_name,
+                country=p.country,
+                province=p.province,
+                city=p.city,
+                address=p.address,
+                status=p.status,
+                rejection_reason=getattr(p, "rejection_reason", None),
+                created_by_user_id=p.created_by_user_id,
+                created_at=p.created_at.isoformat() if p.created_at else "",
+                photos=[ph.url for ph in p.photos],
+                rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
+                rating_count=getattr(p, "rating_count", 0) or 0,
+                categories=[c.slug for c in getattr(p, "categories", [])],
+            )
+        )
+    return out
 
 @router.get("", response_model=List[schemas.PublicationOut])
 def list_publications(db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
@@ -225,21 +260,21 @@ def create_publication(
     )
 
 @router.delete("/{pub_id}", status_code=status.HTTP_200_OK)
-def delete_publication(pub_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+def delete_publication(
+    pub_id: int, 
+    payload: RejectRequest,
+    db: Session = Depends(get_db), 
+    _: models.User = Depends(require_admin)
+):
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
-    for ph in pub.photos:
-        filename = ph.url.split("/static/uploads/publications/")[-1]
-        abs_path = os.path.join(UPLOAD_DIR, filename)
-        try:
-            if os.path.exists(abs_path):
-                os.remove(abs_path)
-        except Exception:
-            pass
-    db.delete(pub)
+    
+    # Cambiar estado a "deleted" en lugar de eliminar físicamente
+    pub.status = "deleted"
+    pub.rejection_reason = payload.reason  # Reutilizamos este campo como deletion_reason
     db.commit()
-    return {"message": "Publicación eliminada"}
+    return {"message": "Publicación marcada como eliminada"}
 
 # --- SUBMIT PUBLICATION (usuarios básicos) ---
 @router.post("/submit", response_model=schemas.PublicationOut, status_code=status.HTTP_201_CREATED)
@@ -374,6 +409,7 @@ def list_my_submissions(db: Session = Depends(get_db), current_user: models.User
                 city=p.city,
                 address=p.address,
                 status=p.status,
+                rejection_reason=getattr(p, "rejection_reason", None),
                 created_by_user_id=p.created_by_user_id,
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
@@ -435,15 +471,37 @@ def search_publications(
         )
     return out
 
-# --- LIST PUBLIC (sin auth, con filtro de categorías) ---
+# --- LIST PUBLIC (con auth opcional, con filtro de categorías) ---
+def get_optional_user(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> Optional[models.User]:
+    """Obtiene el usuario si está autenticado, sino devuelve None"""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    try:
+        from ..security import decode_token
+        token = authorization.split()[1]
+        data = decode_token(token)
+        if not data:
+            return None
+        user_id = data.get("sub")
+        if user_id is None:
+            return None
+        user = db.query(models.User).get(int(user_id))
+        return user
+    except Exception:
+        return None
+
 @router.get("/public", response_model=List[schemas.PublicationOut])
 def list_publications_public(
     category: Optional[str] = Query(None, description="Slugs separados por coma, ej: aventura,cultura"),
     db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_optional_user),
 ):
     """
     Lista publicaciones aprobadas. Permite filtrar por una o varias categorías usando slugs.
-    No requiere autenticación.
+    No requiere autenticación, pero si el usuario está autenticado, incluye is_favorite.
     """
     q = db.query(models.Publication).filter(models.Publication.status == "approved")
     slugs: List[str] = []
@@ -454,6 +512,15 @@ def list_publications_public(
             q = q.join(models.Publication.categories).filter(models.Category.slug.in_(slugs)).distinct()
 
     pubs = q.order_by(models.Publication.created_at.desc()).all()
+    
+    # Obtener IDs de favoritos del usuario actual si está autenticado
+    favorite_ids = set()
+    if current_user:
+        favorite_ids = {
+            fav.publication_id
+            for fav in db.query(models.Favorite).filter(models.Favorite.user_id == current_user.id).all()
+        }
+    
     out: List[schemas.PublicationOut] = []
     for p in pubs:
         out.append(
@@ -471,6 +538,7 @@ def list_publications_public(
                 rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
                 rating_count=getattr(p, "rating_count", 0) or 0,
                 categories=[c.slug for c in getattr(p, "categories", [])],
+                is_favorite=p.id in favorite_ids,
             )
         )
     return out
@@ -600,13 +668,22 @@ def approve_publication(pub_id: int, db: Session = Depends(get_db), _: models.Us
     )
 
 # --- REJECT PUBLICATION (solo admin) - Cambia status a "rejected" ---
+class RejectRequest(BaseModel):
+    reason: Optional[str] = None
+
 @router.put("/{pub_id}/reject", response_model=schemas.PublicationOut)
-def reject_publication(pub_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+def reject_publication(
+    pub_id: int, 
+    payload: RejectRequest,
+    db: Session = Depends(get_db), 
+    _: models.User = Depends(require_admin)
+):
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
 
     pub.status = "rejected"
+    pub.rejection_reason = payload.reason
     db.commit()
     db.refresh(pub)
 
@@ -618,6 +695,7 @@ def reject_publication(pub_id: int, db: Session = Depends(get_db), _: models.Use
         city=pub.city,
         address=pub.address,
         status=pub.status,
+        rejection_reason=pub.rejection_reason,
         created_by_user_id=pub.created_by_user_id,
         created_at=pub.created_at.isoformat() if pub.created_at else "",
         photos=[ph.url for ph in pub.photos],
@@ -752,6 +830,7 @@ def list_pending_deletion_requests(db: Session = Depends(get_db), _: models.User
                     publication_id=req.publication_id,
                     requested_by_user_id=req.requested_by_user_id,
                     status=req.status,
+                    rejection_reason=getattr(req, "rejection_reason", None),
                     created_at=req.created_at.isoformat() if req.created_at else "",
                     publication=pub_out
                 )
@@ -799,7 +878,12 @@ def approve_deletion_request(request_id: int, db: Session = Depends(get_db), _: 
 
 # --- REJECT DELETION REQUEST (solo admin) ---
 @router.put("/deletion-requests/{request_id}/reject", status_code=status.HTTP_200_OK)
-def reject_deletion_request(request_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+def reject_deletion_request(
+    request_id: int, 
+    payload: RejectRequest,
+    db: Session = Depends(get_db), 
+    _: models.User = Depends(require_admin)
+):
     """
     Rechaza la solicitud de eliminación
     """
@@ -811,6 +895,7 @@ def reject_deletion_request(request_id: int, db: Session = Depends(get_db), _: m
         raise HTTPException(status_code=400, detail="Esta solicitud ya fue procesada")
 
     req.status = "rejected"
+    req.rejection_reason = payload.reason
     req.resolved_at = datetime.now(timezone.utc)
     db.commit()
 

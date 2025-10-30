@@ -6,7 +6,7 @@ from pathlib import Path
 
 from backend.app.api import suggestions
 from .db import Base, engine, log_db_info
-from .api import auth, health, users, publications, debug, categories, preferences
+from .api import auth, health, users, publications, debug, categories, preferences, itineraries
 from .db_migrations import ensure_min_schema
 
 
@@ -33,7 +33,8 @@ app.include_router(users.router)
 app.include_router(publications.router)
 app.include_router(categories.router)
 app.include_router(preferences.router)
-app.include_router(suggestions.router) 
+app.include_router(suggestions.router)
+app.include_router(itineraries.router) 
 if os.getenv("ENV", "dev") == "dev":
     try:
         from .api import debug as debug_router  # backend/app/api/debug.py

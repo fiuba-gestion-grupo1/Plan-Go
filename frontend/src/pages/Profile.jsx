@@ -278,18 +278,13 @@ export default function Profile({ me, token, setMe }) {
                     </ul>
 
                     {/* Botones de acción */}
-                    <div className="d-flex justify-content-between align-items-center mt-4">
-                        <a href="/" className="btn btn-outline-secondary">
-                            Volver a Inicio
-                        </a>
-                        <div>
-                            <button className="btn btn-link me-3" onClick={() => setViewMode('password')}>
-                                Modificar Contraseña
-                            </button>
-                            <button className="btn btn-primary btn-lg" onClick={() => setViewMode('edit')}>
-                                Editar Perfil
-                            </button>
-                        </div>
+                    <div className="d-flex justify-content-end align-items-center mt-4 gap-3">
+                        <button className="btn btn-outline-secondary" onClick={() => setViewMode('password')}>
+                            Modificar Contraseña
+                        </button>
+                        <button className="btn btn-primary" onClick={() => setViewMode('edit')}>
+                            Editar Perfil
+                        </button>
                     </div>
                 </div>
             </div>

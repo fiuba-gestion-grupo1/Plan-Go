@@ -1,0 +1,21 @@
+/* Botón con borde azul que se pinta completamente al hacer hover */
+.btn-outline-custom {
+  border-color: #3A92B5;
+  color: #3A92B5;
+  background-color: transparent;
+  transition: all 0.3s ease;
+}
+
+.btn-outline-custom:hover {
+  background-color: #3A92B5;
+  color: white;
+  border-color: #3A92B5;
+}
+
+.btn-outline-custom:focus,
+.btn-outline-custom:active {
+  background-color: #3A92B5;
+  color: white;
+  border-color: #3A92B5;
+  box-shadow: 0 0 0 0.25rem rgba(58, 146, 181, 0.25);
+}

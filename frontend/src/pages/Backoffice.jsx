@@ -33,42 +33,32 @@ function Stars({ value = 0 }) {
   );
 }
 
-export default function Backoffice({ me }) {
-  const [view, setView] = useState("menu");
+export default function Backoffice({ me, view = "publications" }) {
+  const [subView, setSubView] = useState(null); // Para navegación interna
   const [loading, setLoading] = useState(false);
   const [pubs, setPubs] = useState([]);
+  const [allPubs, setAllPubs] = useState([]);
   const [pendingPubs, setPendingPubs] = useState([]);
   const [deletionRequests, setDeletionRequests] = useState([]);
   const [error, setError] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const token = useMemo(() => localStorage.getItem("token") || "", []);
-
   const fetchedOnce = useRef(false);
-  const fetchedPendingOnce = useRef(false);
-  const fetchedDeletionOnce = useRef(false);
 
-  // Cargar contador de pendientes al montar el componente
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await request("/api/publications/pending", { token });
-        setPendingPubs(data);
-        
-        const deletionData = await request("/api/publications/deletion-requests/pending", { token });
-        setDeletionRequests(deletionData);
-      } catch (e) {
-        console.error("Error cargando pendientes:", e);
-      }
-    })();
-  }, [token]);
-
-  const go = (v) => {
-    setError("");
-    setOkMsg("");
-    setSearchQuery("");
-    setView(v);
-  };
+  // Función para recargar estadísticas
+  async function reloadStats() {
+    try {
+      const [pending, deletions] = await Promise.all([
+        request("/api/publications/pending", { token }).catch(() => []),
+        request("/api/publications/deletion-requests/pending", { token }).catch(() => [])
+      ]);
+      setPendingPubs(pending);
+      setDeletionRequests(deletions);
+    } catch (e) {
+      console.error("Error recargando estadísticas:", e);
+    }
+  }
 
   async function fetchPublications(query = "") {
     setLoading(true);
@@ -112,31 +102,39 @@ export default function Backoffice({ me }) {
     }
   }
 
+  async function fetchAllPublications() {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await request("/api/publications/all", { token });
+      setAllPubs(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Cargar estadísticas al inicio (siempre)
   useEffect(() => {
-    if (view === "list") {
-      if (fetchedOnce.current) return;
-      fetchedOnce.current = true;
+    if (!token) return;
+    reloadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // Cargar datos según la vista activa
+  useEffect(() => {
+    if (view === "publications" && !subView) {
       fetchPublications(searchQuery);
-    } else {
-      fetchedOnce.current = false;
-    }
-    
-    if (view === "pending") {
-      if (fetchedPendingOnce.current) return;
-      fetchedPendingOnce.current = true;
+    } else if (view === "all-publications" && !subView) {
+      fetchAllPublications();
+    } else if (view === "pending" && !subView) {
       fetchPendingPublications();
-    } else {
-      fetchedPendingOnce.current = false;
-    }
-    
-    if (view === "deletion-requests") {
-      if (fetchedDeletionOnce.current) return;
-      fetchedDeletionOnce.current = true;
+    } else if (view === "deletion-requests" && !subView) {
       fetchDeletionRequests();
-    } else {
-      fetchedDeletionOnce.current = false;
     }
-  }, [view]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, token]);
 
   function handleSearch(query) {
     setSearchQuery(query);
@@ -165,8 +163,8 @@ export default function Backoffice({ me }) {
       });
       setOkMsg("Publicación creada con éxito.");
       form.reset();
-      setView("list");
-      fetchedOnce.current = false;
+      setSubView(null);
+      fetchPublications(searchQuery);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -175,14 +173,23 @@ export default function Backoffice({ me }) {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("¿Eliminar esta publicación?")) return;
+    const reason = window.prompt("¿Por qué eliminas esta publicación? (El usuario verá este mensaje)");
+    if (reason === null) return; // Usuario canceló
+    
     setLoading(true);
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/${id}`, { method: "DELETE", token });
-      setOkMsg("Publicación eliminada.");
+      await request(`/api/publications/${id}`, { 
+        method: "DELETE", 
+        token,
+        body: { reason: reason.trim() || undefined }
+      });
+      setOkMsg("Publicación marcada como eliminada.");
       setPubs((prev) => prev.filter((p) => p.id !== id));
+      setAllPubs((prev) => prev.map((p) => 
+        p.id === id ? { ...p, status: 'deleted', rejection_reason: reason.trim() } : p
+      ));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -198,6 +205,8 @@ export default function Backoffice({ me }) {
       await request(`/api/publications/${id}/approve`, { method: "PUT", token });
       setOkMsg("Publicación aprobada.");
       setPendingPubs((prev) => prev.filter((p) => p.id !== id));
+      // Recargar estadísticas después de aprobar
+      await reloadStats();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -206,14 +215,22 @@ export default function Backoffice({ me }) {
   }
 
   async function handleReject(id) {
-    if (!window.confirm("¿Rechazar esta publicación? El usuario podrá verla como rechazada.")) return;
+    const reason = window.prompt("¿Por qué rechazas esta publicación? (El usuario verá este mensaje)");
+    if (reason === null) return; // Usuario canceló
+    
     setLoading(true);
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/${id}/reject`, { method: "PUT", token });
+      await request(`/api/publications/${id}/reject`, { 
+        method: "PUT", 
+        token,
+        body: { reason: reason.trim() || undefined }
+      });
       setOkMsg("Publicación rechazada.");
       setPendingPubs((prev) => prev.filter((p) => p.id !== id));
+      // Recargar estadísticas después de rechazar
+      await reloadStats();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -230,6 +247,8 @@ export default function Backoffice({ me }) {
       await request(`/api/publications/deletion-requests/${requestId}/approve`, { method: "PUT", token });
       setOkMsg("Solicitud aprobada. Publicación eliminada.");
       setDeletionRequests((prev) => prev.filter((r) => r.id !== requestId));
+      // Recargar estadísticas después de aprobar eliminación
+      await reloadStats();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -238,14 +257,22 @@ export default function Backoffice({ me }) {
   }
 
   async function handleRejectDeletion(requestId) {
-    if (!window.confirm("¿Rechazar esta solicitud de eliminación?")) return;
+    const reason = window.prompt("¿Por qué rechazas esta solicitud de eliminación? (El usuario verá este mensaje)");
+    if (reason === null) return; // Usuario canceló
+    
     setLoading(true);
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/deletion-requests/${requestId}/reject`, { method: "PUT", token });
+      await request(`/api/publications/deletion-requests/${requestId}/reject`, { 
+        method: "PUT", 
+        token,
+        body: { reason: reason.trim() || undefined }
+      });
       setOkMsg("Solicitud de eliminación rechazada.");
       setDeletionRequests((prev) => prev.filter((r) => r.id !== requestId));
+      // Recargar estadísticas después de rechazar eliminación
+      await reloadStats();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -253,97 +280,133 @@ export default function Backoffice({ me }) {
     }
   }
 
-  return (
-    <div className="container">
-      {view === "menu" && <Menu me={me} go={go} pendingCount={pendingPubs.length} deletionCount={deletionRequests.length} />}
-      {view === "list" && (
-        <ListView
-          pubs={pubs}
-          loading={loading}
-          error={error}
-          okMsg={okMsg}
-          searchQuery={searchQuery}
-          go={go}
-          onDelete={handleDelete}
-          onSearch={handleSearch}
-        />
-      )}
-      {view === "pending" && (
-        <PendingView
-          pubs={pendingPubs}
-          loading={loading}
-          error={error}
-          okMsg={okMsg}
-          go={go}
-          onApprove={handleApprove}
-          onReject={handleReject}
-        />
-      )}
-      {view === "deletion-requests" && (
-        <DeletionRequestsView
-          requests={deletionRequests}
-          loading={loading}
-          error={error}
-          okMsg={okMsg}
-          go={go}
-          onApprove={handleApproveDeletion}
-          onReject={handleRejectDeletion}
-        />
-      )}
-      {view === "create" && (
-        <CreateView
-          loading={loading}
-          error={error}
-          okMsg={okMsg}
-          go={go}
-          onSubmit={handleCreate}
-        />
-      )}
+  // Mostrar formulario de crear publicación
+  if (subView === 'create') {
+    return (
+      <CreateView
+        loading={loading}
+        error={error}
+        okMsg={okMsg}
+        onBack={() => setSubView(null)}
+        onSubmit={handleCreate}
+      />
+    );
+  }
+
+  // Layout con sidebar de estadísticas
+  const renderViewWithStats = (content) => (
+    <div className="container-fluid py-4">
+      <div className="row">
+        <div className="col-lg-9">
+          {content}
+        </div>
+        <div className="col-lg-3">
+          <StatsSidebar
+            totalPubs={view === "all-publications" ? allPubs.filter(p => p.status === "approved").length : pubs.length}
+            pendingPubs={pendingPubs.length}
+            deletionRequests={deletionRequests.length}
+          />
+        </div>
+      </div>
     </div>
   );
+
+  // Vista de publicaciones aprobadas
+  if (view === "publications") {
+    return renderViewWithStats(
+      <ListView
+        pubs={pubs}
+        loading={loading}
+        error={error}
+        okMsg={okMsg}
+        searchQuery={searchQuery}
+        onDelete={handleDelete}
+        onSearch={handleSearch}
+        onCreate={() => setSubView('create')}
+      />
+    );
+  }
+
+  // Vista de TODAS las publicaciones (aprobadas, rechazadas, pendientes, eliminadas)
+  if (view === "all-publications") {
+    return renderViewWithStats(
+      <AllPublicationsView
+        pubs={allPubs}
+        loading={loading}
+        error={error}
+        okMsg={okMsg}
+        onDelete={handleDelete}
+      />
+    );
+  }
+
+  // Vista de aprobación de publicaciones pendientes
+  if (view === "pending") {
+    return renderViewWithStats(
+      <PendingView
+        pubs={pendingPubs}
+        loading={loading}
+        error={error}
+        okMsg={okMsg}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
+    );
+  }
+
+  // Vista de solicitudes de eliminación
+  if (view === "deletion-requests") {
+    return renderViewWithStats(
+      <DeletionRequestsView
+        requests={deletionRequests}
+        loading={loading}
+        error={error}
+        okMsg={okMsg}
+        onApprove={handleApproveDeletion}
+        onReject={handleRejectDeletion}
+      />
+    );
+  }
+
+  return null;
 }
 
-/* ------------------- Subcomponentes ------------------- */
-
-function Menu({ me, go, pendingCount, deletionCount }) {
+// Componente de estadísticas en el sidebar
+function StatsSidebar({ totalPubs, pendingPubs, deletionRequests }) {
   return (
-    <div className="d-flex flex-column align-items-center justify-content-center py-5">
-      <h2 className="mb-4">Backoffice</h2>
-      <p className="text-muted mb-4">
-        Hola {me?.username}. Gestioná las publicaciones.
-      </p>
-      <div className="d-flex gap-3 flex-wrap justify-content-center">
-        <button className="btn btn-primary px-4" onClick={() => go("list")}>
-          Listar publicaciones
-        </button>
-        <button className="btn btn-warning px-4 position-relative" onClick={() => go("pending")}>
-          Publicaciones pendientes
-          {pendingCount > 0 && (
-            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              {pendingCount}
-            </span>
-          )}
-        </button>
-        <button className="btn btn-danger px-4 position-relative" onClick={() => go("deletion-requests")}>
-          Solicitudes de eliminación
-          {deletionCount > 0 && (
-            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark">
-              {deletionCount}
-            </span>
-          )}
-        </button>
-        <button
-          className="btn btn-outline-primary px-4"
-          onClick={() => go("create")}
-        >
-          Crear publicación
-        </button>
+    <div className="position-sticky" style={{ top: 20 }}>
+      <div className="card shadow-sm">
+        <div className="card-header">
+          <h5 className="mb-0">Estadísticas</h5>
+        </div>
+        <div className="card-body">
+          <div className="mb-3 pb-3 border-bottom">
+            <div className="d-flex justify-content-between align-items-center">
+              <span className="text-muted">Publicaciones</span>
+              <span className="badge text-dark fs-6">{totalPubs}</span>
+            </div>
+          </div>
+          
+          <div className="mb-3 pb-3 border-bottom">
+            <div className="d-flex justify-content-between align-items-center">
+              <span className="text-muted"> Aprobaciones pendientes</span>
+              <span className="badge text-dark fs-6">{pendingPubs}</span>
+            </div>
+          </div>
+          
+          <div>
+            <div className="d-flex justify-content-between align-items-center">
+              <span className="text-muted"> Eliminaciones pendientes</span>
+              <span className="badge text-dark fs-6">{deletionRequests}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function ListView({ pubs, loading, error, okMsg, searchQuery, go, onDelete, onSearch }) {
+function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch, onCreate }) {
   function handleSearchSubmit(e) {
     e.preventDefault();
     const searchValue = e.target.search.value.trim();
@@ -351,17 +414,12 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, go, onDelete, onSe
   }
 
   return (
-    <div className="container py-4">
-      <div className="d-flex align-items-center justify-content-between">
-        <h3 className="mb-0">Publicaciones</h3>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-secondary" onClick={() => go("menu")}>
-            Volver
-          </button>
-          <button className="btn btn-primary" onClick={() => go("create")}>
-            Nueva publicación
-          </button>
-        </div>
+    <div>
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <h3 className="mb-0">Gestión de Publicaciones</h3>
+        <button className="btn"  style={{ borderColor: '#3A92B5', color: '#3A92B5' }} onClick={onCreate}>
+          + Agregar Publicación
+        </button>
       </div>
 
       {/* Campo de búsqueda */}
@@ -525,12 +583,12 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, go, onDelete, onSe
   );
 }
 
-function CreateView({ loading, error, okMsg, go, onSubmit }) {
+function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
   return (
     <div className="container py-4" style={{ maxWidth: 720 }}>
-      <div className="d-flex align-items-center justify-content-between">
+      <div className="d-flex align-items-center justify-content-between mb-3">
         <h3 className="mb-0">Crear publicación</h3>
-        <button className="btn btn-outline-secondary" onClick={() => go("menu")}>
+        <button className="btn btn-outline-secondary" onClick={onBack}>
           Volver
         </button>
       </div>
@@ -655,12 +713,12 @@ function CreateView({ loading, error, okMsg, go, onSubmit }) {
           <button
             type="button"
             className="btn btn-outline-secondary"
-            onClick={() => go("list")}
+            onClick={onBack}
           >
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primary">
-            Crear
+          <button type="submit" className="btn " disabled={loading}>
+            {loading ? 'Creando...' : 'Crear'}
           </button>
         </div>
       </form>
@@ -668,14 +726,11 @@ function CreateView({ loading, error, okMsg, go, onSubmit }) {
   );
 }
 
-function PendingView({ pubs, loading, error, okMsg, go, onApprove, onReject }) {
+function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
   return (
-    <div className="container py-4">
-      <div className="d-flex align-items-center justify-content-between">
+    <div>
+      <div className="d-flex align-items-center justify-content-between mb-3">
         <h3 className="mb-0">Publicaciones Pendientes de Aprobación</h3>
-        <button className="btn btn-outline-secondary" onClick={() => go("menu")}>
-          Volver
-        </button>
       </div>
 
       {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
@@ -780,14 +835,11 @@ function PendingView({ pubs, loading, error, okMsg, go, onApprove, onReject }) {
   );
 }
 
-function DeletionRequestsView({ requests, loading, error, okMsg, go, onApprove, onReject }) {
+function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onReject }) {
   return (
-    <div className="container py-4">
-      <div className="d-flex align-items-center justify-content-between">
+    <div>
+      <div className="d-flex align-items-center justify-content-between mb-3">
         <h3 className="mb-0">Solicitudes de Eliminación Pendientes</h3>
-        <button className="btn btn-outline-secondary" onClick={() => go("menu")}>
-          Volver
-        </button>
       </div>
 
       {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
@@ -870,13 +922,13 @@ function DeletionRequestsView({ requests, loading, error, okMsg, go, onApprove, 
                       className="btn btn-success btn-sm flex-fill"
                       onClick={() => onApprove(req.id)}
                     >
-                      ✓ Aprobar eliminación
+                      ✓ Aprobar 
                     </button>
                     <button
                       className="btn btn-secondary btn-sm flex-fill"
                       onClick={() => onReject(req.id)}
                     >
-                      ✗ Rechazar solicitud
+                      ✗ Rechazar 
                     </button>
                   </div>
                 </div>
@@ -889,6 +941,130 @@ function DeletionRequestsView({ requests, loading, error, okMsg, go, onApprove, 
       {!loading && requests.length === 0 && (
         <div className="alert alert-secondary mt-3">
           No hay solicitudes de eliminación pendientes.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
+  const getStatusBadge = (status) => {
+    if (status === "approved") return <span className="badge bg-success">✓ Aprobada</span>;
+    if (status === "pending") return <span className="badge bg-warning text-dark">⏳ Pendiente</span>;
+    if (status === "rejected") return <span className="badge bg-danger">✗ Rechazada</span>;
+    if (status === "deleted") return <span className="badge bg-dark">🗑️ Eliminada</span>;
+    return <span className="badge bg-secondary">{status}</span>;
+  };
+
+  return (
+    <div>
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <h3 className="mb-0">Todas las Publicaciones</h3>
+      </div>
+
+      {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
+      {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
+      {okMsg && <div className="alert alert-success mt-3 mb-0">{okMsg}</div>}
+
+      <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mt-2">
+        {pubs.map((p) => (
+          <div className="col" key={p.id}>
+            <div className={`card shadow-sm h-100 ${p.status === 'deleted' ? 'border-dark' : ''}`}>
+              <div className="card-body pb-0">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div className="flex-grow-1">
+                    <h5 className="card-title mb-1">{p.place_name}</h5>
+                    <small className="text-muted d-block">
+                      {p.address}, {p.city}, {p.province}, {p.country}
+                    </small>
+                  </div>
+                  <div className="d-flex flex-column align-items-end gap-2">
+                    {getStatusBadge(p.status)}
+                    {p.status === "approved" && (
+                      <div className="dropdown">
+                        <button
+                          className="btn btn-sm btn-link text-muted p-0"
+                          data-bs-toggle="dropdown"
+                          aria-expanded="false"
+                          title="Más acciones"
+                        >
+                          ⋯
+                        </button>
+                        <ul className="dropdown-menu dropdown-menu-end">
+                          <li>
+                            <button
+                              className="dropdown-item text-danger"
+                              onClick={() => onDelete(p.id)}
+                            >
+                              Eliminar publicación
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {p.photos?.length ? (
+                <div id={`all-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                  <div className="carousel-inner">
+                    {p.photos.map((url, idx) => (
+                      <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                        <img
+                          src={url}
+                          className="d-block w-100"
+                          alt={`Foto ${idx + 1}`}
+                          style={{ height: 260, objectFit: "cover" }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {p.photos.length > 1 && (
+                    <>
+                      <button
+                        className="carousel-control-prev"
+                        type="button"
+                        data-bs-target={`#all-carousel-${p.id}`}
+                        data-bs-slide="prev"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                      >
+                        <span className="carousel-control-prev-icon" />
+                      </button>
+                      <button
+                        className="carousel-control-next"
+                        type="button"
+                        data-bs-target={`#all-carousel-${p.id}`}
+                        data-bs-slide="next"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                      >
+                        <span className="carousel-control-next-icon" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-muted">Sin fotos</div>
+              )}
+
+              <div className="card-footer bg-white">
+                <small className="text-muted d-block">
+                  Creado: {new Date(p.created_at).toLocaleString()}
+                </small>
+                {(p.status === "rejected" || p.status === "deleted") && p.rejection_reason && (
+                  <small className={`d-block mt-1 ${p.status === "deleted" ? "text-dark" : "text-danger"}`}>
+                    {p.status === "deleted" ? "🗑️" : "❌"} <strong>Motivo:</strong> {p.rejection_reason}
+                  </small>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {!loading && pubs.length === 0 && (
+        <div className="alert alert-secondary mt-3">
+          No hay publicaciones.
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+/*import React from 'react';
 import logo from '../assets/images/logo.png';
 
 // Recibe:
@@ -21,7 +21,6 @@ export default function Navbar({ me, onLogout, onNavigate }) {
         </a>
 
         <div className="d-flex align-items-center ms-auto">
-          {/* Acceso visible sólo para admins */}
           {isAdmin && (
             <button
               className="btn btn-outline-primary me-3"
@@ -52,8 +51,6 @@ export default function Navbar({ me, onLogout, onNavigate }) {
                   Ver Perfil
                 </button>
               </li>
-
-              {/* ✅ NUEVA OPCIÓN */}
               <li>
                 <button
                   className="dropdown-item"
@@ -76,4 +73,4 @@ export default function Navbar({ me, onLogout, onNavigate }) {
       </div>
     </nav>
   );
-}
+}*/

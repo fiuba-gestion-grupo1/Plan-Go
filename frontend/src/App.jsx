@@ -4,7 +4,7 @@ import Register from './pages/Register'
 import { api } from './api'
 import logo from './assets/images/logo.png'
 import backgroundImage from './assets/images/background.png'
-import Navbar from './components/Navbar'
+import Sidebar from './components/Sidebar'
 import Home from './pages/Home'
 import Profile from './pages/Profile'
 import ForgotPassword from './pages/ForgotPassword'
@@ -16,7 +16,7 @@ export default function App() {
   const [view, setView] = useState('login') // login | register | forgot-password (solo para la vista pública)
   const [token, setToken] = useState(localStorage.getItem('token') || '')
   const [me, setMe] = useState(null)
-  const [authView, setAuthView] = useState('home') // home | profile | backoffice (dentro de sesión) 
+  const [authView, setAuthView] = useState('publications') // Nueva navegación por sidebar
 
   useEffect(() => {
     if (token) {
@@ -26,14 +26,14 @@ export default function App() {
           const meResp = await api('/api/auth/me', { token });
           setMe(meResp);
 
-          // Si es admin => llevarlo a backoffice, si no => home
-          const isAdmin = meResp?.role === 'admin' || meResp?.username === 'admin';
-          setAuthView(isAdmin ? 'backoffice' : 'home');
+          // Si es admin => approved-publications por defecto, si no => publications
+          const isAdminUser = meResp?.role === 'admin' || meResp?.username === 'admin';
+          setAuthView(isAdminUser ? 'approved-publications' : 'publications');
         } catch (e) {
           localStorage.removeItem('token');
           setToken('');
           setMe(null);
-          setAuthView('home');
+          setAuthView('publications');
         }
       })();
     }
@@ -43,48 +43,76 @@ export default function App() {
     localStorage.removeItem('token');
     setToken('');
     setMe(null);
-    setAuthView('home');
+    setAuthView('publications');
   }
 
-  // Navegación interna protegida (evita que un no-admin fuerce backoffice)
+  // Navegación interna protegida
   function handleNavigate(nextView) {
     const isAdmin = me?.role === 'admin' || me?.username === 'admin';
-    if (nextView === 'backoffice' && !isAdmin) {
-      return setAuthView('home');
+    // Evita que usuarios normales accedan a vistas de admin
+    if (['pending-approvals', 'deletion-requests', 'approved-publications', 'all-publications'].includes(nextView) && !isAdmin) {
+      return setAuthView('publications');
+    }
+    // Evita que admins accedan a vistas de usuarios
+    if (['my-publications', 'favorites', 'preferences', 'my-itineraries'].includes(nextView) && isAdmin) {
+      return setAuthView('approved-publications');
     }
     setAuthView(nextView);
   }
 
   // --- Vista de usuario autenticado ---
   if (token && me) {
+    const isAdmin = me?.role === 'admin' || me?.username === 'admin';
+
     return (
-      <div
-        className="d-flex flex-column min-vh-100"
-        style={{
-          backgroundImage: `url(${backgroundImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed'
-        }}
-      >
-        <Navbar
+      <div className="d-flex" style={{ minHeight: '100vh' }}>
+        {/* Sidebar fijo a la izquierda */}
+        <Sidebar
           me={me}
           onLogout={handleLogout}
           onNavigate={handleNavigate}
+          activeView={authView}
         />
 
-        <div className="flex-grow-1">
-          {authView === 'home' && <Home me={me} />}
-          {authView === 'profile' && (
-            <Profile
-              me={me}
-              token={token}
-              setMe={setMe}
-            />
-          )}
-          {authView === 'backoffice' && <Backoffice me={me} />}
-          {authView === 'suggestions' && <Suggestions me={me} token={token} />}
+        {/* Contenido principal con margen para el sidebar */}
+        <div
+          className="flex-grow-1"
+          style={{
+            marginLeft: '280px',
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
+            minHeight: '100vh',
+            overflowY: 'auto'
+          }}
+        >
+          <div className="container-fluid p-4">
+            {/* Vista de Publicaciones (común para todos) */}
+            {authView === 'publications' && (
+              isAdmin ? <Backoffice me={me} view="publications" /> : <Home me={me} view="publications" />
+            )}
+            
+            {/* Vistas de Usuario */}
+            {authView === 'my-publications' && !isAdmin && <Home me={me} view="my-publications" />}
+            {authView === 'favorites' && !isAdmin && <Home me={me} view="favorites" />}
+            {authView === 'preferences' && !isAdmin && <Home me={me} view="preferences" />}
+            {authView === 'itinerary' && <Home me={me} view="itinerary" />}
+            {authView === 'my-itineraries' && !isAdmin && <Home me={me} view="my-itineraries" />}
+            
+            {/* Vistas de Admin */}
+            {authView === 'approved-publications' && isAdmin && <Backoffice me={me} view="publications" />}
+            {authView === 'all-publications' && isAdmin && <Backoffice me={me} view="all-publications" />}
+            {authView === 'pending-approvals' && isAdmin && <Backoffice me={me} view="pending" />}
+            {authView === 'deletion-requests' && isAdmin && <Backoffice me={me} view="deletion-requests" />}
+            
+            {/* Vistas comunes */}
+            {authView === 'profile' && (
+              <Profile me={me} token={token} setMe={setMe} />
+            )}
+            {authView === 'suggestions' && !isAdmin && <Suggestions me={me} token={token} />}
+          </div>
         </div>
       </div>
     )

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import CreatePublicationForm from "../components/CreatePublicationForm";
+import ItineraryRequestForm from "../components/ItineraryRequestForm";
+import "../styles/buttons.css";
 
 /* Helper fetch */
 async function request(path, { method = "GET", token, body, isForm = false } = {}) {
@@ -9,6 +11,12 @@ async function request(path, { method = "GET", token, body, isForm = false } = {
   const res = await fetch(path, { method, headers, body: isForm ? body : body ? JSON.stringify(body) : undefined });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    console.error("Error del servidor:", err);
+    // Si es un error de validación de FastAPI
+    if (err.detail && Array.isArray(err.detail)) {
+      const messages = err.detail.map(e => `${e.loc?.join('.')} - ${e.msg}`).join(', ');
+      throw new Error(messages);
+    }
     throw new Error(err.detail || err.message || `HTTP ${res.status}`);
   }
   return res.json().catch(() => ({}));
@@ -64,7 +72,8 @@ function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload 
     <div className="position-relative">
       <button
         type="button"
-        className="btn btn-outline-primary dropdown-toggle"
+        className="btn btn-outline-custom dropdown-toggle"
+         style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
         onClick={() => { setOpen(o => !o); if (!open && onReload) onReload(); }}
       >
         Categorías
@@ -90,7 +99,7 @@ function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload 
           </ul>
           <div className="d-flex justify-content-between gap-2">
             <button className="btn btn-outline-secondary" type="button" onClick={clear}>Limpiar</button>
-            <button className="btn btn-primary" type="button" onClick={apply}>Ver resultados</button>
+            <button className="btn btn-outline-custom"  style={{ borderColor: '#3A92B5', color: '#3A92B5' }} type="button" onClick={apply}>Ver resultados</button>
           </div>
         </div>
       )}
@@ -188,7 +197,7 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
                 <input className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Contanos tu experiencia" />
               </div>
               <div className="col-12 col-md-2 d-flex align-items-end">
-                <button className="btn btn-primary w-100" type="submit">Publicar</button>
+                <button className="btn  w-100" type="submit">Publicar</button>
               </div>
             </div>
           </form>
@@ -308,15 +317,15 @@ function PreferencesBox({ token }) {
 }
 
 /* --- MAIN HOME --- */
-export default function Home({ me }) {
+export default function Home({ me, view = "publications" }) {
   const [pubs, setPubs] = useState([]);
   const [myPubs, setMyPubs] = useState([]);
   const [favPubs, setFavPubs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showMySubmissions, setShowMySubmissions] = useState(false);
-  const [showFavorites, setShowFavorites] = useState(false);
+  const [subView, setSubView] = useState(null); 
+  const [selectedItinerary, setSelectedItinerary] = useState(null);
+  const [myItineraries, setMyItineraries] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const token = useMemo(() => localStorage.getItem("token") || "", []);
@@ -371,11 +380,19 @@ export default function Home({ me }) {
     }
   }
 
-  // carga inicial y cuando cambian categorías
+  // carga inicial según la vista activa
   useEffect(() => {
-    fetchPublications(searchQuery, cats);
+    if (view === 'publications' && !subView) {
+      fetchPublications(searchQuery, cats);
+    } else if (view === 'my-publications' && !subView) {
+      fetchMySubmissions();
+    } else if (view === 'favorites' && !subView) {
+      fetchFavorites();
+    } else if (view === 'my-itineraries' && !subView) {
+      fetchMyItineraries();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, JSON.stringify(cats)]);
+  }, [token, view, JSON.stringify(cats)]);
 
   // Si viene ?pub=ID en la URL, abre automáticamente esa publicación cuando hay datos
   useEffect(() => {
@@ -458,6 +475,71 @@ export default function Home({ me }) {
     }
   }
 
+  async function fetchMyItineraries() {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await request("/api/itineraries/my-itineraries", { token });
+      setMyItineraries(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleItinerarySubmit(payload) {
+    setLoading(true);
+    setError("");
+    setSuccessMsg("");
+
+    try {
+      const data = await request("/api/itineraries/request", {
+        method: "POST",
+        token,
+        body: payload
+      });
+
+      setSuccessMsg("¡Itinerario generado exitosamente!");
+      setSelectedItinerary(data);
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (e) {
+      setError(e.message || "Error al solicitar el itinerario");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteItinerary(itineraryId) {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este itinerario? Esta acción no se puede deshacer.")) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuccessMsg("");
+
+    try {
+      await request(`/api/itineraries/${itineraryId}`, {
+        method: "DELETE",
+        token
+      });
+
+      setSuccessMsg("Itinerario eliminado exitosamente");
+      
+      if (selectedItinerary && selectedItinerary.id === itineraryId) {
+        setSelectedItinerary(null);
+      }
+      
+      await fetchMyItineraries();
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (e) {
+      setError(e.message || "Error al eliminar el itinerario");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleSearch(query) {
     setSearchQuery(query);
     fetchPublications(query, cats);
@@ -469,6 +551,29 @@ export default function Home({ me }) {
     setSuccessMsg("");
     const form = e.currentTarget;
     const fd = new FormData(form);
+    
+    // Convertir campos numéricos de string a number
+    const costPerDay = fd.get('cost_per_day');
+    const durationDays = fd.get('duration_days');
+    
+    if (costPerDay && costPerDay.trim() !== '') {
+      fd.set('cost_per_day', parseFloat(costPerDay));
+    } else {
+      fd.delete('cost_per_day');
+    }
+    
+    if (durationDays && durationDays.trim() !== '') {
+      fd.set('duration_days', parseInt(durationDays, 10));
+    } else {
+      fd.delete('duration_days');
+    }
+    
+    // Debug: mostrar qué se está enviando
+    console.log("Datos del formulario:");
+    for (let pair of fd.entries()) {
+      console.log(pair[0] + ': ' + pair[1]);
+    }
+    
     const files = form.photos.files || [];
     if (files.length > 4) {
       setError("Máximo 4 fotos por publicación.");
@@ -476,31 +581,34 @@ export default function Home({ me }) {
     }
     setLoading(true);
     try {
-      await request("/api/publications/submit", {
+      const result = await request("/api/publications/submit", {
         method: "POST",
         token,
         body: fd,
         isForm: true,
       });
+      console.log("Respuesta del servidor:", result);
       setSuccessMsg("¡Publicación enviada! Será revisada por un administrador.");
       form.reset();
       setTimeout(() => {
-        setShowCreateForm(false);
+        setSubView(null);
         setSuccessMsg("");
       }, 2000);
     } catch (e) {
-      setError(e.message);
+      console.error("Error completo:", e);
+      setError(e.message || "Error al enviar la publicación");
     } finally {
       setLoading(false);
     }
   }
 
-  if (showCreateForm) {
+  // Mostrar formulario de crear publicación
+  if (subView === 'create-publication') {
     return (
       <CreatePublicationForm
         onSubmit={handleCreateSubmit}
         onCancel={() => {
-          setShowCreateForm(false);
+          setSubView(null);
           setError("");
           setSuccessMsg("");
         }}
@@ -511,40 +619,335 @@ export default function Home({ me }) {
     );
   }
 
-  if (showMySubmissions) {
+  // Vista de Mis Publicaciones
+  if (view === 'my-publications' && !subView) {
     return (
       <MySubmissionsView
         pubs={myPubs}
         loading={loading}
         error={error}
         successMsg={successMsg}
-        onBack={() => {
-          setShowMySubmissions(false);
-          setError("");
-          setSuccessMsg("");
-        }}
         onLoad={fetchMySubmissions}
         onRequestDeletion={requestDeletion}
+        setSubView={setSubView}
       />
     );
   }
 
-  if (showFavorites) {
+  // Vista de Favoritos
+  if (view === 'favorites' && !subView) {
     return (
       <FavoritesView
         pubs={favPubs}
         loading={loading}
         error={error}
-        onBack={() => {
-          setShowFavorites(false);
-          setError("");
-        }}
         onLoad={fetchFavorites}
         onToggleFavorite={async (pubId) => {
           await toggleFavorite(pubId);
-          fetchFavorites(); // recargar lista luego de quitar uno
+          fetchFavorites();
         }}
       />
+    );
+  }
+
+  // Vista de Configurar Preferencias
+  if (view === 'preferences') {
+    return <PreferencesBox token={token} />;
+  }
+
+  // Vista del formulario de itinerario o del itinerario seleccionado
+  if (view === 'itinerary' || selectedItinerary) {
+    const formatDate = (dateStr) => {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    };
+
+    // Vista de detalle de un itinerario
+    if (selectedItinerary) {
+      return (
+        <div className="container mt-4">
+          <div className="d-flex align-items-center justify-content-between mb-4">
+            <h3 className="mb-0">Itinerario: {selectedItinerary.destination}</h3>
+            <div className="d-flex gap-2">
+              <button 
+                className="btn btn-outline-secondary" 
+                onClick={() => {
+                  setSelectedItinerary(null);
+                  setError("");
+                  setSuccessMsg("");
+                }}
+              >
+                Volver
+              </button>
+              <button 
+                className="btn btn-outline-danger" 
+                onClick={() => handleDeleteItinerary(selectedItinerary.id)}
+                disabled={loading}
+              >
+                🗑️ Eliminar
+              </button>
+            </div>
+          </div>
+
+          {error && <div className="alert alert-danger" role="alert">{error}</div>}
+          {successMsg && <div className="alert alert-success" role="alert">{successMsg}</div>}
+
+          <div className="card shadow-sm mb-4">
+            <div className="card-body">
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <p><strong>📅 Fechas:</strong> {formatDate(selectedItinerary.start_date)} - {formatDate(selectedItinerary.end_date)}</p>
+                  <p><strong>🎯 Tipo de viaje:</strong> {selectedItinerary.trip_type}</p>
+                  <p><strong>💰 Presupuesto:</strong> US${selectedItinerary.budget}</p>
+                  <p><strong>👥 Personas:</strong> {selectedItinerary.cant_persons}</p>
+                </div>
+                <div className="col-md-6">
+                  {selectedItinerary.arrival_time && (
+                    <p><strong>🛬 Hora de llegada:</strong> {selectedItinerary.arrival_time}</p>
+                  )}
+                  {selectedItinerary.departure_time && (
+                    <p><strong>🛫 Hora de salida:</strong> {selectedItinerary.departure_time}</p>
+                  )}
+                  <p>
+                    <strong>Estado:</strong>{' '}
+                    {selectedItinerary.status === 'completed' && (
+                      <span className="badge bg-success">Completado</span>
+                    )}
+                    {selectedItinerary.status === 'pending' && (
+                      <span className="badge bg-warning text-dark">Pendiente</span>
+                    )}
+                    {selectedItinerary.status === 'failed' && (
+                      <span className="badge bg-danger">Error</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card shadow-sm">
+            <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Itinerario Generado por IA</h5>
+              <button 
+                className="btn btn-sm btn-light"
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedItinerary.generated_itinerary || '');
+                  alert('Itinerario copiado al portapapeles');
+                }}
+              >
+                📋 Copiar
+              </button>
+            </div>
+            <div className="card-body">
+              {selectedItinerary.status === 'completed' ? (
+                <div style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+                  lineHeight: '1.8',
+                  fontSize: '0.95rem',
+                  color: '#333'
+                }}>
+                  {selectedItinerary.generated_itinerary}
+                </div>
+              ) : (
+                <div className="alert alert-warning">
+                  {selectedItinerary.generated_itinerary || 'No se pudo generar el itinerario'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Publicaciones utilizadas en el itinerario */}
+          {selectedItinerary.publications && selectedItinerary.publications.length > 0 && (
+            <div className="mt-4">
+              <h4 className="mb-3">📍 Lugares incluidos en este itinerario</h4>
+              <p className="text-muted mb-3">
+                Estos son los lugares de nuestra plataforma que la IA utilizó para crear tu itinerario:
+              </p>
+              <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                {selectedItinerary.publications.map((p) => (
+                  <div className="col" key={p.id}>
+                    <div className="card shadow-sm h-100 border-success">
+                      <div className="card-body pb-0">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div className="flex-grow-1">
+                            <h5 className="card-title mb-1">{p.place_name}</h5>
+                            <small className="text-muted">
+                              {p.address}, {p.city}, {p.province}, {p.country}
+                            </small>
+                            <div className="mt-2 d-flex flex-wrap gap-2">
+                              <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                              {(p.categories || []).map((c) => (
+                                <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {p.photos?.length ? (
+                        <div id={`itin-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                          <div className="carousel-inner">
+                            {p.photos.map((url, idx) => (
+                              <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                                <img
+                                  src={url}
+                                  className="d-block w-100"
+                                  alt={`Foto ${idx + 1}`}
+                                  style={{ height: 260, objectFit: "cover" }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          {p.photos.length > 1 && (
+                            <>
+                              <button className="carousel-control-prev" type="button" data-bs-target={`#itin-carousel-${p.id}`} data-bs-slide="prev" style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }} aria-label="Anterior" title="Anterior">
+                                <span className="carousel-control-prev-icon" aria-hidden="true" />
+                                <span className="visually-hidden">Anterior</span>
+                              </button>
+                              <button className="carousel-control-next" type="button" data-bs-target={`#itin-carousel-${p.id}`} data-bs-slide="next" style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }} aria-label="Siguiente" title="Siguiente">
+                                <span className="carousel-control-next-icon" aria-hidden="true" />
+                                <span className="visually-hidden">Siguiente</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center text-muted">Sin fotos</div>
+                      )}
+
+                      <div className="card-footer bg-white">
+                        <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="alert alert-info mt-4">
+            <strong>💡 Tip:</strong> Usa el botón "📋 Copiar" para copiar todo el itinerario y pegarlo donde necesites.
+          </div>
+        </div>
+      );
+    }
+
+    // Vista del formulario de solicitud
+    return (
+      <div className="container mt-4">
+        <div className="d-flex align-items-center justify-content-between mb-4">
+          <h3 className="mb-0">Solicitar Itinerario con IA</h3>
+        </div>
+
+        {error && <div className="alert alert-danger" role="alert">{error}</div>}
+        {successMsg && <div className="alert alert-success" role="alert">{successMsg}</div>}
+
+        <div className="row justify-content-center">
+          <div className="col-lg-10">
+            <ItineraryRequestForm 
+              onSubmit={handleItinerarySubmit}
+              isLoading={loading}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Vista de lista de itinerarios
+  if (view === 'my-itineraries') {
+    const formatDate = (dateStr) => {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    };
+
+    return (
+      <div className="container mt-4">
+        <div className="d-flex align-items-center justify-content-between mb-4">
+          <h3 className="mb-0"> Mis Itinerarios</h3>
+        </div>
+
+        {loading && <div className="alert alert-info">Cargando...</div>}
+        {error && <div className="alert alert-danger">{error}</div>}
+        {successMsg && <div className="alert alert-success">{successMsg}</div>}
+
+        <div className="row g-4">
+          {myItineraries.map((itinerary) => (
+            <div className="col-md-6 col-lg-4" key={itinerary.id}>
+              <div className="card shadow-sm h-100">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start mb-3">
+                    <h5 className="card-title mb-0">{itinerary.destination}</h5>
+                    {itinerary.status === 'completed' && (
+                      <span className="badge bg-success">Completado</span>
+                    )}
+                    {itinerary.status === 'pending' && (
+                      <span className="badge bg-warning text-dark">Pendiente</span>
+                    )}
+                    {itinerary.status === 'failed' && (
+                      <span className="badge bg-danger">Error</span>
+                    )}
+                  </div>
+                  
+                  <p className="text-muted small mb-2">
+                     {formatDate(itinerary.start_date)} - {formatDate(itinerary.end_date)}
+                  </p>
+                  
+                  <p className="mb-2">
+                    <strong>Tipo:</strong> {itinerary.trip_type}
+                  </p>
+                  
+                  <p className="mb-2">
+                    <strong>Presupuesto:</strong> US${itinerary.budget}
+                  </p>
+                  
+                  <p className="mb-3">
+                    <strong>Personas:</strong> {itinerary.cant_persons}
+                  </p>
+                  
+                  <div className="d-flex gap-2">
+                    <button 
+                      className="btn btn-sm btn-outline-custom flex-grow-1"
+                      onClick={() => {
+                        setSelectedItinerary(itinerary);
+                      }}
+                    >
+                      Ver Itinerario
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => handleDeleteItinerary(itinerary.id)}
+                      title="Eliminar itinerario"
+                      disabled={loading}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="card-footer text-muted small">
+                  Creado: {new Date(itinerary.created_at).toLocaleString('es-ES')}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!loading && myItineraries.length === 0 && (
+          <div className="alert alert-secondary">
+            No tienes itinerarios generados aún. ¡Crea tu primer itinerario con IA!
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -554,47 +957,27 @@ export default function Home({ me }) {
     handleSearch(searchValue);
   }
 
+  // Vista principal de publicaciones
   return (
     <div className="container mt-4">
       {/* Hero */}
-      <div className="p-5 mb-4 bg-light rounded-3">
-        <div className="container-fluid py-5">
-          <h1 className="display-6 fw-bold">¡Bienvenido a Plan&Go, {me.username}!</h1>
-          <p className="col-md-8 fs-5">Usá los filtros para encontrar actividades/lugares y mirá las reseñas antes de decidir.</p>
+      <div className="p-3 mb-3 bg-light rounded-3">
+        <div className="container-fluid py-2">
+          <h4 className="fw-bold mb-1">¡Bienvenido a Plan&Go, {me.username}!</h4>
+          <p className="small mb-0 text-muted">Usá los filtros para encontrar actividades/lugares y mirá las reseñas antes de decidir.</p>
         </div>
       </div>
 
-      {/* Preferencias */}
-      <PreferencesBox token={token} />
-
-      {/* Título + Filtros + Acciones */}
-      <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
         <h3 className="mb-0">Publicaciones</h3>
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
           <MultiCategoryDropdown
             allCats={allCats}
             selected={cats}
-            onApply={(sel) => { setCats(sel); /* fetchPublications se dispara por useEffect */ }}
+            onApply={(sel) => { setCats(sel); }}
             onReload={reloadCats}
           />
-          <button
-            className="btn btn-outline-danger"
-            onClick={() => { setShowFavorites(true); fetchFavorites(); }}
-          >
-            ❤️ Mis Favoritos
-          </button>
-          <button
-            className="btn btn-outline-secondary"
-            onClick={() => { setShowMySubmissions(true); fetchMySubmissions(); }}
-          >
-            Mis Publicaciones
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowCreateForm(true)}
-          >
-            + Agregar Publicación
-          </button>
+         
         </div>
       </div>
 
@@ -689,7 +1072,7 @@ export default function Home({ me }) {
 
               <div className="card-footer bg-white d-flex justify-content-between align-items-center">
                 <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
-                <button className="btn btn-link btn-sm" onClick={() => openReviews(p)}>Ver reseñas</button>
+                <button className="btn btn-sm btn-outline-custom" onClick={() => openReviews(p)}>Ver reseñas</button>
               </div>
             </div>
           </div>
@@ -705,21 +1088,31 @@ export default function Home({ me }) {
   );
 }
 
-function MySubmissionsView({ pubs, loading, error, successMsg, onBack, onLoad, onRequestDeletion }) {
+function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequestDeletion, setSubView }) {
   React.useEffect(() => { onLoad(); }, []);
 
   const getStatusBadge = (status) => {
     if (status === "approved") return <span className="badge bg-success">Aprobada</span>;
     if (status === "pending") return <span className="badge bg-warning text-dark">Pendiente</span>;
     if (status === "rejected") return <span className="badge bg-danger">Rechazada</span>;
+    if (status === "deleted") return <span className="badge bg-dark">Eliminada</span>;
     return <span className="badge bg-secondary">{status}</span>;
   };
 
   return (
     <div className="container mt-4">
-      <div className="d-flex align-items-center justify-content-between mb-4">
+      <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
         <h3 className="mb-0">Mis Publicaciones</h3>
-        <button className="btn btn-outline-secondary" onClick={onBack}>Volver</button>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+           <button
+            className="btn btn-outline-custom"
+             style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
+            onClick={() => setSubView('create-publication')}
+          >
+            + Agregar Publicación
+          </button>
+         
+        </div>
       </div>
 
       {loading && <div className="alert alert-info">Cargando...</div>}
@@ -815,6 +1208,21 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onBack, onLoad, o
                 {p.status === "rejected" && (
                   <small className="text-danger d-block mt-1">
                     ❌ Esta publicación fue rechazada por un administrador.
+                    {p.rejection_reason && (
+                      <div className="mt-1 fst-italic">
+                        <strong>Motivo:</strong> {p.rejection_reason}
+                      </div>
+                    )}
+                  </small>
+                )}
+                {p.status === "deleted" && (
+                  <small className="text-dark d-block mt-1">
+                    🗑️ Esta publicación fue eliminada por un administrador.
+                    {p.rejection_reason && (
+                      <div className="mt-1 fst-italic">
+                        <strong>Motivo:</strong> {p.rejection_reason}
+                      </div>
+                    )}
                   </small>
                 )}
                 {p.status === "pending" && (
@@ -842,16 +1250,13 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onBack, onLoad, o
   );
 }
 
-function FavoritesView({ pubs, loading, error, onBack, onLoad, onToggleFavorite }) {
+function FavoritesView({ pubs, loading, error, onLoad, onToggleFavorite }) {
   React.useEffect(() => { onLoad(); }, []);
 
   return (
     <div className="container mt-4">
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h3 className="mb-0">❤️ Mis Favoritos</h3>
-        <button className="btn btn-outline-secondary" onClick={onBack}>
-          Volver
-        </button>
+        <h3 className="mb-0">Mis Favoritos</h3>
       </div>
 
       {loading && <div className="alert alert-info">Cargando...</div>}
