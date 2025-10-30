@@ -133,6 +133,7 @@ class UserPreference(Base):
     duration_min_days = Column(Integer, nullable=True)
     duration_max_days = Column(Integer, nullable=True)
 
+    publication_type = Column(String(20), nullable=True, server_default="all", default="all") # all | hotel | actividad
     user = relationship("User", backref="preference", uselist=False)
 
 

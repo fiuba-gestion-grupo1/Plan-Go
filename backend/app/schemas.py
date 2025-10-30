@@ -171,6 +171,7 @@ class UserPreferenceIn(BaseModel):
     continents: Optional[List[str]] = None
     duration_min_days: Optional[int] = None
     duration_max_days: Optional[int] = None
+    publication_type: Optional[str] = None
 
 
 class UserPreferenceOut(UserPreferenceIn):

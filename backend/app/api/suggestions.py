@@ -25,17 +25,27 @@ def get_suggestions(db: Session = Depends(get_db), user=Depends(get_current_user
     if not pref:
         return []  # sin preferencias ⇒ sin ranking
 
-    qs = db.query(models.Publication).all()
+    base_query = db.query(models.Publication)
 
+    # El usuario quiere filtrar por tipo de publicación (hotel o actividad)
+    if pref.publication_type and pref.publication_type != "all":
+        # Se asume que 'hotel' y 'actividad' son slugs de categorías
+        # Se une la tabla de publicaciones con la de categorías
+        base_query = base_query.join(models.Publication.categories).filter(models.Category.slug == pref.publication_type)
+
+    # Ejecutar la consulta pre-filtrada
+    qs = base_query.all()
+
+    # 🔹 PASO 2: Puntuar y ordenar las publicaciones filtradas
     ranked = sorted(qs, key=lambda d: score(d, pref), reverse=True)
 
     def _title_of(d):
         return getattr(d, "title", None) or getattr(d, "place_name", "") or f"Publicación #{d.id}"
 
-    # 🔹 Filtrar solo las publicaciones con score > 0
+    # Filtrar solo las publicaciones con score > 0
     filtered = [d for d in ranked if score(d, pref) > 0]
 
-    # 🔹 Tomar las top 10
+    # Tomar las top 10
     top10 = filtered[:10]
 
     return [

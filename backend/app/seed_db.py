@@ -1,5 +1,6 @@
 import os
 import shutil
+# import requests <--- ELIMINADO
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -68,6 +69,11 @@ def seed_publications(db: Session):
     # 2. Obtener/Crear Categorías
     cat_hotel = get_or_create_category(db, "hotel", "Hotel")
     cat_actividad = get_or_create_category(db, "actividad", "Actividad")
+    # --- NUEVAS CATEGORÍAS ---
+    cat_aventura = get_or_create_category(db, "aventura", "Aventura")
+    cat_cultura = get_or_create_category(db, "cultura", "Cultura")
+    cat_gastro = get_or_create_category(db, "gastronomia", "Gastronomía")
+    
     
     # 3. Definir datos de prueba (AHORA CON NOMBRES DE ARCHIVO LOCALES)
     data_to_seed = [
@@ -76,8 +82,14 @@ def seed_publications(db: Session):
             "place_name": "Hotel Continental",
             "country": "Argentina", "province": "Buenos Aires", "city": "CABA",
             "address": "Av. Corrientes 865",
-            "categories": [cat_hotel],
-            "continent": "américa", "climate": "templado", "cost_per_day": 200,
+            # --- CAMPOS ACTUALIZADOS ---
+            "categories": [cat_hotel, cat_cultura, cat_gastro],
+            "continent": "américa",
+            "climate": "templado",
+            "activities": ["cultura", "gastronomia", "ciudad"],
+            "cost_per_day": 200,
+            "duration_days": 1,
+            # ---
             "images": [
                 "hotel_continental_1.jpg",
                 "hotel_continental_2.jpg"
@@ -87,8 +99,14 @@ def seed_publications(db: Session):
             "place_name": "Ritz Paris",
             "country": "Francia", "province": "Isla de Francia", "city": "París",
             "address": "15 Pl. Vendôme, 75001 Paris",
-            "categories": [cat_hotel],
-            "continent": "europa", "climate": "templado", "cost_per_day": 1200,
+            # --- CAMPOS ACTUALIZADOS ---
+            "categories": [cat_hotel, cat_cultura, cat_gastro],
+            "continent": "europa",
+            "climate": "templado",
+            "activities": ["cultura", "gastronomia", "lujo", "romance"],
+            "cost_per_day": 1200,
+            "duration_days": 1,
+            # ---
             "images": [
                 "ritz_paris_1.jpg",
                 "ritz_paris_2.jpg"
@@ -98,8 +116,14 @@ def seed_publications(db: Session):
             "place_name": "Four Seasons Kyoto",
             "country": "Japón", "province": "Prefectura de Kioto", "city": "Kioto",
             "address": "445-3 Myohoin Maekawacho, Higashiyama Ward",
-            "categories": [cat_hotel],
-            "continent": "asia", "climate": "templado", "cost_per_day": 900,
+            # --- CAMPOS ACTUALIZADOS ---
+            "categories": [cat_hotel, cat_cultura],
+            "continent": "asia",
+            "climate": "templado",
+            "activities": ["cultura", "relax", "naturaleza"],
+            "cost_per_day": 900,
+            "duration_days": 1,
+            # ---
             "images": [
                 "four_seasons_kyoto_1.jpg",
                 "four_seasons_kyoto_2.jpg"
@@ -109,8 +133,14 @@ def seed_publications(db: Session):
             "place_name": "Palms Casino Resort",
             "country": "EE.UU.", "province": "Nevada", "city": "Las Vegas",
             "address": "4321 W Flamingo Rd",
+            # --- CAMPOS ACTUALIZADOS ---
             "categories": [cat_hotel],
-            "continent": "américa", "climate": "desértico", "cost_per_day": 450,
+            "continent": "américa",
+            "climate": "seco",
+            "activities": ["show", "casino", "gastronomia"],
+            "cost_per_day": 450,
+            "duration_days": 1,
+            # ---
             "images": [
                 "palms_casino_1.jpg",
                 "palms_casino_2.jpg"
@@ -122,9 +152,14 @@ def seed_publications(db: Session):
             "place_name": "Tour de Vinos en Mendoza",
             "country": "Argentina", "province": "Mendoza", "city": "Luján de Cuyo",
             "address": "Ruta Provincial 15, km 29",
-            "categories": [cat_actividad],
-            "continent": "américa", "climate": "seco", "activities": ["gastronomía", "tour"],
-            "cost_per_day": 150, "duration_days": 1,
+            # --- CAMPOS ACTUALIZADOS ---
+            "categories": [cat_actividad, cat_gastro],
+            "continent": "américa",
+            "climate": "seco",
+            "activities": ["gastronomia", "tour", "naturaleza"],
+            "cost_per_day": 150,
+            "duration_days": 1,
+            # ---
             "images": [
                 "tour_vinos_mendoza_1.jpg",
                 "tour_vinos_mendoza_2.jpg"
@@ -134,9 +169,14 @@ def seed_publications(db: Session):
             "place_name": "Clase de Surf en Bondi Beach",
             "country": "Australia", "province": "Nueva Gales del Sur", "city": "Sydney",
             "address": "Bondi Beach",
-            "categories": [cat_actividad],
-            "continent": "oceanía", "climate": "templado", "activities": ["playa", "deporte"],
-            "cost_per_day": 100, "duration_days": 1,
+            # --- CAMPOS ACTUALIZADOS ---
+            "categories": [cat_actividad, cat_aventura],
+            "continent": "oceanía",
+            "climate": "templado",
+            "activities": ["playa", "deporte", "aventura"],
+            "cost_per_day": 100,
+            "duration_days": 1,
+            # ---
             "images": [
                 "surf_bondi_1.jpg",
                 "surf_bondi_2.jpg"
@@ -146,9 +186,14 @@ def seed_publications(db: Session):
             "place_name": "Caminata al Machu Picchu (Camino Inca)",
             "country": "Perú", "province": "Cusco", "city": "Aguas Calientes",
             "address": "Camino Inca",
-            "categories": [cat_actividad],
-            "continent": "américa", "climate": "montaña", "activities": ["trekking", "cultura"],
-            "cost_per_day": 125, "duration_days": 4, # Costo total 500
+            # --- CAMPOS ACTUALIZADOS ---
+            "categories": [cat_actividad, cat_aventura, cat_cultura],
+            "continent": "américa",
+            "climate": "frío",
+            "activities": ["trekking", "cultura", "aventura", "montaña"],
+            "cost_per_day": 125,
+            "duration_days": 4,
+            # ---
             "images": [
                 "machu_picchu_1.jpg",
                 "machu_picchu_2.jpg"
@@ -158,9 +203,14 @@ def seed_publications(db: Session):
             "place_name": "Visita al Museo del Louvre",
             "country": "Francia", "province": "Isla de Francia", "city": "París",
             "address": "Rue de Rivoli, 75001 Paris",
-            "categories": [cat_actividad],
-            "continent": "europa", "climate": "templado", "activities": ["cultura", "arte"],
-            "cost_per_day": 25, "duration_days": 1,
+            # --- CAMPOS ACTUALIZADOS ---
+            "categories": [cat_actividad, cat_cultura],
+            "continent": "europa",
+            "climate": "templado",
+            "activities": ["cultura", "arte", "historia"],
+            "cost_per_day": 25,
+            "duration_days": 1,
+            # ---
             "images": [
                 "museo_louvre_1.jpg",
                 "museo_louvre_2.jpg"
@@ -196,7 +246,7 @@ def seed_publications(db: Session):
             # Campos de enriquecimiento
             continent=item.get("continent"),
             climate=item.get("climate"),
-            activities=item.get("activities"),
+            activities=item.get("activities"), # AHORA PASA LA LISTA
             cost_per_day=item.get("cost_per_day"),
             duration_days=item.get("duration_days"),
             
@@ -242,7 +292,7 @@ if __name__ == "__main__":
     try:
         seed_publications(db)
     except Exception as e:
-        print(f"Ocurrió un error durante el seeding: {e}")
+        print(f"Ocurrió un error during el seeding: {e}")
         db.rollback()
     finally:
         db.close()

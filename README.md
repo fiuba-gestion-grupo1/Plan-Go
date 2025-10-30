@@ -71,19 +71,20 @@ docker exec -it plan-go-app bash
 ```
 ### Instalar SQLite3 y Salir de la terminar de contenedor
 ```bash
-apt-get update && apt-get install -y sqlite3
+apt-get update && apt-get install -y sqlite3
 ctrl d
 ```
 
 ### Ejecutar el comando de sql
 ```bash
 docker exec -it plan-go-app sqlite3 /app/data/plan_go.db "UPDATE users SET role='admin' WHERE username='your_username';"
-ctrl d
 ```
 
 ## Tutorial de Ejecución del Script de Publicaciones
+```bash
 make up
-
+```
 desde otra terminal:
-docker ps para obtener el nombre del contenedor
-docker exec <tu-contenedor-app> python -m backend.app.seed_db
+```bash
+docker exec plan-go-app python -m backend.app.seed_db
+```
