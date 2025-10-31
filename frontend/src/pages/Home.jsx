@@ -342,8 +342,16 @@ export default function Home({ me, view = "publications" }) {
   const [cats, setCats] = useState([]);
   const [allCats, setAllCats] = useState([]);
 
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
+  // const [open, setOpen] = useState(false);
+  // const [current, setCurrent] = useState(null);
+  const [openDetailModal, setOpenDetailModal] = useState(false); // Podrías renombrar 'open' a 'openDetailModal' por claridad
+  const [currentPub, setCurrentPub] = useState(null);
+  const [selectedPub, setSelectedPub] = useState(null);
+
+  function openPublicationDetail(p) {
+    setCurrentPub(p);
+    setOpenDetailModal(true);
+  }
 
   async function reloadCats() {
     try {
@@ -1010,27 +1018,36 @@ export default function Home({ me, view = "publications" }) {
       {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
       {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
 
+      {/* --- UNICA GRILLA DE PUBLICACIONES (reemplaza los bloques duplicados) --- */}
       <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mt-2">
         {pubs.map((p) => (
           <div className="col" key={p.id}>
-            <div className="card shadow-sm h-100">
+            <div
+              className="card shadow-sm h-100"
+              onClick={() => openPublicationDetail(p)}
+              style={{ cursor: "pointer" }}
+            >
               <div className="card-body pb-0">
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted">
-                      {p.address}, {p.city}, {p.province}, {p.country}
-                    </small>
+                    <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+
                     <div className="mt-2 d-flex flex-wrap gap-2">
                       <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                       {(p.categories || []).map((c) => (
                         <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
                       ))}
                     </div>
+
+                    <p className="card-text mt-2 mb-0">
+                      <span className="text-success fw-bold">${p.price}</span>
+                    </p>
                   </div>
+
                   <button
                     className="btn btn-link p-0 ms-2"
-                    onClick={() => toggleFavorite(p.id)}
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
                     style={{ fontSize: "1.5rem", textDecoration: "none" }}
                     title={p.is_favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
                   >
@@ -1053,15 +1070,14 @@ export default function Home({ me, view = "publications" }) {
                       </div>
                     ))}
                   </div>
+
                   {p.photos.length > 1 && (
                     <>
-                      <button className="carousel-control-prev" type="button" data-bs-target={`#home-carousel-${p.id}`} data-bs-slide="prev" style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }} aria-label="Anterior" title="Anterior">
+                      <button className="carousel-control-prev" type="button" data-bs-target={`#home-carousel-${p.id}`} data-bs-slide="prev">
                         <span className="carousel-control-prev-icon" aria-hidden="true" />
-                        <span className="visually-hidden">Anterior</span>
                       </button>
-                      <button className="carousel-control-next" type="button" data-bs-target={`#home-carousel-${p.id}`} data-bs-slide="next" style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }} aria-label="Siguiente" title="Siguiente">
+                      <button className="carousel-control-next" type="button" data-bs-target={`#home-carousel-${p.id}`} data-bs-slide="next">
                         <span className="carousel-control-next-icon" aria-hidden="true" />
-                        <span className="visually-hidden">Siguiente</span>
                       </button>
                     </>
                   )}
@@ -1072,18 +1088,94 @@ export default function Home({ me, view = "publications" }) {
 
               <div className="card-footer bg-white d-flex justify-content-between align-items-center">
                 <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
-                <button className="btn btn-sm btn-outline-custom" onClick={() => openReviews(p)}>Ver reseñas</button>
+                <button
+                  className="btn btn-sm btn-celeste"
+                  onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                >
+                  Ver Detalles
+                </button>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {!loading && pubs.length === 0 && (
-        <div className="alert alert-secondary mt-3">No hay publicaciones para los filtros seleccionados.</div>
-      )}
+      {/* Modal de detalles */}
+      <PublicationDetailModal
+        open={openDetailModal}
+        pub={currentPub}
+        token={token}
+        me={me}
+        onClose={() => setOpenDetailModal(false)}
+        onToggleFavorite={toggleFavorite}
+      />
 
-      <ReviewsModal open={open} pub={current} token={token} me={me} onClose={() => setOpen(false)} />
+      {/* Lista de publicaciones */}
+      <div className="publication-grid">
+        {pubs.map(pub => (
+          <div key={pub.id}
+            onClick={() => setSelectedPub(pub)}
+            className="publication-card"
+            style={{ cursor: 'pointer' }}>
+            <div className="card h-100 shadow-sm">
+              {/* Imagen principal */}
+              <div style={{ height: '200px', overflow: 'hidden' }}>
+                <img
+                  src={pub.images?.[0] || 'placeholder-image.jpg'}
+                  className="card-img-top"
+                  alt={pub.place_name}
+                  style={{ objectFit: 'cover', height: '100%', width: '100%' }}
+                />
+              </div>
+
+              <div className="card-body">
+                {/* Nombre del lugar */}
+                <h5 className="card-title mb-2">{pub.place_name}</h5>
+
+                {/* Ubicación */}
+                <p className="card-text text-muted small mb-2">
+                  📍 {pub.city}, {pub.province}
+                </p>
+
+                {/* Rating */}
+                <div className="mb-2">
+                  <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
+                </div>
+
+                {/* Precio */}
+                <p className="card-text mb-2">
+                  <span className="text-success fw-bold">
+                    ${pub.price}
+                  </span>
+                </p>
+
+                {/* Categorías */}
+                <div className="d-flex flex-wrap gap-1">
+                  {pub.categories?.slice(0, 2).map(cat => (
+                    <span key={cat} className="badge bg-light text-dark border small">
+                      {cat}
+                    </span>
+                  ))}
+                  {pub.categories?.length > 2 && (
+                    <span className="badge bg-light text-dark border small">
+                      +{pub.categories.length - 2}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal de detalles */}
+      <PublicationDetailModal
+        open={!!selectedPub}
+        pub={selectedPub}
+        onClose={() => setSelectedPub(null)}
+        onToggleFavorite={toggleFavorite}
+        me={me}
+      />
     </div>
   );
 }
@@ -1342,6 +1434,101 @@ function FavoritesView({ pubs, loading, error, onLoad, onToggleFavorite }) {
           No tienes publicaciones favoritas aún. ¡Empieza a explorar y agrega tus lugares favoritos! 💝
         </div>
       )}
+    </div>
+  );
+}
+
+//reemplazamos el ReviewsModal por uno más completo con toda la info de las publicaciones.
+
+function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
+  if (!open || !pub) return null;
+
+  return (
+    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
+      <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 600, maxHeight: "90vh", width: "90%" }}>
+
+        {/* Header con botón cerrar */}
+        <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">{pub.place_name}</h5>
+          <button className="btn-close" onClick={onClose}></button>
+        </div>
+
+        {/* Contenido scrolleable */}
+        <div className="p-3" style={{ overflowY: "auto", maxHeight: "calc(90vh - 70px)" }}>
+
+          {/* Carrusel de imágenes */}
+          <div className="mb-3">
+            {pub.images?.length > 0 ? (
+              <div id={`carousel-${pub.id}`} className="carousel slide" data-bs-ride="carousel">
+                <div className="carousel-inner">
+                  {pub.images.map((img, i) => (
+                    <div key={i} className={`carousel-item ${i === 0 ? 'active' : ''}`}>
+                      <img src={img} className="d-block w-100 rounded" alt={`Imagen ${i + 1}`}
+                        style={{ height: "300px", objectFit: "cover" }} />
+                    </div>
+                  ))}
+                </div>
+                {pub.images.length > 1 && (
+                  <>
+                    <button className="carousel-control-prev" type="button"
+                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="prev">
+                      <span className="carousel-control-prev-icon"></span>
+                    </button>
+                    <button className="carousel-control-next" type="button"
+                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="next">
+                      <span className="carousel-control-next-icon"></span>
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="text-muted text-center p-4">Sin imágenes disponibles</div>
+            )}
+          </div>
+
+          {/* Información principal */}
+          <div className="mb-3">
+            <div className="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
+              </div>
+              <button
+                className={`btn ${pub.is_favorite ? 'btn-danger' : 'btn-outline-danger'}`}
+                onClick={() => onToggleFavorite(pub.id)}
+              >
+                {pub.is_favorite ? '❤️ Favorito' : '🤍 Agregar a favoritos'}
+              </button>
+            </div>
+
+            <h6 className="mt-3 mb-2">Ubicación</h6>
+            <p className="mb-2">
+              📍 {pub.address}, {pub.city}, {pub.province}
+            </p>
+
+            <h6 className="mt-3 mb-2">Categorías</h6>
+            <div className="d-flex flex-wrap gap-1 mb-3">
+              {pub.categories?.map(cat => (
+                <span key={cat} className="badge bg-light text-dark border">
+                  {cat}
+                </span>
+              ))}
+            </div>
+
+            <h6 className="mt-3 mb-2">Precio</h6>
+            <p className="mb-2">
+              💰 ${pub.price}
+            </p>
+
+            {pub.description && (
+              <>
+                <h6 className="mt-3 mb-2">Descripción</h6>
+                <p className="mb-2">{pub.description}</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

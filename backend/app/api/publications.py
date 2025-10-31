@@ -539,6 +539,12 @@ def list_publications_public(
                 rating_count=getattr(p, "rating_count", 0) or 0,
                 categories=[c.slug for c in getattr(p, "categories", [])],
                 is_favorite=p.id in favorite_ids,
+
+                continent=getattr(p, "continent", None),
+                climate=getattr(p, "climate", None),
+                activities=getattr(p, "activities", []),
+                cost_per_day=getattr(p, "cost_per_day", None),
+                duration_days=getattr(p, "duration_days", None),
             )
         )
     return out
