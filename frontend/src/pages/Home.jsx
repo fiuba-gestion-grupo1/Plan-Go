@@ -408,8 +408,8 @@ export default function Home({ me, view = "publications" }) {
     if (!Array.isArray(pubs) || pubs.length === 0) return;
     const found = pubs.find(p => p.id === paramPubId);
     if (found) {
-      setCurrent(found);
-      setOpen(true);
+      setCurrentPub(found);
+      setOpenDetailModal(true);
       try {
         const url = new URL(window.location.href);
         url.searchParams.delete("pub");
@@ -1041,7 +1041,7 @@ export default function Home({ me, view = "publications" }) {
                     </div>
 
                     <p className="card-text mt-2 mb-0">
-                      <span className="text-success fw-bold">${p.price}</span>
+                      <span className="text-success fw-bold">${p.cost_per_day}</span>
                     </p>
                   </div>
 
@@ -1110,72 +1110,7 @@ export default function Home({ me, view = "publications" }) {
         onToggleFavorite={toggleFavorite}
       />
 
-      {/* Lista de publicaciones */}
-      <div className="publication-grid">
-        {pubs.map(pub => (
-          <div key={pub.id}
-            onClick={() => setSelectedPub(pub)}
-            className="publication-card"
-            style={{ cursor: 'pointer' }}>
-            <div className="card h-100 shadow-sm">
-              {/* Imagen principal */}
-              <div style={{ height: '200px', overflow: 'hidden' }}>
-                <img
-                  src={pub.images?.[0] || 'placeholder-image.jpg'}
-                  className="card-img-top"
-                  alt={pub.place_name}
-                  style={{ objectFit: 'cover', height: '100%', width: '100%' }}
-                />
-              </div>
-
-              <div className="card-body">
-                {/* Nombre del lugar */}
-                <h5 className="card-title mb-2">{pub.place_name}</h5>
-
-                {/* Ubicación */}
-                <p className="card-text text-muted small mb-2">
-                  📍 {pub.city}, {pub.province}
-                </p>
-
-                {/* Rating */}
-                <div className="mb-2">
-                  <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
-                </div>
-
-                {/* Precio */}
-                <p className="card-text mb-2">
-                  <span className="text-success fw-bold">
-                    ${pub.price}
-                  </span>
-                </p>
-
-                {/* Categorías */}
-                <div className="d-flex flex-wrap gap-1">
-                  {pub.categories?.slice(0, 2).map(cat => (
-                    <span key={cat} className="badge bg-light text-dark border small">
-                      {cat}
-                    </span>
-                  ))}
-                  {pub.categories?.length > 2 && (
-                    <span className="badge bg-light text-dark border small">
-                      +{pub.categories.length - 2}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Modal de detalles */}
-      <PublicationDetailModal
-        open={!!selectedPub}
-        pub={selectedPub}
-        onClose={() => setSelectedPub(null)}
-        onToggleFavorite={toggleFavorite}
-        me={me}
-      />
+      {/* Eliminadas las grillas duplicadas: se usa solo la grilla principal (row ... arriba) */}
     </div>
   );
 }
@@ -1443,6 +1378,21 @@ function FavoritesView({ pubs, loading, error, onLoad, onToggleFavorite }) {
 function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
   if (!open || !pub) return null;
 
+  const [isFav, setIsFav] = useState(pub.is_favorite || false);
+  useEffect(() => { setIsFav(pub.is_favorite || false); }, [pub?.id, pub?.is_favorite]);
+
+  async function handleToggleFavorite(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const prev = isFav;
+    setIsFav(!prev); // update optimista
+    try {
+      if (onToggleFavorite) await onToggleFavorite(pub.id);
+    } catch (err) {
+      setIsFav(prev); // rollback
+      alert('Error actualizando favoritos: ' + (err?.message || err));
+    }
+  }
+
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
       style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
@@ -1459,17 +1409,17 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
 
           {/* Carrusel de imágenes */}
           <div className="mb-3">
-            {pub.images?.length > 0 ? (
+            {pub.photos?.length > 0 ? ( // <--- CAMBIADO
               <div id={`carousel-${pub.id}`} className="carousel slide" data-bs-ride="carousel">
                 <div className="carousel-inner">
-                  {pub.images.map((img, i) => (
+                  {pub.photos.map((img, i) => ( // <--- CAMBIADO
                     <div key={i} className={`carousel-item ${i === 0 ? 'active' : ''}`}>
                       <img src={img} className="d-block w-100 rounded" alt={`Imagen ${i + 1}`}
                         style={{ height: "300px", objectFit: "cover" }} />
                     </div>
                   ))}
                 </div>
-                {pub.images.length > 1 && (
+                {pub.photos.length > 1 && ( // <--- CAMBIADO
                   <>
                     <button className="carousel-control-prev" type="button"
                       data-bs-target={`#carousel-${pub.id}`} data-bs-slide="prev">
@@ -1494,10 +1444,11 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
                 <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
               </div>
               <button
-                className={`btn ${pub.is_favorite ? 'btn-danger' : 'btn-outline-danger'}`}
-                onClick={() => onToggleFavorite(pub.id)}
+                className={`btn ${isFav ? 'btn-danger' : 'btn-outline-danger'}`}
+                onClick={handleToggleFavorite}
+                title={isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               >
-                {pub.is_favorite ? '❤️ Favorito' : '🤍 Agregar a favoritos'}
+                {isFav ? '❤️ Favorito' : '🤍 Agregar a favoritos'}
               </button>
             </div>
 
@@ -1517,7 +1468,7 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
 
             <h6 className="mt-3 mb-2">Precio</h6>
             <p className="mb-2">
-              💰 ${pub.price}
+              💰 ${pub.cost_per_day}
             </p>
 
             {pub.description && (
