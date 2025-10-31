@@ -66,6 +66,7 @@ class Publication(Base):
 
     # Workflow / autoría
     status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)
+    rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=func.now())
 
@@ -132,6 +133,7 @@ class UserPreference(Base):
     duration_min_days = Column(Integer, nullable=True)
     duration_max_days = Column(Integer, nullable=True)
 
+    publication_type = Column(String(20), nullable=True, server_default="all", default="all") # all | hotel | actividad
     user = relationship("User", backref="preference", uselist=False)
 
 
@@ -164,8 +166,33 @@ class DeletionRequest(Base):
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
     requested_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|approved|rejected
+    rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     publication = relationship("Publication")
     requested_by = relationship("User")
+
+
+# ---------------------------
+# Itineraries
+# ---------------------------
+class Itinerary(Base):
+    __tablename__ = "itineraries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    destination = Column(String, nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    budget = Column(Integer, nullable=False)
+    cant_persons = Column(Integer, nullable=False, server_default="1", default=1)
+    trip_type = Column(String, nullable=False)
+    arrival_time = Column(String, nullable=True)
+    departure_time = Column(String, nullable=True)
+    generated_itinerary = Column(Text, nullable=True)
+    publication_ids = Column(JSON, nullable=True)  # Lista de IDs de publicaciones utilizadas
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|completed|failed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="itineraries")

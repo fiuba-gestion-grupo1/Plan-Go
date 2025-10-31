@@ -1,0 +1,14 @@
+.sidebar-menu-item {
+  transition: all 0.2s ease;
+}
+
+.sidebar-menu-item:hover {
+  background-color: transparent !important;
+  transform: translateX(2px);
+}
+
+.sidebar-menu-item.active {
+  background-color: #51CAFB !important;
+  border-left: 4px solid #3A92B5;
+  padding-left: 12px;
+}

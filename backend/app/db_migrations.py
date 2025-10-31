@@ -20,6 +20,7 @@ PUBLICATIONS_COLUMNS = [
     ("duration_days", "INTEGER"),
     # Campos de workflow/autoría
     ("status", "TEXT"),
+    ("rejection_reason", "TEXT"),
     ("created_by_user_id", "INTEGER"),
 ]
 
@@ -93,3 +94,35 @@ def ensure_min_schema(engine):
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS idx_deletion_requests_status ON deletion_requests(status)"
         )
+
+        # --- Tabla de itinerarios ---
+        # Primero verificar si la tabla existe
+        itinerary_check = conn.exec_driver_sql(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='itineraries'"
+        ).fetchone()
+        
+        if itinerary_check:
+            # La tabla existe, verificar y agregar columnas faltantes
+            pragma_itinerary = conn.exec_driver_sql("PRAGMA table_info(itineraries)").fetchall()
+            existing_itinerary = {row[1] for row in pragma_itinerary}
+            
+            # Agregar publication_ids si no existe
+            if "publication_ids" not in existing_itinerary:
+                conn.exec_driver_sql(
+                    "ALTER TABLE itineraries ADD COLUMN publication_ids TEXT"
+                )
+            
+            # Agregar cant_persons si no existe
+            if "cant_persons" not in existing_itinerary:
+                conn.exec_driver_sql(
+                    "ALTER TABLE itineraries ADD COLUMN cant_persons INTEGER DEFAULT 1"
+                )
+
+        # --- Agregar rejection_reason a deletion_requests ---
+        pragma_deletion = conn.exec_driver_sql("PRAGMA table_info(deletion_requests)").fetchall()
+        existing_deletion = {row[1] for row in pragma_deletion}
+        
+        if "rejection_reason" not in existing_deletion:
+            conn.exec_driver_sql(
+                "ALTER TABLE deletion_requests ADD COLUMN rejection_reason TEXT"
+            )

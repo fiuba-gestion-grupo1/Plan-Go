@@ -1,17 +1,20 @@
 import React from "react";
+import "../styles/buttons.css";
 
 export default function CreatePublicationForm({ onSubmit, onCancel, loading, error, successMsg }) {
   return (
     <div className="container mt-4">
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h3 className="mb-0">Crear publicación</h3>
-        <button type="button" className="btn btn-outline-secondary" onClick={onCancel}>Volver</button>
+        <button type="button" className="btn btn-outline-secondary" onClick={onCancel}> Volver</button>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
       {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
-      <form onSubmit={onSubmit} className="border rounded-3 p-3 bg-white shadow-sm">
+      <div className="row justify-content-center">
+        <div className="col-lg-10">
+          <form onSubmit={onSubmit} className="border rounded-3 p-3 bg-white shadow-sm">
         <div className="row g-3">
           <div className="col-md-12">
             <label className="form-label">Nombre del lugar *</label>
@@ -38,7 +41,7 @@ export default function CreatePublicationForm({ onSubmit, onCancel, loading, err
 
           <div className="col-md-12">
             <label className="form-label">Categorías (CSV) *</label>
-            <input name="categories" className="form-control" placeholder="ej: aventura,cultura,gastronomia" />
+            <input name="categories" className="form-control" placeholder="ej: aventura,cultura,gastronomia" required />
             <small className="text-muted">Usá slugs: aventura, cultura, gastronomia</small>
           </div>
 
@@ -93,12 +96,14 @@ export default function CreatePublicationForm({ onSubmit, onCancel, loading, err
 
           <div className="col-12 d-flex justify-content-end gap-2 mt-2">
             <button type="button" className="btn btn-outline-secondary" onClick={onCancel} disabled={loading}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <button type="submit" className="btn btn-outline-custom" disabled={loading}>
               {loading ? "Enviando..." : "Enviar para aprobación"}
             </button>
           </div>
         </div>
       </form>
+        </div>
+      </div>
     </div>
   );
 }

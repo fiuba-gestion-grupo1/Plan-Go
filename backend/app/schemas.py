@@ -117,6 +117,7 @@ class PublicationOut(BaseModel):
     city: str
     address: str
     status: str = "approved"
+    rejection_reason: Optional[str] = None  # Razón de rechazo si status=rejected
     created_by_user_id: int | None = None
     created_at: str
     photos: List[str] = []
@@ -125,6 +126,12 @@ class PublicationOut(BaseModel):
     rating_avg: float = 0.0
     rating_count: int = 0
     categories: List[str] = []
+
+    continent: Optional[str] = None
+    climate: Optional[str] = None
+    activities: Optional[List[str]] = None
+    cost_per_day: Optional[float] = None
+    duration_days: Optional[int] = None
 
     # Flags opcionales que algunos endpoints setean
     is_favorite: bool = False
@@ -170,6 +177,7 @@ class UserPreferenceIn(BaseModel):
     continents: Optional[List[str]] = None
     duration_min_days: Optional[int] = None
     duration_max_days: Optional[int] = None
+    publication_type: Optional[str] = None
 
 
 class UserPreferenceOut(UserPreferenceIn):
@@ -185,8 +193,46 @@ class DeletionRequestOut(BaseModel):
     publication_id: int
     requested_by_user_id: int
     status: str
+    rejection_reason: Optional[str] = None  # Razón de rechazo si status=rejected
     created_at: str
     publication: PublicationOut
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+# -------------------------------------------------
+# Itineraries
+# -------------------------------------------------
+class ItineraryRequest(BaseModel):
+    destination: str = Field(..., min_length=2, max_length=200)
+    start_date: date
+    end_date: date
+    budget: int = Field(..., gt=0)
+    cant_persons: int = Field(..., gt=0)
+    trip_type: str = Field(..., min_length=2, max_length=100)
+    arrival_time: Optional[str] = None
+    departure_time: Optional[str] = None
+
+
+class ItineraryOut(BaseModel):
+    id: int
+    user_id: int
+    destination: str
+    start_date: date
+    end_date: date
+    budget: int
+    cant_persons: int
+    trip_type: str
+    arrival_time: Optional[str] = None
+    departure_time: Optional[str] = None
+    generated_itinerary: Optional[str] = None
+    status: str
+    created_at: str
+    publications: List[PublicationOut] = []  # Lista de publicaciones utilizadas
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)

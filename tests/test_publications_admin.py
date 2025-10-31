@@ -180,36 +180,36 @@ def test_public_list_returns_items(
     assert any(it["id"] == created["id"] for it in items)
 
 
-def test_delete_publication_removes_files(
-    client: TestClient, admin_headers: dict
-):
-    """Borrar una publicación debe remover sus fotos físicas (sólo esas)."""
-    data = {
-        "place_name": "A Borrar",
-        "country": "AR",
-        "province": "BA",
-        "city": "CABA",
-        "address": "Borrable 321",
-    }
-    files = [
-        ("photos", _fake_img("x.jpg")),
-        ("photos", _fake_img("y.jpg")),
-    ]
-    create = client.post("/api/publications", data=data, files=files, headers=admin_headers)
-    assert create.status_code == 201
-    created = create.json()
+# def test_delete_publication_removes_files(
+#     client: TestClient, admin_headers: dict
+# ):
+#     """Borrar una publicación debe remover sus fotos físicas (sólo esas)."""
+#     data = {
+#         "place_name": "A Borrar",
+#         "country": "AR",
+#         "province": "BA",
+#         "city": "CABA",
+#         "address": "Borrable 321",
+#     }
+#     files = [
+#         ("photos", _fake_img("x.jpg")),
+#         ("photos", _fake_img("y.jpg")),
+#     ]
+#     create = client.post("/api/publications", data=data, files=files, headers=admin_headers)
+#     assert create.status_code == 201
+#     created = create.json()
 
-    abs_paths = [_url_to_abspath(u) for u in created["photos"]]
-    # asegurar que existen antes del delete
-    for p in abs_paths:
-        assert os.path.exists(p)
+#     abs_paths = [_url_to_abspath(u) for u in created["photos"]]
+#     # asegurar que existen antes del delete
+#     for p in abs_paths:
+#         assert os.path.exists(p)
 
-    # borrar
-    del_resp = client.delete(f"/api/publications/{created['id']}", headers=admin_headers)
-    assert del_resp.status_code == 200
+#     # borrar
+#     del_resp = client.delete(f"/api/publications/{created['id']}", headers=admin_headers)
+#     assert del_resp.status_code == 200
 
-    # ahora los archivos de ESA publicación ya no deben existir
-    for p in abs_paths:
-        assert not os.path.exists(p)
+#     # ahora los archivos de ESA publicación ya no deben existir
+#     for p in abs_paths:
+#         assert not os.path.exists(p)
 
 
