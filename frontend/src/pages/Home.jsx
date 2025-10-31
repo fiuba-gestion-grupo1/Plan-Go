@@ -1033,11 +1033,18 @@ export default function Home({ me, view = "publications" }) {
                     <h5 className="card-title mb-1">{p.place_name}</h5>
                     <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
-                    <div className="mt-2 d-flex flex-wrap gap-2">
-                      <RatingBadge avg={p.rating_avg} count={p.rating_count} />
-                      {(p.categories || []).map((c) => (
-                        <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
-                      ))}
+                    <div className="mt-2">
+                      {/* Renglón 1: Reseñas */}
+                      <div className="mb-2">
+                        <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                      </div>
+
+                      {/* Renglón 2: Categorías */}
+                      <div className="d-flex flex-wrap gap-1">
+                        {(p.categories || []).map((c) => (
+                          <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                        ))}
+                      </div>
                     </div>
 
                     <p className="card-text mt-2 mb-0">
@@ -1439,6 +1446,8 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
 
           {/* Información principal */}
           <div className="mb-3">
+
+            {/* Renglón 1: Reseñas y Favorito */}
             <div className="d-flex justify-content-between align-items-start mb-2">
               <div>
                 <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
@@ -1452,24 +1461,24 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
               </button>
             </div>
 
-            <h6 className="mt-3 mb-2">Ubicación</h6>
-            <p className="mb-2">
-              📍 {pub.address}, {pub.city}, {pub.province}
-            </p>
-
+            {/* Renglón 2: Categorías (MOVIDO HACIA ARRIBA) */}
             <h6 className="mt-3 mb-2">Categorías</h6>
             <div className="d-flex flex-wrap gap-1 mb-3">
               {pub.categories?.map(cat => (
-                <span key={cat} className="badge bg-light text-dark border">
+                <span key={cat} className="badge bg-secondary-subtle text-secondary border text-capitalize">
                   {cat}
                 </span>
               ))}
             </div>
 
-            <h6 className="mt-3 mb-2">Precio</h6>
+            {/* Renglón 3: Ubicación (ANTES ESTABA EN MEDIO) */}
+            <h6 className="mt-3 mb-2">Ubicación</h6>
             <p className="mb-2">
-              💰 ${pub.cost_per_day}
+              📍 {pub.address}, {pub.city}, {pub.province}
             </p>
+
+            {/* Renglón 4: Precio */}
+            <h6 className="mt-3 mb-2">Precio</h6>
 
             {pub.description && (
               <>
