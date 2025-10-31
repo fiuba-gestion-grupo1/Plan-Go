@@ -86,7 +86,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura, cat_gastro],
             "continent": "américa",
             "climate": "templado",
-            "activities": ["cultura", "gastronomia", "ciudad"],
+            "activities": ["cultura", "gastronomia", "ciudad", "noche"],
             "cost_per_day": 200,
             "duration_days": 1,
             # ---
@@ -103,7 +103,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura, cat_gastro],
             "continent": "europa",
             "climate": "templado",
-            "activities": ["cultura", "gastronomia", "lujo", "romance"],
+            "activities": ["cultura", "gastronomia", "lujo", "romance", "ciudad"],
             "cost_per_day": 1200,
             "duration_days": 1,
             # ---
@@ -120,7 +120,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura],
             "continent": "asia",
             "climate": "templado",
-            "activities": ["cultura", "relax", "naturaleza"],
+            "activities": ["cultura", "relax", "naturaleza", "historia"],
             "cost_per_day": 900,
             "duration_days": 1,
             # ---
@@ -137,7 +137,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "américa",
             "climate": "seco",
-            "activities": ["show", "casino", "gastronomia"],
+            "activities": ["show", "casino", "gastronomia", "noche"],
             "cost_per_day": 450,
             "duration_days": 1,
             # ---
@@ -190,7 +190,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_aventura, cat_cultura],
             "continent": "américa",
             "climate": "frío",
-            "activities": ["trekking", "cultura", "aventura", "montaña"],
+            "activities": ["trekking", "cultura", "aventura", "montaña", "historia"],
             "cost_per_day": 125,
             "duration_days": 4,
             # ---
@@ -207,13 +207,195 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_cultura],
             "continent": "europa",
             "climate": "templado",
-            "activities": ["cultura", "arte", "historia"],
+            "activities": ["cultura", "arte", "historia", "ciudad"],
             "cost_per_day": 25,
             "duration_days": 1,
             # ---
             "images": [
                 "museo_louvre_1.jpg",
                 "museo_louvre_2.jpg"
+            ]
+        },
+
+        # --- NUEVAS PUBLICACIONES (12) ---
+        {
+            "place_name": "The Palms Resort Zanzíbar",
+            "country": "Tanzania", "province": "Zanzíbar", "city": "Bwejuu",
+            "address": "Bwejuu Beach",
+            "categories": [cat_hotel],
+            "continent": "áfrica",
+            "climate": "tropical",
+            "activities": ["playa", "relax", "naturaleza"],
+            "cost_per_day": 750,
+            "duration_days": 1,
+            "images": [
+                "palms_zanzibar_1.jpg",
+                "palms_zanzibar_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Safari en el Serengeti",
+            "country": "Tanzania", "province": "Región de Arusha", "city": "Serengeti",
+            "address": "Parque Nacional Serengeti",
+            "categories": [cat_actividad, cat_aventura],
+            "continent": "áfrica",
+            "climate": "seco",
+            "activities": ["aventura", "naturaleza", "safari"],
+            "cost_per_day": 600,
+            "duration_days": 5,
+            "images": [
+                "serengeti_1.jpg",
+                "serengeti_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Villa privada en Bali",
+            "country": "Indonesia", "province": "Bali", "city": "Ubud",
+            "address": "Jl. Raya Sayan",
+            "categories": [cat_hotel, cat_cultura],
+            "continent": "asia",
+            "climate": "tropical",
+            "activities": ["playa", "relax", "cultura", "gastronomia", "naturaleza"],
+            "cost_per_day": 300,
+            "duration_days": 1,
+            "images": [
+                "bali_villa_1.jpg",
+                "bali_villa_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Glaciar Perito Moreno",
+            "country": "Argentina", "province": "Santa Cruz", "city": "El Calafate",
+            "address": "Parque Nacional Los Glaciares",
+            "categories": [cat_actividad, cat_aventura],
+            "continent": "américa",
+            "climate": "frío",
+            "activities": ["naturaleza", "montaña", "trekking"],
+            "cost_per_day": 100,
+            "duration_days": 1,
+            "images": [
+                "perito_moreno_1.jpg",
+                "perito_moreno_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Hotel The Standard, High Line",
+            "country": "EE.UU.", "province": "Nueva York", "city": "Nueva York",
+            "address": "848 Washington St",
+            "categories": [cat_hotel, cat_cultura],
+            "continent": "américa",
+            "climate": "templado",
+            "activities": ["ciudad", "cultura", "gastronomia", "noche", "show"],
+            "cost_per_day": 550,
+            "duration_days": 1,
+            "images": [
+                "standard_nyc_1.jpg",
+                "standard_nyc_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Tour Gastronómico en Roma",
+            "country": "Italia", "province": "Lacio", "city": "Roma",
+            "address": "Campo de' Fiori",
+            "categories": [cat_actividad, cat_gastro, cat_cultura],
+            "continent": "europa",
+            "climate": "templado",
+            "activities": ["historia", "cultura", "ciudad", "gastronomia"],
+            "cost_per_day": 90,
+            "duration_days": 1,
+            "images": [
+                "roma_gastro_1.jpg",
+                "roma_gastro_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Hotel Fasano Rio de Janeiro",
+            "country": "Brasil", "province": "Río de Janeiro", "city": "Río de Janeiro",
+            "address": "Av. Vieira Souto, 80 - Ipanema",
+            "categories": [cat_hotel],
+            "continent": "américa",
+            "climate": "tropical",
+            "activities": ["playa", "ciudad", "noche", "gastronomia"],
+            "cost_per_day": 650,
+            "duration_days": 1,
+            "images": [
+                "fasano_rio_1.jpg",
+                "fasano_rio_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Tour de Comida Callejera en Bangkok",
+            "country": "Tailandia", "province": "Bangkok", "city": "Bangkok",
+            "address": "Yaowarat Road (Chinatown)",
+            "categories": [cat_actividad, cat_gastro, cat_cultura],
+            "continent": "asia",
+            "climate": "tropical",
+            "activities": ["gastronomia", "ciudad", "cultura", "noche"],
+            "cost_per_day": 40,
+            "duration_days": 1,
+            "images": [
+                "bangkok_food_1.jpg",
+                "bangkok_food_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Bungee Jumping en Queenstown",
+            "country": "Nueva Zelanda", "province": "Otago", "city": "Queenstown",
+            "address": "Kawarau Gorge Suspension Bridge",
+            "categories": [cat_actividad, cat_aventura],
+            "continent": "oceanía",
+            "climate": "templado",
+            "activities": ["aventura", "deporte", "montaña", "naturaleza"],
+            "cost_per_day": 180,
+            "duration_days": 1,
+            "images": [
+                "queenstown_bungee_1.jpg",
+                "queenstown_bungee_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Tour de Auroras Boreales",
+            "country": "Islandia", "province": "Región Capital", "city": "Reikiavik",
+            "address": "Salida desde Reikiavik",
+            "categories": [cat_actividad, cat_aventura],
+            "continent": "europa",
+            "climate": "frío",
+            "activities": ["naturaleza", "aventura", "noche"],
+            "cost_per_day": 110,
+            "duration_days": 1,
+            "images": [
+                "aurora_iceland_1.jpg",
+                "aurora_iceland_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Visita a las Pirámides de Giza",
+            "country": "Egipto", "province": "Giza", "city": "Giza",
+            "address": "Al Haram, Nazlet El-Semman",
+            "categories": [cat_actividad, cat_cultura, cat_aventura],
+            "continent": "áfrica",
+            "climate": "seco",
+            "activities": ["historia", "cultura", "desierto"],
+            "cost_per_day": 80,
+            "duration_days": 1,
+            "images": [
+                "giza_pyramids_1.jpg",
+                "giza_pyramids_2.jpg"
+            ]
+        },
+        {
+            "place_name": "Resort All-Inclusive en Cancún",
+            "country": "México", "province": "Quintana Roo", "city": "Cancún",
+            "address": "Blvd. Kukulcan, Zona Hotelera",
+            "categories": [cat_hotel],
+            "continent": "américa",
+            "climate": "tropical",
+            "activities": ["playa", "relax", "noche", "gastronomia"],
+            "cost_per_day": 400,
+            "duration_days": 1,
+            "images": [
+                "cancun_resort_1.jpg",
+                "cancun_resort_2.jpg"
             ]
         },
     ]
