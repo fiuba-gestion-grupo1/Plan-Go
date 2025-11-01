@@ -8,6 +8,7 @@ import os, re
 from .. import models, schemas
 from ..db import get_db
 from .auth import get_current_user
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
@@ -765,6 +766,7 @@ def list_my_favorites(db: Session = Depends(get_db), current_user: models.User =
                     created_at=p.created_at.isoformat() if p.created_at else "",
                     photos=[ph.url for ph in p.photos],
                     is_favorite=True,
+                    favorite_status=fav.status,
                 )
             )
     return out
@@ -906,3 +908,32 @@ def reject_deletion_request(
     db.commit()
 
     return {"message": "Solicitud de eliminación rechazada."}
+
+
+class FavoriteStatusUpdate(BaseModel):
+    status: str  # "pending" o "done"
+
+@router.put("/favorites/{pub_id}/status", status_code=status.HTTP_200_OK)
+def update_favorite_status(
+    pub_id: int,
+    payload: FavoriteStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Actualiza el estado de un favorito (pending/done)
+    """
+    fav = db.query(models.Favorite).filter(
+        models.Favorite.user_id == current_user.id,
+        models.Favorite.publication_id == pub_id
+    ).first()
+
+    if not fav:
+        raise HTTPException(status_code=404, detail="Favorito no encontrado")
+
+    if payload.status not in ("pending", "done"):
+        raise HTTPException(status_code=400, detail="Estado inválido")
+
+    fav.status = payload.status
+    db.commit()
+    return {"message": f"Estado actualizado a {payload.status}"}

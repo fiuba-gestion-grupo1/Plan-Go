@@ -133,6 +133,8 @@ class PublicationOut(BaseModel):
     cost_per_day: Optional[float] = None
     duration_days: Optional[int] = None
 
+    favorite_status: Optional[str] = "pending"
+
     # Flags opcionales que algunos endpoints setean
     is_favorite: bool = False
     has_pending_deletion: bool = False
