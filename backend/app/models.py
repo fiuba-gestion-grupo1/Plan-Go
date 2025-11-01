@@ -147,7 +147,8 @@ class Favorite(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    status = Column(String(20), nullable=False, server_default="pending", default="pending")  
+    
     user = relationship("User")
     publication = relationship("Publication")
 

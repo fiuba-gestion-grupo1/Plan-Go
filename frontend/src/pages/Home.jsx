@@ -462,6 +462,23 @@ export default function Home({ me, view = "publications" }) {
     }
   }
 
+  async function updateFavoriteStatus(pubId, newStatus) {
+    try {
+      await request(`/api/publications/favorites/${pubId}/status`, {
+        method: "PUT",
+        token,
+        body: { status: newStatus },
+      });
+
+      // Refrescamos solo el array de favoritos en memoria
+      setFavPubs(prev =>
+        prev.map(p => p.id === pubId ? { ...p, favorite_status: newStatus } : p)
+      );
+    } catch (e) {
+      setError(e.message || "Error al actualizar el estado del favorito");
+    }
+  }
+
   async function requestDeletion(pubId) {
     if (!window.confirm("¿Deseas solicitar la eliminación de esta publicación? Un administrador deberá aprobarla.")) {
       return;
@@ -654,9 +671,11 @@ export default function Home({ me, view = "publications" }) {
           await toggleFavorite(pubId);
           fetchFavorites();
         }}
+        onUpdateStatus={updateFavoriteStatus}  // ✅ sin tipos
       />
     );
   }
+
 
   // Vista de Configurar Preferencias
   if (view === 'preferences') {
@@ -1284,91 +1303,167 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
   );
 }
 
-function FavoritesView({ pubs, loading, error, onLoad, onToggleFavorite }) {
+function FavoritesView({
+  pubs,
+  loading,
+  error,
+  onLoad,
+  onToggleFavorite,
+  onUpdateStatus,
+}) {
   React.useEffect(() => { onLoad(); }, []);
+
+  const [filter, setFilter] = React.useState("all");
+  const shown = React.useMemo(
+    () => pubs.filter(p => filter === "all" ? true : (p.favorite_status || "pending") === filter),
+    [pubs, filter]
+  );
 
   return (
     <div className="container mt-4">
       <div className="d-flex align-items-center justify-content-between mb-4">
         <h3 className="mb-0">Mis Favoritos</h3>
+        <div className="btn-group btn-group-sm" role="group" aria-label="Filtro favoritos">
+          {[
+            { key: "all", label: "Todos" },
+            { key: "pending", label: "⏳ Pendientes" },
+            { key: "done", label: "✅ Realizados" }
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className="btn"
+              style={{
+                borderColor: "#3A92B5",
+                color: filter === key ? "white" : "#3A92B5",
+                backgroundColor: filter === key ? "#3A92B5" : "transparent",
+                borderWidth: "1.5px",
+                fontWeight: 500,
+                borderRadius:
+                  key === "all"
+                    ? "8px 0 0 8px"
+                    : key === "done"
+                    ? "0 8px 8px 0"
+                    : "0",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = "#3A92B5";
+                e.target.style.color = "white";
+              }}
+              onMouseLeave={(e) => {
+                if (filter !== key) {
+                  e.target.style.backgroundColor = "transparent";
+                  e.target.style.color = "#3A92B5";
+                }
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-
       {loading && <div className="alert alert-info">Cargando...</div>}
       {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-        {pubs.map((p) => (
-          <div className="col" key={p.id}>
-            <div className="card shadow-sm h-100 border-danger">
-              <div className="card-body pb-0">
-                <div className="d-flex justify-content-between align-items-start">
-                  <div className="flex-grow-1">
-                    <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted">
-                      {p.address}, {p.city}, {p.province}, {p.country}
-                    </small>
+        {shown.map((p) => {
+          const status = p.favorite_status || "pending";
+          return (
+            <div className="col" key={p.id}>
+              <div
+                className="card shadow-sm h-100 border-0"
+                style={{
+                  overflow: "hidden",
+                  border: status === "done" ? "2px solid #28a745" : "1px solid #dee2e6",
+                  transition: "border 0.2s ease",
+                }}
+              >
+                <div className="card-body pb-0">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div className="flex-grow-1">
+                      <h5 className="card-title mb-1">{p.place_name}</h5>
+                      <small className="text-muted">
+                        {p.address}, {p.city}, {p.province}, {p.country}
+                      </small>
+                    </div>
+
+                    <button
+                      className="btn btn-link p-0 ms-2"
+                      onClick={() => onToggleFavorite(p.id)}
+                      style={{ fontSize: "1.5rem", textDecoration: "none" }}
+                      title="Quitar de favoritos"
+                    >
+                      ❤️
+                    </button>
                   </div>
+                </div>
+
+                {p.photos?.length ? (
+                  <div id={`fav-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                    <div className="carousel-inner">
+                      {p.photos.map((url, idx) => (
+                        <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                          <img
+                            src={url}
+                            className="d-block w-100"
+                            alt={`Foto ${idx + 1}`}
+                            style={{ height: 260, objectFit: "cover" }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {p.photos.length > 1 && (
+                      <>
+                        <button
+                          className="carousel-control-prev"
+                          type="button"
+                          data-bs-target={`#fav-carousel-${p.id}`}
+                          data-bs-slide="prev"
+                          style={{ filter: "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))" }}
+                        >
+                          <span className="carousel-control-prev-icon" />
+                        </button>
+                        <button
+                          className="carousel-control-next"
+                          type="button"
+                          data-bs-target={`#fav-carousel-${p.id}`}
+                          data-bs-slide="next"
+                          style={{ filter: "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))" }}
+                        >
+                          <span className="carousel-control-next-icon" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-muted">Sin fotos</div>
+                )}
+
+                <div className="card-footer bg-white d-flex justify-content-between align-items-center">
+                  <small className="text-muted">
+                    Creado: {new Date(p.created_at).toLocaleString()}
+                  </small>
+
                   <button
-                    className="btn btn-link p-0 ms-2"
-                    onClick={() => onToggleFavorite(p.id)}
-                    style={{ fontSize: "1.5rem", textDecoration: "none" }}
-                    title="Quitar de favoritos"
+                    className={`btn btn-sm ${
+                      status === "done"
+                        ? "btn-success border-success text-white"
+                        : "btn-outline-secondary"
+                    }`}
+                    onClick={() =>
+                      onUpdateStatus(p.id, status === "done" ? "pending" : "done")
+                    }
+                    title={status === "done" ? "Marcar como Pendiente" : "Marcar como Realizado"}
                   >
-                    ❤️
+                    {status === "done" ? "Realizado" : "✓ Marcar realizado"}
                   </button>
                 </div>
               </div>
-
-              {p.photos?.length ? (
-                <div id={`fav-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
-                  <div className="carousel-inner">
-                    {p.photos.map((url, idx) => (
-                      <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
-                        <img
-                          src={url}
-                          className="d-block w-100"
-                          alt={`Foto ${idx + 1}`}
-                          style={{ height: 260, objectFit: "cover" }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  {p.photos.length > 1 && (
-                    <>
-                      <button
-                        className="carousel-control-prev"
-                        type="button"
-                        data-bs-target={`#fav-carousel-${p.id}`}
-                        data-bs-slide="prev"
-                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
-                      >
-                        <span className="carousel-control-prev-icon" />
-                      </button>
-                      <button
-                        className="carousel-control-next"
-                        type="button"
-                        data-bs-target={`#fav-carousel-${p.id}`}
-                        data-bs-slide="next"
-                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
-                      >
-                        <span className="carousel-control-next-icon" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-muted">Sin fotos</div>
-              )}
-
-              <div className="card-footer bg-white">
-                <small className="text-muted">
-                  Creado: {new Date(p.created_at).toLocaleString()}
-                </small>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {!loading && pubs.length === 0 && (
@@ -1479,6 +1574,9 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
 
             {/* Renglón 4: Precio */}
             <h6 className="mt-3 mb-2">Precio</h6>
+            <p className="mb-2">
+              ${pub.cost_per_day} por día
+            </p>
 
             {pub.description && (
               <>
