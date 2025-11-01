@@ -63,6 +63,7 @@ class Publication(Base):
     province   = Column(String, nullable=False)
     city       = Column(String, nullable=False)
     address    = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
 
     # Workflow / autoría
     status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)
