@@ -43,8 +43,8 @@ export default function Suggestions({ token, me }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  
-  const [sortOrder, setSortOrder] = useState("desc"); 
+
+  const [sortOrder, setSortOrder] = useState("desc");
 
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
@@ -73,7 +73,7 @@ export default function Suggestions({ token, me }) {
       setErr(e.message);
     }
   }
-  
+
   // --- Carga de datos (Original de Suggestions) ---
   useEffect(() => {
     let cancel = false;
@@ -81,12 +81,12 @@ export default function Suggestions({ token, me }) {
       try {
         setLoading(true);
         setErr("");
-        
-        const res = await fetch(`/api/suggestions?sort=${sortOrder}`, { 
+
+        const res = await fetch(`/api/suggestions?sort=${sortOrder}`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store" // <-- Añadido para evitar caché del navegador
         });
-        
+
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
           throw new Error(j.detail || `HTTP ${res.status}`);
@@ -100,7 +100,7 @@ export default function Suggestions({ token, me }) {
       }
     })();
     return () => { cancel = true; };
-  }, [token, sortOrder]); 
+  }, [token, sortOrder]);
 
   return (
     <div className="container py-3">
@@ -109,15 +109,15 @@ export default function Suggestions({ token, me }) {
       <div className="d-flex justify-content-between align-items-center mb-4">
         {/* Título */}
         <h2 className="mb-0">💡 Sugerencias para {me?.first_name || me?.username}</h2>
-        
+
         {/* Filtro (solo se muestra si hay items) */}
         {!loading && items.length > 0 && !err && (
           <div style={{ maxWidth: '250px' }}>
             <label htmlFor="sort-select" className="form-label small text-muted mb-1">Ordenar por</label>
-            <select 
+            <select
               id="sort-select"
               className="form-select form-select-sm"
-              value={sortOrder} 
+              value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)} // Actualiza el estado
             >
               <option value="desc">Mayor Coincidencia</option>
@@ -128,9 +128,9 @@ export default function Suggestions({ token, me }) {
       </div>
       {/* --- FIN DE LA CORRECCIÓN DE ALINEACIÓN --- */}
 
-      
+
       <div className="alert alert-info mb-4">
-        <strong>Tip:</strong> Estas sugerencias se basan en tus preferencias de viaje. 
+        <strong>Tip:</strong> Estas sugerencias se basan en tus preferencias de viaje.
         Asegúrate de tener tus preferencias actualizadas para obtener mejores recomendaciones.
       </div>
 
@@ -148,7 +148,7 @@ export default function Suggestions({ token, me }) {
         <>
           {/* --- GRILLA DE PUBLICACIONES (el div.row original) --- */}
           <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mt-2">
-            {items.map((pub) => ( 
+            {items.map((pub) => (
               <div className="col" key={pub.id}>
                 {/* ... (El código de la tarjeta no cambia) ... */}
                 <div
@@ -223,7 +223,7 @@ export default function Suggestions({ token, me }) {
             ))}
           </div>
         </>
-      )} 
+      )}
 
       {/* --- El modal de detalles no cambia --- */}
       <PublicationDetailModal
@@ -315,6 +315,15 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
                 {isFav ? '❤️ Favorito' : '🤍 Agregar a favoritos'}
               </button>
             </div>
+
+            {/* --- BLOQUE AÑADIDO/MODIFICADO --- */}
+            {pub.description && (
+              <>
+                <h6 className="mt-3 mb-2">Descripción</h6>
+                <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
+              </>
+            )}
+            {/* --- FIN BLOQUE AÑADIDO/MODIFICADO --- */}
 
             <h6 className="mt-3 mb-2">Ubicación</h6>
             <p className="mb-2">

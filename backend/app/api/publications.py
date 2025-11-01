@@ -158,6 +158,7 @@ def create_publication(
     province: str = Form(...),
     city: str = Form(...),
     address: str = Form(...),
+    description: str = Form(...),
     categories: Optional[str] = Form(None),  # CSV: aventura,cultura
     photos: Optional[List[UploadFile]] = File(None),
 
@@ -197,8 +198,9 @@ def create_publication(
         province=province,
         city=city,
         address=address,
+        description=description, # <-- AÑADIDO
         street=street,                       # compat con columna legacy 'street'
-        status="approved",                   # por defecto aprobado cuando lo crea un admin
+        status="approved",             # por defecto aprobado cuando lo crea un admin
         created_by_user_id=current_user.id,  # registrar quién lo creó
         created_at=datetime.now(timezone.utc),
     )
@@ -251,6 +253,7 @@ def create_publication(
         province=pub.province,
         city=pub.city,
         address=pub.address,
+        description=pub.description,
         status=pub.status,
         created_by_user_id=pub.created_by_user_id,
         created_at=pub.created_at.isoformat() if pub.created_at else "",
@@ -285,6 +288,7 @@ def submit_publication(
     province: str = Form(...),
     city: str = Form(...),
     address: str = Form(...),
+    description: str = Form(...),
 
     # mismos campos que en el backoffice
     categories: Optional[str] = Form(None),        # CSV: aventura,cultura
@@ -327,6 +331,7 @@ def submit_publication(
         city=city,
         address=address,
         street=street,
+        description=description,
         status="pending",
         created_by_user_id=current_user.id,
         created_at=datetime.now(timezone.utc),
@@ -377,6 +382,7 @@ def submit_publication(
         city=pub.city,
         address=pub.address,
         status=pub.status,
+        description=pub.description,
         created_by_user_id=pub.created_by_user_id,
         created_at=pub.created_at.isoformat() if pub.created_at else "",
         photos=saved_urls,
@@ -540,6 +546,7 @@ def list_publications_public(
                 rating_count=getattr(p, "rating_count", 0) or 0,
                 categories=[c.slug for c in getattr(p, "categories", [])],
                 is_favorite=p.id in favorite_ids,
+                description=getattr(p, "description", None),
 
                 continent=getattr(p, "continent", None),
                 climate=getattr(p, "climate", None),

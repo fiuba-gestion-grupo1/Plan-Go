@@ -116,6 +116,7 @@ class PublicationOut(BaseModel):
     province: str
     city: str
     address: str
+    description: Optional[str] = None
     status: str = "approved"
     rejection_reason: Optional[str] = None  # Razón de rechazo si status=rejected
     created_by_user_id: int | None = None

@@ -1343,8 +1343,8 @@ function FavoritesView({
                   key === "all"
                     ? "8px 0 0 8px"
                     : key === "done"
-                    ? "0 8px 8px 0"
-                    : "0",
+                      ? "0 8px 8px 0"
+                      : "0",
                 transition: "all 0.2s ease",
               }}
               onMouseEnter={(e) => {
@@ -1447,11 +1447,10 @@ function FavoritesView({
                   </small>
 
                   <button
-                    className={`btn btn-sm ${
-                      status === "done"
-                        ? "btn-success border-success text-white"
-                        : "btn-outline-secondary"
-                    }`}
+                    className={`btn btn-sm ${status === "done"
+                      ? "btn-success border-success text-white"
+                      : "btn-outline-secondary"
+                      }`}
                     onClick={() =>
                       onUpdateStatus(p.id, status === "done" ? "pending" : "done")
                     }
@@ -1556,6 +1555,15 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
               </button>
             </div>
 
+            {/* --- BLOQUE AÑADIDO/MODIFICADO --- */}
+            {pub.description && (
+              <>
+                <h6 className="mt-3 mb-2">Descripción</h6>
+                <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
+              </>
+            )}
+            {/* --- FIN BLOQUE AÑADIDO/MODIFICADO --- */}
+
             {/* Renglón 2: Categorías (MOVIDO HACIA ARRIBA) */}
             <h6 className="mt-3 mb-2">Categorías</h6>
             <div className="d-flex flex-wrap gap-1 mb-3">
@@ -1578,12 +1586,6 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
               ${pub.cost_per_day} por día
             </p>
 
-            {pub.description && (
-              <>
-                <h6 className="mt-3 mb-2">Descripción</h6>
-                <p className="mb-2">{pub.description}</p>
-              </>
-            )}
           </div>
         </div>
       </div>
