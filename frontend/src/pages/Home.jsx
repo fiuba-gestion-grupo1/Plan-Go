@@ -1135,8 +1135,6 @@ export default function Home({ me, view = "publications" }) {
         onClose={() => setOpenDetailModal(false)}
         onToggleFavorite={toggleFavorite}
       />
-
-      {/* Eliminadas las grillas duplicadas: se usa solo la grilla principal (row ... arriba) */}
     </div>
   );
 }
@@ -1476,11 +1474,65 @@ function FavoritesView({
 
 //reemplazamos el ReviewsModal por uno más completo con toda la info de las publicaciones.
 
-function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
+function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, token }) {
   if (!open || !pub) return null;
 
   const [isFav, setIsFav] = useState(pub.is_favorite || false);
   useEffect(() => { setIsFav(pub.is_favorite || false); }, [pub?.id, pub?.is_favorite]);
+
+  // --- logica de reseñas---
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+
+  const isPremium = me?.role === "premium" || me?.username === "admin";
+
+  // Efecto para cargar reseñas cuando se abre el modal o cambia la publicación
+  useEffect(() => {
+    if (!open || !pub?.id) {
+      setList([]); // Limpiar lista si se cierra
+      setErr("");
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      setLoading(true);
+      setErr("");
+      try {
+        const rows = await request(`/api/publications/${pub.id}/reviews`);
+        if (!cancel) setList(rows);
+      } catch (e) {
+        if (!cancel) setErr(e.message);
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    })();
+    return () => { cancel = true; };
+  }, [open, pub?.id]); // Depende de 'open' y 'pub.id'
+
+  // Función para enviar reseña
+  async function submitReview(e) {
+    e.preventDefault();
+    if (!isPremium) { return; }
+    if (!token) { alert("Iniciá sesión para publicar una reseña."); return; }
+    try {
+      await request(`/api/publications/${pub.id}/reviews`, {
+        method: "POST",
+        token,
+        body: { rating: Number(rating), comment: comment || undefined }
+      });
+      setComment(""); setRating(5);
+      // Recargar la lista de reseñas
+      const rows = await request(`/api/publications/${pub.id}/reviews`);
+      setList(rows);
+      // Nota: El rating_avg/count de 'pub' (prop) no se actualizará
+      // hasta que se cierre y reabra el modal.
+    } catch (e) {
+      alert(`Error creando reseña: ${e.message}`);
+    }
+  }
 
   async function handleToggleFavorite(e) {
     if (e && e.stopPropagation) e.stopPropagation();
@@ -1585,6 +1637,57 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
             <p className="mb-2">
               ${pub.cost_per_day} por día
             </p>
+
+            {/* --- INICIO SECCIÓN DE RESEÑAS AÑADIDA --- */}
+            <hr />
+            <h6 className="mt-3 mb-2">Reseñas</h6>
+
+            {/* Lista de reseñas */}
+            <div style={{ maxHeight: 250, overflow: "auto" }}>
+              {loading && <div className="text-muted">Cargando…</div>}
+              {err && <div className="alert alert-danger">{err}</div>}
+              {!loading && !err && list.length === 0 && <div className="text-muted">Sin reseñas todavía.</div>}
+              <ul className="list-unstyled mb-0">
+                {list.map((r) => (
+                  <li key={r.id} className="border rounded-3 p-3 mb-2">
+                    <div className="d-flex justify-content-between">
+                      <Stars value={r.rating} />
+                      <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
+                    </div>
+                    {r.comment && <div className="mt-1">{r.comment}</div>}
+                    <small className="text-muted d-block mt-1">por {r.author_username}</small>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Formulario para nueva reseña */}
+            {isPremium ? (
+              <form className="p-3 border-top" onSubmit={submitReview}>
+                <div className="row g-2">
+                  <div className="col-12 col-md-2">
+                    <label className="form-label mb-1">Rating</label>
+                    <select className="form-select" value={rating} onChange={(e) => setRating(e.target.value)}>
+                      {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-12 col-md-8">
+                    <label className="form-label mb-1">Comentario (opcional)</label>
+                    <input className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Contanos tu experiencia" />
+                  </div>
+                  <div className="col-12 col-md-2 d-flex align-items-end">
+                    <button className="btn btn-celeste w-100" type="submit">Publicar</button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <div className="p-3 border-top">
+                <div className="alert alert-secondary mb-0">
+                  Solo los <strong>usuarios premium</strong> pueden publicar reseñas.
+                </div>
+              </div>
+            )}
+            {/* --- FIN SECCIÓN DE RESEÑAS AÑADIDA --- */}
 
           </div>
         </div>
