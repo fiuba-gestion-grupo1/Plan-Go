@@ -117,6 +117,35 @@ export default function Profile({ me, token, setMe }) {
         }
     }
 
+    async function handleSubscribe() {
+        setNotification({ type: '', message: '' });
+        // Simulación de confirmación de pago
+        if (!window.confirm("Simular pago de 10 USD para convertirte en Premium?")) {
+            return;
+        }
+        try {
+            const updatedUser = await api('/api/users/me/subscribe', { method: 'POST', token });
+            setMe(updatedUser); // Actualiza el estado global del usuario
+            setNotification({ type: 'success', message: '¡Felicidades! Ahora eres un usuario Premium.' });
+        } catch (error) {
+            setNotification({ type: 'danger', message: error.detail || 'Error al procesar la suscripción.' });
+        }
+    }
+
+    async function handleCancelSubscription() {
+        setNotification({ type: '', message: '' });
+        if (!window.confirm("¿Estás seguro de que deseas cancelar tu suscripción Premium?")) {
+            return;
+        }
+        try {
+            const updatedUser = await api('/api/users/me/cancel-subscription', { method: 'POST', token });
+            setMe(updatedUser); // Actualiza el estado global del usuario
+            setNotification({ type: 'success', message: 'Tu suscripción ha sido cancelada.' });
+        } catch (error) {
+            setNotification({ type: 'danger', message: error.detail || 'Error al cancelar la suscripción.' });
+        }
+    }
+
     // --- Resto de funciones auxiliares (sin cambios) ---
 
     function handleFileChange(e) {
@@ -277,6 +306,62 @@ export default function Profile({ me, token, setMe }) {
                         <li className="list-group-item"><strong>Preferencias:</strong> <p className="text-muted mb-0">{me.travel_preferences || 'No especificadas'}</p></li>
                     </ul>
 
+                    {/* Sección de suscripción */}
+                    <div className="card shadow-sm mt-4">
+                        <div className="card-body">
+                            {me.role === 'user' && (
+                                <>
+                                    <h5 className="card-title">Suscripción: <span className="badge bg-secondary">Estándar</span></h5>
+                                    <p className="card-text fw-bold fs-5 text-primary">¡Convertite en Premium!</p>
+                                    <p>Disfruta de todos los beneficios de nuestra plataforma:</p>
+                                    <ul className="list-unstyled">
+                                        <li className="mb-2">
+                                            🚀 <strong>Publicá sin límites:</strong> creá publicaciones para otros usuarios sobre actividades y aventuras inigualables.
+                                        </li>
+                                        <li className="mb-2">
+                                            📝 <strong>Dejá tus reseñas:</strong> compartí tus experiencias y ganá puntos por cada opinión.
+                                        </li>
+                                        <li className="mb-2">
+                                            ⭐ <strong>Calificá tus actividades:</strong> puntuá lo que hiciste y acumulá más puntos.
+                                        </li>
+                                        <li>
+                                            🎁 <strong>Accedé a recompensas:</strong> disfrutá beneficios y descuentos increíbles.
+                                        </li>
+                                    </ul>
+
+                                    <hr />
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <span className="fs-4 fw-bold">10 USD / mes</span>
+                                        <button className="btn btn-success" onClick={handleSubscribe}>
+                                            Convertirse en Premium
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {me.role === 'premium' && (
+                                <>
+                                    <h5 className="card-title">Suscripción: <span className="badge bg-success">Premium</span></h5>
+                                    <p className="card-text">Estás disfrutando de todos los beneficios de tu cuenta.</p>
+                                    <p>Puedes cancelar tu suscripción en cualquier momento.</p>
+                                    <hr />
+                                    <div className="text-end">
+                                        <button className="btn btn-outline-danger" onClick={handleCancelSubscription}>
+                                            Cancelar Suscripción
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Opcional: Para admin u otros roles */}
+                            {me.role !== 'user' && me.role !== 'premium' && (
+                                <>
+                                    <h5 className="card-title">Suscripción: <span className="badge bg-info text-dark">{me.role.charAt(0).toUpperCase() + me.role.slice(1)}</span></h5>
+                                    <p className="card-text">Tienes permisos especiales en la plataforma.</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
                     {/* Botones de acción */}
                     <div className="d-flex justify-content-end align-items-center mt-4 gap-3">
                         <button className="btn btn-outline-secondary" onClick={() => setViewMode('password')}>

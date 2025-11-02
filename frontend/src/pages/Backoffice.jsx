@@ -46,6 +46,15 @@ export default function Backoffice({ me, view = "publications" }) {
   const token = useMemo(() => localStorage.getItem("token") || "", []);
   const fetchedOnce = useRef(false);
 
+  const [openDetailModal, setOpenDetailModal] = useState(false); // Podrías renombrar 'open' a 'openDetailModal' por claridad
+  const [currentPub, setCurrentPub] = useState(null);
+  const [selectedPub, setSelectedPub] = useState(null);
+
+  function openPublicationDetail(p) {
+    setCurrentPub(p);
+    setOpenDetailModal(true);
+  }
+
   // Función para recargar estadísticas
   async function reloadStats() {
     try {
@@ -64,7 +73,7 @@ export default function Backoffice({ me, view = "publications" }) {
     setLoading(true);
     setError("");
     try {
-      const endpoint = query 
+      const endpoint = query
         ? `/api/publications/search?q=${encodeURIComponent(query)}`
         : "/api/publications";
       const data = await request(endpoint, { token });
@@ -175,19 +184,19 @@ export default function Backoffice({ me, view = "publications" }) {
   async function handleDelete(id) {
     const reason = window.prompt("¿Por qué eliminas esta publicación? (El usuario verá este mensaje)");
     if (reason === null) return; // Usuario canceló
-    
+
     setLoading(true);
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/${id}`, { 
-        method: "DELETE", 
+      await request(`/api/publications/${id}`, {
+        method: "DELETE",
         token,
         body: { reason: reason.trim() || undefined }
       });
       setOkMsg("Publicación marcada como eliminada.");
       setPubs((prev) => prev.filter((p) => p.id !== id));
-      setAllPubs((prev) => prev.map((p) => 
+      setAllPubs((prev) => prev.map((p) =>
         p.id === id ? { ...p, status: 'deleted', rejection_reason: reason.trim() } : p
       ));
     } catch (e) {
@@ -217,13 +226,13 @@ export default function Backoffice({ me, view = "publications" }) {
   async function handleReject(id) {
     const reason = window.prompt("¿Por qué rechazas esta publicación? (El usuario verá este mensaje)");
     if (reason === null) return; // Usuario canceló
-    
+
     setLoading(true);
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/${id}/reject`, { 
-        method: "PUT", 
+      await request(`/api/publications/${id}/reject`, {
+        method: "PUT",
         token,
         body: { reason: reason.trim() || undefined }
       });
@@ -259,13 +268,13 @@ export default function Backoffice({ me, view = "publications" }) {
   async function handleRejectDeletion(requestId) {
     const reason = window.prompt("¿Por qué rechazas esta solicitud de eliminación? (El usuario verá este mensaje)");
     if (reason === null) return; // Usuario canceló
-    
+
     setLoading(true);
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/deletion-requests/${requestId}/reject`, { 
-        method: "PUT", 
+      await request(`/api/publications/deletion-requests/${requestId}/reject`, {
+        method: "PUT",
         token,
         body: { reason: reason.trim() || undefined }
       });
@@ -386,14 +395,14 @@ function StatsSidebar({ totalPubs, pendingPubs, deletionRequests }) {
               <span className="badge text-dark fs-6">{totalPubs}</span>
             </div>
           </div>
-          
+
           <div className="mb-3 pb-3 border-bottom">
             <div className="d-flex justify-content-between align-items-center">
               <span className="text-muted"> Aprobaciones pendientes</span>
               <span className="badge text-dark fs-6">{pendingPubs}</span>
             </div>
           </div>
-          
+
           <div>
             <div className="d-flex justify-content-between align-items-center">
               <span className="text-muted"> Eliminaciones pendientes</span>
@@ -417,7 +426,7 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
     <div>
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h3 className="mb-0">Gestión de Publicaciones</h3>
-        <button className="btn"  style={{ borderColor: '#3A92B5', color: '#3A92B5' }} onClick={onCreate}>
+        <button className="btn" style={{ borderColor: '#3A92B5', color: '#3A92B5' }} onClick={onCreate}>
           + Agregar Publicación
         </button>
       </div>
@@ -439,8 +448,8 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
           <span>
             <strong>Búsqueda:</strong> "{searchQuery}" - {pubs.length} resultado{pubs.length !== 1 ? 's' : ''} encontrado{pubs.length !== 1 ? 's' : ''}
           </span>
-          <button 
-            className="btn btn-sm btn-outline-secondary" 
+          <button
+            className="btn btn-sm btn-outline-secondary"
             onClick={() => onSearch("")}
           >
             Limpiar
@@ -467,7 +476,7 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
                       <span className="badge bg-light text-dark border">
                         <Stars value={p.rating_avg || 0} />{" "}
                         <span className="ms-1">
-                          {Number(p.rating_avg || 0).toFixed(1)} • {p.rating_count || 0} reseña{(p.rating_count||0)===1?"":"s"}
+                          {Number(p.rating_avg || 0).toFixed(1)} • {p.rating_count || 0} reseña{(p.rating_count || 0) === 1 ? "" : "s"}
                         </span>
                       </span>
                       {(p.categories || []).map((c) => (
@@ -629,8 +638,8 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
             <input name="categories" type="text" className="form-control" placeholder="ej: aventura,cultura" required />
             <div className="form-text">Usá slugs: aventura, cultura, gastronomia</div>
           </div>
-        
-                  {/* Informacion para relacionar con preferencias*/}
+
+          {/* Informacion para relacionar con preferencias*/}
           <hr className="my-3" />
           <div className="col-12">
             <h6 className="text-muted mb-0">Informacion del destino</h6>
@@ -922,13 +931,13 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
                       className="btn btn-success btn-sm flex-fill"
                       onClick={() => onApprove(req.id)}
                     >
-                      ✓ Aprobar 
+                      ✓ Aprobar
                     </button>
                     <button
                       className="btn btn-secondary btn-sm flex-fill"
                       onClick={() => onReject(req.id)}
                     >
-                      ✗ Rechazar 
+                      ✗ Rechazar
                     </button>
                   </div>
                 </div>
@@ -1067,6 +1076,123 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
           No hay publicaciones.
         </div>
       )}
+    </div>
+  );
+}
+
+function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
+  if (!open || !pub) return null;
+
+  const [isFav, setIsFav] = useState(pub.is_favorite || false);
+  useEffect(() => { setIsFav(pub.is_favorite || false); }, [pub?.id, pub?.is_favorite]);
+
+  async function handleToggleFavorite(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const prev = isFav;
+    setIsFav(!prev); // update optimista
+    try {
+      if (onToggleFavorite) await onToggleFavorite(pub.id);
+    } catch (err) {
+      setIsFav(prev); // rollback
+      alert('Error actualizando favoritos: ' + (err?.message || err));
+    }
+  }
+
+  return (
+    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
+      <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 600, maxHeight: "90vh", width: "90%" }}>
+
+        {/* Header con botón cerrar */}
+        <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">{pub.place_name}</h5>
+          <button className="btn-close" onClick={onClose}></button>
+        </div>
+
+        {/* Contenido scrolleable */}
+        <div className="p-3" style={{ overflowY: "auto", maxHeight: "calc(90vh - 70px)" }}>
+
+          {/* Carrusel de imágenes */}
+          <div className="mb-3">
+            {pub.photos?.length > 0 ? ( // <--- CAMBIADO
+              <div id={`carousel-${pub.id}`} className="carousel slide" data-bs-ride="carousel">
+                <div className="carousel-inner">
+                  {pub.photos.map((img, i) => ( // <--- CAMBIADO
+                    <div key={i} className={`carousel-item ${i === 0 ? 'active' : ''}`}>
+                      <img src={img} className="d-block w-100 rounded" alt={`Imagen ${i + 1}`}
+                        style={{ height: "300px", objectFit: "cover" }} />
+                    </div>
+                  ))}
+                </div>
+                {pub.photos.length > 1 && ( // <--- CAMBIADO
+                  <>
+                    <button className="carousel-control-prev" type="button"
+                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="prev">
+                      <span className="carousel-control-prev-icon"></span>
+                    </button>
+                    <button className="carousel-control-next" type="button"
+                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="next">
+                      <span className="carousel-control-next-icon"></span>
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="text-muted text-center p-4">Sin imágenes disponibles</div>
+            )}
+          </div>
+
+          {/* Información principal */}
+          <div className="mb-3">
+
+            {/* Renglón 1: Reseñas y Favorito */}
+            <div className="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
+              </div>
+              <button
+                className={`btn ${isFav ? 'btn-danger' : 'btn-outline-danger'}`}
+                onClick={handleToggleFavorite}
+                title={isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              >
+                {isFav ? '❤️ Favorito' : '🤍 Agregar a favoritos'}
+              </button>
+            </div>
+
+            {/* --- BLOQUE AÑADIDO/MODIFICADO --- */}
+            {pub.description && (
+              <>
+                <h6 className="mt-3 mb-2">Descripción</h6>
+                <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
+              </>
+            )}
+            {/* --- FIN BLOQUE AÑADIDO/MODIFICADO --- */}
+
+            {/* Renglón 2: Categorías (MOVIDO HACIA ARRIBA) */}
+            <h6 className="mt-3 mb-2">Categorías</h6>
+            <div className="d-flex flex-wrap gap-1 mb-3">
+              {pub.categories?.map(cat => (
+                <span key={cat} className="badge bg-secondary-subtle text-secondary border text-capitalize">
+                  {cat}
+                </span>
+              ))}
+            </div>
+
+            {/* Renglón 3: Ubicación (ANTES ESTABA EN MEDIO) */}
+            <h6 className="mt-3 mb-2">Ubicación</h6>
+            <p className="mb-2">
+              📍 {pub.address}, {pub.city}, {pub.province}
+            </p>
+
+            {/* Renglón 4: Precio */}
+            <h6 className="mt-3 mb-2">Precio</h6>
+            <p className="mb-2">
+              ${pub.cost_per_day} por día
+            </p>
+
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
