@@ -1,6 +1,50 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api, BASE_URL } from '../api';
 
+// 1. Creamos el componente para el modal de carga
+const LoadingModal = ({ status }) => {
+    // Si no hay status, no se muestra nada
+    if (!status) return null;
+
+    // Textos personalizados según la acción
+    const messages = {
+        subscribing: 'Procesando pago de suscripción...',
+        cancelling: 'Cancelando suscripción...'
+    };
+    const title = {
+        subscribing: 'Pagar Suscripción',
+        cancelling: 'Cancelar Suscripción'
+    };
+
+    return (
+        // Backdrop (fondo oscuro)
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999 // Asegura que esté por encima de todo
+        }}>
+            {/* Contenido del Modal (la tarjeta) */}
+            <div className="card shadow-lg p-4" style={{ minWidth: '300px', maxWidth: '90%' }}>
+                <div className="card-body text-center">
+                    <h4 className="card-title mb-3">{title[status] || 'Procesando...'}</h4>
+                    {/* La "ruedita" (spinner de Bootstrap) */}
+                    <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-3 mb-0">{messages[status] || 'Por favor, espere.'}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function Profile({ me, token, setMe }) {
     const [viewMode, setViewMode] = useState('view');
     const [formData, setFormData] = useState({
@@ -20,6 +64,10 @@ export default function Profile({ me, token, setMe }) {
 
     // 1. Estado para manejar las notificaciones en pantalla
     const [notification, setNotification] = useState({ type: '', message: '' });
+
+    // 2. Añadimos el nuevo estado para el modal de carga
+    // Puede ser: null, 'subscribing', o 'cancelling'
+    const [processingStatus, setProcessingStatus] = useState(null);
 
     // Efecto para que la notificación desaparezca sola después de 5 segundos
     useEffect(() => {
@@ -114,6 +162,52 @@ export default function Profile({ me, token, setMe }) {
             setPreviewUrl(null);
         } catch (error) {
             setNotification({ type: 'danger', message: error.detail || 'Error al subir la foto.' });
+        }
+    }
+
+    //Funcion de manejo de subscripcion
+    async function handleSubscribe() {
+        setNotification({ type: '', message: '' });
+
+        // 1. Mostrar el modal de carga
+        setProcessingStatus('subscribing');
+
+        // 2. Simular espera de 5 segundos (5000 milisegundos)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        try {
+            // 3. Llamar a la API
+            const updatedUser = await api('/api/users/me/subscribe', { method: 'POST', token });
+            setMe(updatedUser);
+            setNotification({ type: 'success', message: '¡Felicidades! Ahora eres un usuario Premium.' });
+        } catch (error) {
+            setNotification({ type: 'danger', message: error.detail || 'Error al procesar la suscripción.' });
+        } finally {
+            // 4. Ocultar el modal (ya sea éxito or error)
+            setProcessingStatus(null);
+        }
+    }
+
+    //Funcion de cancelacion de subscripcion premium
+    async function handleCancelSubscription() {
+        setNotification({ type: '', message: '' });
+
+        // 1. Mostrar el modal de carga
+        setProcessingStatus('cancelling');
+
+        // 2. Simular espera de 5 segundos
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        try {
+            // 3. Llamar a la API
+            const updatedUser = await api('/api/users/me/cancel-subscription', { method: 'POST', token });
+            setMe(updatedUser);
+            setNotification({ type: 'success', message: 'Tu suscripción ha sido cancelada.' });
+        } catch (error) {
+            setNotification({ type: 'danger', message: error.detail || 'Error al cancelar la suscripción.' });
+        } finally {
+            // 4. Ocultar el modal
+            setProcessingStatus(null);
         }
     }
 
@@ -244,7 +338,11 @@ export default function Profile({ me, token, setMe }) {
 
     // --- VISTA PRINCIPAL (VER PERFIL) ---
     return (
-        <div className="container mt-4" style={{ maxWidth: '700px' }}>
+        < div className="container mt-4" style={{ maxWidth: '700px' }
+        }>
+            {/*Renderizamos el modal (sólo se verá si processingStatus no es null) */}
+            < LoadingModal status={processingStatus} />
+
             <div className="card shadow-sm">
                 <div className="card-body p-4 p-md-5">
                     <h2 className="card-title text-center mb-4">Mi Perfil</h2>
@@ -277,6 +375,62 @@ export default function Profile({ me, token, setMe }) {
                         <li className="list-group-item"><strong>Preferencias:</strong> <p className="text-muted mb-0">{me.travel_preferences || 'No especificadas'}</p></li>
                     </ul>
 
+                    {/* Sección de suscripción */}
+                    <div className="card shadow-sm mt-4">
+                        <div className="card-body">
+                            {me.role === 'user' && (
+                                <>
+                                    <h5 className="card-title">Suscripción: <span className="badge bg-secondary">Estándar</span></h5>
+                                    <p className="card-text fw-bold fs-5 text-primary">¡Convertite en Premium!</p>
+                                    <p>Disfruta de todos los beneficios de nuestra plataforma:</p>
+                                    <ul className="list-unstyled">
+                                        <li className="mb-2">
+                                            🚀 <strong>Publicá sin límites:</strong> creá publicaciones para otros usuarios sobre actividades y aventuras inigualables.
+                                        </li>
+                                        <li className="mb-2">
+                                            📝 <strong>Dejá tus reseñas:</strong> compartí tus experiencias y ganá puntos por cada opinión.
+                                        </li>
+                                        <li className="mb-2">
+                                            ⭐ <strong>Calificá tus actividades:</strong> puntuá lo que hiciste y acumulá más puntos.
+                                        </li>
+                                        <li>
+                                            🎁 <strong>Accedé a recompensas:</strong> disfrutá beneficios y descuentos increíbles.
+                                        </li>
+                                    </ul>
+
+                                    <hr />
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <span className="fs-4 fw-bold">10 USD / mes</span>
+                                        <button className="btn btn-success" onClick={handleSubscribe}>
+                                            Convertirse en Premium
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {me.role === 'premium' && (
+                                <>
+                                    <h5 className="card-title">Suscripción: <span className="badge bg-success">Premium</span></h5>
+                                    <p className="card-text">Estás disfrutando de todos los beneficios de tu cuenta.</p>
+                                    <p>Puedes cancelar tu suscripción en cualquier momento.</p>
+                                    <hr />
+                                    <div className="text-end">
+                                        <button className="btn btn-outline-danger" onClick={handleCancelSubscription}>
+                                            Cancelar Suscripción
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Opcional: Para admin u otros roles */}
+                            {me.role !== 'user' && me.role !== 'premium' && (
+                                <>
+                                    <h5 className="card-title">Suscripción: <span className="badge bg-info text-dark">{me.role.charAt(0).toUpperCase() + me.role.slice(1)}</span></h5>
+                                    <p className="card-text">Tienes permisos especiales en la plataforma.</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
                     {/* Botones de acción */}
                     <div className="d-flex justify-content-end align-items-center mt-4 gap-3">
                         <button className="btn btn-outline-secondary" onClick={() => setViewMode('password')}>
@@ -288,6 +442,6 @@ export default function Profile({ me, token, setMe }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

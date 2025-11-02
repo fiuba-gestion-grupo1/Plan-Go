@@ -38,3 +38,40 @@ def upload_profile_photo(
     db.refresh(user)
 
     return user
+
+@router.post("/me/subscribe", response_model=schemas.UserOut)
+def subscribe_to_premium(
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Simula un pago y actualiza el rol del usuario a 'premium'.
+    """
+    if user.role == 'premium':
+        raise HTTPException(status_code=400, detail="Ya eres usuario premium.")
+    
+    # En una app real, aquí procesarías el pago (ej. Stripe)
+    # Como es una simulación, solo actualizamos el rol.
+    user.role = 'premium'
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.post("/me/cancel-subscription", response_model=schemas.UserOut)
+def cancel_subscription(
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Cancela la suscripción y revierte el rol del usuario a 'user'.
+    """
+    if user.role != 'premium':
+        raise HTTPException(status_code=400, detail="No tienes una suscripción premium activa.")
+    
+    # En una app real, aquí gestionarías la cancelación en la pasarela de pago
+    user.role = 'user'
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user

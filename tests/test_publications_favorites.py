@@ -65,6 +65,7 @@ def test_user_can_toggle_favorite_and_see_in_list(
         "province": "Buenos Aires",
         "city": "Mar del Plata",
         "address": "Av. Costanera 123",
+        "description": "Descripción del Hotel Favorito",
     }
     files = [("photos", _fake_img("hotel.jpg"))]
     create_resp = client.post("/api/publications", data=data, files=files, headers=admin_headers)
