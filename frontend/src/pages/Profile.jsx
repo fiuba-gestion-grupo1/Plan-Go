@@ -1,6 +1,50 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api, BASE_URL } from '../api';
 
+// 1. Creamos el componente para el modal de carga
+const LoadingModal = ({ status }) => {
+    // Si no hay status, no se muestra nada
+    if (!status) return null;
+
+    // Textos personalizados según la acción
+    const messages = {
+        subscribing: 'Procesando pago de suscripción...',
+        cancelling: 'Cancelando suscripción...'
+    };
+    const title = {
+        subscribing: 'Pagar Suscripción',
+        cancelling: 'Cancelar Suscripción'
+    };
+
+    return (
+        // Backdrop (fondo oscuro)
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999 // Asegura que esté por encima de todo
+        }}>
+            {/* Contenido del Modal (la tarjeta) */}
+            <div className="card shadow-lg p-4" style={{ minWidth: '300px', maxWidth: '90%' }}>
+                <div className="card-body text-center">
+                    <h4 className="card-title mb-3">{title[status] || 'Procesando...'}</h4>
+                    {/* La "ruedita" (spinner de Bootstrap) */}
+                    <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-3 mb-0">{messages[status] || 'Por favor, espere.'}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function Profile({ me, token, setMe }) {
     const [viewMode, setViewMode] = useState('view');
     const [formData, setFormData] = useState({
@@ -20,6 +64,10 @@ export default function Profile({ me, token, setMe }) {
 
     // 1. Estado para manejar las notificaciones en pantalla
     const [notification, setNotification] = useState({ type: '', message: '' });
+
+    // 2. Añadimos el nuevo estado para el modal de carga
+    // Puede ser: null, 'subscribing', o 'cancelling'
+    const [processingStatus, setProcessingStatus] = useState(null);
 
     // Efecto para que la notificación desaparezca sola después de 5 segundos
     useEffect(() => {
@@ -117,32 +165,49 @@ export default function Profile({ me, token, setMe }) {
         }
     }
 
+    //Funcion de manejo de subscripcion
     async function handleSubscribe() {
         setNotification({ type: '', message: '' });
-        // Simulación de confirmación de pago
-        if (!window.confirm("Simular pago de 10 USD para convertirte en Premium?")) {
-            return;
-        }
+
+        // 1. Mostrar el modal de carga
+        setProcessingStatus('subscribing');
+
+        // 2. Simular espera de 5 segundos (5000 milisegundos)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         try {
+            // 3. Llamar a la API
             const updatedUser = await api('/api/users/me/subscribe', { method: 'POST', token });
-            setMe(updatedUser); // Actualiza el estado global del usuario
+            setMe(updatedUser);
             setNotification({ type: 'success', message: '¡Felicidades! Ahora eres un usuario Premium.' });
         } catch (error) {
             setNotification({ type: 'danger', message: error.detail || 'Error al procesar la suscripción.' });
+        } finally {
+            // 4. Ocultar el modal (ya sea éxito or error)
+            setProcessingStatus(null);
         }
     }
 
+    //Funcion de cancelacion de subscripcion premium
     async function handleCancelSubscription() {
         setNotification({ type: '', message: '' });
-        if (!window.confirm("¿Estás seguro de que deseas cancelar tu suscripción Premium?")) {
-            return;
-        }
+
+        // 1. Mostrar el modal de carga
+        setProcessingStatus('cancelling');
+
+        // 2. Simular espera de 5 segundos
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         try {
+            // 3. Llamar a la API
             const updatedUser = await api('/api/users/me/cancel-subscription', { method: 'POST', token });
-            setMe(updatedUser); // Actualiza el estado global del usuario
+            setMe(updatedUser);
             setNotification({ type: 'success', message: 'Tu suscripción ha sido cancelada.' });
         } catch (error) {
             setNotification({ type: 'danger', message: error.detail || 'Error al cancelar la suscripción.' });
+        } finally {
+            // 4. Ocultar el modal
+            setProcessingStatus(null);
         }
     }
 
@@ -273,7 +338,11 @@ export default function Profile({ me, token, setMe }) {
 
     // --- VISTA PRINCIPAL (VER PERFIL) ---
     return (
-        <div className="container mt-4" style={{ maxWidth: '700px' }}>
+        < div className="container mt-4" style={{ maxWidth: '700px' }
+        }>
+            {/*Renderizamos el modal (sólo se verá si processingStatus no es null) */}
+            < LoadingModal status={processingStatus} />
+
             <div className="card shadow-sm">
                 <div className="card-body p-4 p-md-5">
                     <h2 className="card-title text-center mb-4">Mi Perfil</h2>
@@ -373,6 +442,6 @@ export default function Profile({ me, token, setMe }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
