@@ -45,6 +45,7 @@ def test_user_submit_publication_and_admin_approve(
         "province": "BA",
         "city": "CABA",
         "address": "Calle Usuario 1",
+        "description": "Hotel enviado por el usuario",
     }
     files = [("photos", _fake_img("u1.jpg"))]
     create = client.post(

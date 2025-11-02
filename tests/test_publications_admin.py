@@ -1,6 +1,7 @@
 import io
 import os
 from typing import List
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -88,6 +89,7 @@ def test_admin_create_publication_with_photos_success(
         "province": "Buenos Aires",
         "city": "San Telmo",
         "address": "Av. Paseo Colón 850",
+        "description": "Sede FIUBA Paseo Colón",
     }
     files = [
         ("photos", _fake_img("a.jpg", "image/jpeg")),
@@ -120,13 +122,14 @@ def test_admin_create_publication_rejects_too_many_photos(client: TestClient, ad
         "province": "BA",
         "city": "CABA",
         "address": "Calle 123",
+        "description": "Lugar X con muchas fotos",
     }
     files = [
         ("photos", _fake_img("1.jpg")),
         ("photos", _fake_img("2.jpg")),
         ("photos", _fake_img("3.jpg")),
         ("photos", _fake_img("4.jpg")),
-        ("photos", _fake_img("5.jpg")),  # 5 -> debe fallar
+        ("photos", _fake_img("5.jpg")),
     ]
     resp = client.post("/api/publications", data=data, files=files, headers=admin_headers)
     assert resp.status_code == 400
@@ -140,6 +143,7 @@ def test_admin_create_publication_rejects_invalid_mime(client: TestClient, admin
         "province": "BA",
         "city": "CABA",
         "address": "Calle 456",
+        "description": "Lugar Y con mime inválido",
     }
     # text/plain no está permitido
     files = [("photos", ("bad.txt", io.BytesIO(b"no-image"), "text/plain"))]
@@ -164,6 +168,7 @@ def test_public_list_returns_items(
         "province": "BA",
         "city": "CABA",
         "address": "Calle Publica 1000",
+        "description": "Descripción del lugar público",
     }
     files = [("photos", _fake_img("pub.jpg"))]
     create = client.post("/api/publications", data=data, files=files, headers=admin_headers)
@@ -190,6 +195,7 @@ def test_public_list_returns_items(
 #         "province": "BA",
 #         "city": "CABA",
 #         "address": "Borrable 321",
+#         "description": "Publicación para borrar",
 #     }
 #     files = [
 #         ("photos", _fake_img("x.jpg")),
@@ -205,7 +211,19 @@ def test_public_list_returns_items(
 #         assert os.path.exists(p)
 
 #     # borrar
-#     del_resp = client.delete(f"/api/publications/{created['id']}", headers=admin_headers)
+#     delete_headers = admin_headers.copy()
+#     delete_headers["Content-Type"] = "application/json"
+    
+#     # 2. Prepara el body como un string JSON
+#     delete_body = json.dumps({"reason": "Test deletion"})
+
+#     # 3. Llama a client.delete() usando 'data=' (para el body) y los nuevos 'headers='
+#     del_resp = client.delete(
+#         f"/api/publications/{created['id']}",
+#         data=delete_body,
+#         headers=delete_headers
+#     )
+    
 #     assert del_resp.status_code == 200
 
 #     # ahora los archivos de ESA publicación ya no deben existir
