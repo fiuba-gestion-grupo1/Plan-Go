@@ -65,6 +65,13 @@ Para levantar el contenedor y correr los tests. Automaticamente terminada la eje
 
 ## Tutorial de Ejecución de Comandos del Backend para actualizar la BDD
 
+En caso de que se haya hecho una modificación al schema o models de la base de datos, es necesario eliminar el volumen local de docker y volver a generarlo.
+### Eliminar el Volumen local de docker y reconstruir la imagen
+```bash
+docker volume rm plan-go_plango_data
+make up
+```
+
 ### Abrir el contenedor de docker
 ```bash
 docker exec -it plan-go-app bash
