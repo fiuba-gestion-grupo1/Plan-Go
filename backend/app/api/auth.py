@@ -6,6 +6,7 @@ from ..db import get_db
 from .. import models, security, schemas
 from ..models import User
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -31,6 +32,27 @@ def get_current_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
 
+# --- LIST PUBLIC (con auth opcional, con filtro de categorías) ---
+def get_optional_user(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> Optional[models.User]:
+    """Obtiene el usuario si está autenticado, sino devuelve None"""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    try:
+        from ..security import decode_token
+        token = authorization.split()[1]
+        data = decode_token(token)
+        if not data:
+            return None
+        user_id = data.get("sub")
+        if user_id is None:
+            return None
+        user = db.query(models.User).get(int(user_id))
+        return user
+    except Exception:
+        return None
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query, Header
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, select
 from typing import List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from .. import models, schemas
 from ..db import get_db
 from .auth import get_current_user
 from pydantic import BaseModel
+from .auth import get_current_user, get_optional_user
 
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
@@ -579,27 +580,7 @@ def search_publications(
         )
     return out
 
-# --- LIST PUBLIC (con auth opcional, con filtro de categorías) ---
-def get_optional_user(
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
-) -> Optional[models.User]:
-    """Obtiene el usuario si está autenticado, sino devuelve None"""
-    if not authorization or not authorization.lower().startswith("bearer "):
-        return None
-    try:
-        from ..security import decode_token
-        token = authorization.split()[1]
-        data = decode_token(token)
-        if not data:
-            return None
-        user_id = data.get("sub")
-        if user_id is None:
-            return None
-        user = db.query(models.User).get(int(user_id))
-        return user
-    except Exception:
-        return None
+
 
 @router.get("/public", response_model=List[schemas.PublicationOut])
 def list_publications_public(
@@ -743,16 +724,45 @@ def create_review(
     )
 
 @router.get("/{pub_id}/reviews", response_model=List[schemas.ReviewOut])
-def list_reviews(pub_id: int, db: Session = Depends(get_db)):
+def list_reviews(
+    pub_id: int, 
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_optional_user) # <-- Cambiado a opcional
+):
+    user_id = current_user.id if current_user else None
+
+    # Subquery para contar likes totales
+    like_count_sq = (
+        select(func.count(models.ReviewLike.id))
+        .where(models.ReviewLike.review_id == models.Review.id)
+        .scalar_subquery()
+    )
+
+    # Subquery para saber si el usuario actual dio like (0 o 1)
+    is_liked_sq = (
+        select(func.count(models.ReviewLike.id))
+        .where(
+            models.ReviewLike.review_id == models.Review.id,
+            models.ReviewLike.user_id == user_id
+        )
+        .scalar_subquery()
+    )
+
     rows = (
-        db.query(models.Review, models.User.username)
+        db.query(
+            models.Review, 
+            models.User.username,
+            like_count_sq.label("like_count"),
+            is_liked_sq.label("is_liked")
+        )
         .join(models.User, models.User.id == models.Review.author_id)
         .filter(models.Review.publication_id == pub_id)
         .order_by(models.Review.created_at.desc())
         .all()
     )
+    
     out: List[schemas.ReviewOut] = []
-    for r, username in rows:
+    for r, username, like_count, is_liked in rows:
         out.append(
             schemas.ReviewOut(
                 id=r.id,
@@ -760,9 +770,51 @@ def list_reviews(pub_id: int, db: Session = Depends(get_db)):
                 comment=r.comment,
                 author_username=username,
                 created_at=r.created_at.isoformat()[:19],
+                like_count=like_count or 0,
+                is_liked_by_me=bool(is_liked)
             )
         )
     return out
+
+
+# --- AÑADIR ESTE NUEVO ENDPOINT (antes de /approve) ---
+@router.post("/reviews/{review_id}/like", status_code=status.HTTP_200_OK)
+def toggle_review_like(
+    review_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_premium_or_admin), # <-- Solo premium
+):
+    """
+    Da o quita "me gusta" a una reseña.
+    """
+    review = db.query(models.Review).get(review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+
+    existing_like = db.query(models.ReviewLike).filter(
+        models.ReviewLike.review_id == review_id,
+        models.ReviewLike.user_id == user.id
+    ).first()
+
+    is_liked = False
+    if existing_like:
+        # Ya le dio like, lo quitamos
+        db.delete(existing_like)
+        is_liked = False
+    else:
+        # No le dio like, lo agregamos
+        new_like = models.ReviewLike(review_id=review_id, user_id=user.id)
+        db.add(new_like)
+        is_liked = True
+    
+    db.commit()
+
+    # Devolvemos el nuevo conteo total y el estado
+    new_count = db.query(func.count(models.ReviewLike.id)).filter(
+        models.ReviewLike.review_id == review_id
+    ).scalar()
+
+    return {"is_liked": is_liked, "like_count": new_count or 0}
 
 # --- APPROVE PUBLICATION (solo admin) ---
 @router.put("/{pub_id}/approve", response_model=schemas.PublicationOut)

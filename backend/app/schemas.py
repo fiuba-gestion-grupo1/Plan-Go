@@ -162,6 +162,9 @@ class ReviewOut(BaseModel):
     author_username: str
     created_at: str
 
+    like_count: int = 0
+    is_liked_by_me: bool = False
+
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:

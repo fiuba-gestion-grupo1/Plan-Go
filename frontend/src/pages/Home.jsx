@@ -1731,7 +1731,7 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
       setLoading(true);
       setErr("");
       try {
-        const rows = await request(`/api/publications/${pub.id}/reviews`);
+        const rows = await request(`/api/publications/${pub.id}/reviews`, { token });
         if (!cancel) setList(rows);
       } catch (e) {
         if (!cancel) setErr(e.message);
@@ -1740,7 +1740,7 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
       }
     })();
     return () => { cancel = true; };
-  }, [open, pub?.id]); // Depende de 'open' y 'pub.id'
+  }, [open, pub?.id, token]); // Depende de 'open' y 'pub.id'
 
   // Función para enviar reseña
   async function submitReview(e) {
@@ -1755,12 +1755,52 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
       });
       setComment(""); setRating(5);
       // Recargar la lista de reseñas
-      const rows = await request(`/api/publications/${pub.id}/reviews`);
+      const rows = await request(`/api/publications/${pub.id}/reviews`, { token });
       setList(rows);
       // Nota: El rating_avg/count de 'pub' (prop) no se actualizará
       // hasta que se cierre y reabra el modal.
     } catch (e) {
       alert(`Error creando reseña: ${e.message}`);
+    }
+  }
+  //FUNCION LIKE REVIEW
+  async function handleLikeReview(reviewId) {
+    if (!isPremium) {
+      alert("Solo los usuarios premium pueden dar me gusta a las reseñas.");
+      return;
+    }
+
+    // Guardar estado original para rollback
+    const originalList = list;
+
+    // Actualización optimista
+    setList(prevList => prevList.map(r =>
+      r.id === reviewId
+        ? {
+          ...r,
+          is_liked_by_me: !r.is_liked_by_me,
+          like_count: r.is_liked_by_me ? r.like_count - 1 : r.like_count + 1
+        }
+        : r
+    ));
+
+    try {
+      // Llamada al API
+      const data = await request(`/api/publications/reviews/${reviewId}/like`, {
+        method: "POST",
+        token,
+      });
+
+      // Sincronizar con la respuesta del servidor (más segura)
+      setList(prevList => prevList.map(r =>
+        r.id === reviewId
+          ? { ...r, is_liked_by_me: data.is_liked, like_count: data.like_count }
+          : r
+      ));
+
+    } catch (e) {
+      alert('Error al dar me gusta: ' + (e.message || 'Error desconocido'));
+      setList(originalList); // Rollback en caso de error
     }
   }
 
@@ -1880,8 +1920,23 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
               <ul className="list-unstyled mb-0">
                 {list.map((r) => (
                   <li key={r.id} className="border rounded-3 p-3 mb-2">
-                    <div className="d-flex justify-content-between">
-                      <Stars value={r.rating} />
+                    <div className="d-flex justify-content-between align-items-center">
+
+                      {/* Lado izquierdo: Stars + Botón Like */}
+                      <div className="d-flex align-items-center gap-3">
+                        <Stars value={r.rating} />
+                        <button
+                          className={`btn btn-sm ${r.is_liked_by_me ? 'btn-danger' : 'btn-outline-danger'} ${!isPremium ? 'disabled' : ''}`}
+                          onClick={() => handleLikeReview(r.id)}
+                          disabled={!isPremium}
+                          title={isPremium ? (r.is_liked_by_me ? "Quitar me gusta" : "Dar me gusta") : "Solo usuarios premium pueden dar me gusta"}
+                          style={{ padding: '0.1rem 0.4rem' }} // Ajuste visual
+                        >
+                          {r.is_liked_by_me ? '❤️' : '🤍'} {r.like_count}
+                        </button>
+                      </div>
+
+                      {/* Lado derecho: Fecha */}
                       <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
                     </div>
                     {r.comment && <div className="mt-1">{r.comment}</div>}
