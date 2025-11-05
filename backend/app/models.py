@@ -101,6 +101,20 @@ class PublicationPhoto(Base):
     index_order = Column(Integer, nullable=False, server_default="0", default=0)
     publication = relationship("Publication", back_populates="photos")
 
+# Review Comments
+# ---------------------------
+class ReviewComment(Base):
+    __tablename__ = "review_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_id = Column(Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    author_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    comment = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    review = relationship("Review", back_populates="comments")
+    author = relationship("User")
+
 # ---------------------------
 # Review Likes (N-N)
 # ---------------------------
@@ -135,6 +149,7 @@ class Review(Base):
     author      = relationship("User")
 
     likes = relationship("ReviewLike", back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
+    comments = relationship("ReviewComment", back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
 
 
 # ---------------------------

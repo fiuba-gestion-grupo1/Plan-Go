@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query, Header
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, select
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -727,7 +727,7 @@ def create_review(
 def list_reviews(
     pub_id: int, 
     db: Session = Depends(get_db),
-    current_user: Optional[models.User] = Depends(get_optional_user) # <-- Cambiado a opcional
+    current_user: Optional[models.User] = Depends(get_optional_user)
 ):
     user_id = current_user.id if current_user else None
 
@@ -757,12 +757,32 @@ def list_reviews(
         )
         .join(models.User, models.User.id == models.Review.author_id)
         .filter(models.Review.publication_id == pub_id)
+        # --- AÑADIR ESTA LÍNEA (options) ---
+        .options(
+            selectinload(models.Review.comments).selectinload(models.ReviewComment.author)
+        )
         .order_by(models.Review.created_at.desc())
         .all()
     )
     
     out: List[schemas.ReviewOut] = []
     for r, username, like_count, is_liked in rows:
+        
+        # --- AÑADIR ESTE BLOQUE ---
+        comment_list = []
+        if r.comments:
+            for c in r.comments:
+                if c.author: # Solo incluir si el autor del comentario existe
+                    comment_list.append(
+                        schemas.ReviewCommentOut(
+                            id=c.id,
+                            comment=c.comment,
+                            author_username=c.author.username,
+                            created_at=c.created_at.isoformat()[:19]
+                        )
+                    )
+        # --- FIN DEL BLOQUE AÑADIDO ---
+
         out.append(
             schemas.ReviewOut(
                 id=r.id,
@@ -771,10 +791,12 @@ def list_reviews(
                 author_username=username,
                 created_at=r.created_at.isoformat()[:19],
                 like_count=like_count or 0,
-                is_liked_by_me=bool(is_liked)
+                is_liked_by_me=bool(is_liked),
+                comments=comment_list # <-- AÑADIR ESTO
             )
         )
     return out
+
 
 
 # --- AÑADIR ESTE NUEVO ENDPOINT (antes de /approve) ---
@@ -815,6 +837,39 @@ def toggle_review_like(
     ).scalar()
 
     return {"is_liked": is_liked, "like_count": new_count or 0}
+
+@router.post("/reviews/{review_id}/comments", response_model=schemas.ReviewCommentOut, status_code=status.HTTP_201_CREATED)
+def create_review_comment(
+    review_id: int,
+    payload: schemas.ReviewCommentCreate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user), # <-- Permite CUALQUIER usuario logueado
+):
+    """
+    Permite a cualquier usuario logueado (normal, premium, admin)
+    publicar un comentario en una reseña.
+    """
+    # Verificar que la reseña exista
+    review = db.query(models.Review).get(review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+
+    new_comment = models.ReviewComment(
+        review_id=review_id,
+        author_id=user.id,
+        comment=payload.comment.strip(),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    return schemas.ReviewCommentOut(
+        id=new_comment.id,
+        comment=new_comment.comment,
+        author_username=user.username, # user ya está disponible desde get_current_user
+        created_at=new_comment.created_at.isoformat()[:19],
+    )
 
 # --- APPROVE PUBLICATION (solo admin) ---
 @router.put("/{pub_id}/approve", response_model=schemas.PublicationOut)

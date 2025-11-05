@@ -1717,6 +1717,9 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
 
+  const [commentInputs, setCommentInputs] = useState({});
+  const isLoggedIn = token; // <-- Para las respuestas a reseñas
+
   const isPremium = me?.role === "premium" || me?.username === "admin";
 
   // Efecto para cargar reseñas cuando se abre el modal o cambia la publicación
@@ -1801,6 +1804,45 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
     } catch (e) {
       alert('Error al dar me gusta: ' + (e.message || 'Error desconocido'));
       setList(originalList); // Rollback en caso de error
+    }
+  }
+
+  async function submitComment(e, reviewId) {
+    e.preventDefault();
+    const commentText = commentInputs[reviewId];
+
+    if (!commentText || !commentText.trim()) {
+      return; // No enviar comentarios vacíos
+    }
+    if (!token) {
+      alert("Debes iniciar sesión para comentar.");
+      return;
+    }
+
+    try {
+      // Usamos la nueva ruta del API
+      const newComment = await request(`/api/publications/reviews/${reviewId}/comments`, {
+        method: "POST",
+        token,
+        body: { comment: commentText }
+      });
+
+      // Actualizar el estado 'list' localmente
+      setList(prevList =>
+        prevList.map(review =>
+          // Encontramos la reseña correcta y añadimos el nuevo comentario a su array
+          review.id === reviewId
+            ? { ...review, comments: [...(review.comments || []), newComment] }
+            // Devolvemos las otras reseñas sin cambios
+            : review
+        )
+      );
+
+      // Limpiar el input para esa reseña específica
+      setCommentInputs(prev => ({ ...prev, [reviewId]: "" }));
+
+    } catch (err) {
+      alert("Error al publicar el comentario: " + (err?.message || "Error"));
     }
   }
 
@@ -1919,10 +1961,11 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
               {!loading && !err && list.length === 0 && <div className="text-muted">Sin reseñas todavía.</div>}
               <ul className="list-unstyled mb-0">
                 {list.map((r) => (
+                  // --- MODIFICAR EL CONTENIDO DEL 'li' ---
                   <li key={r.id} className="border rounded-3 p-3 mb-2">
-                    <div className="d-flex justify-content-between align-items-center">
 
-                      {/* Lado izquierdo: Stars + Botón Like */}
+                    {/* --- CONTENIDO ORIGINAL DE LA RESEÑA (like, stars, etc.) --- */}
+                    <div className="d-flex justify-content-between align-items-center">
                       <div className="d-flex align-items-center gap-3">
                         <Stars value={r.rating} />
                         <button
@@ -1930,17 +1973,60 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, toke
                           onClick={() => handleLikeReview(r.id)}
                           disabled={!isPremium}
                           title={isPremium ? (r.is_liked_by_me ? "Quitar me gusta" : "Dar me gusta") : "Solo usuarios premium pueden dar me gusta"}
-                          style={{ padding: '0.1rem 0.4rem' }} // Ajuste visual
+                          style={{ padding: '0.1rem 0.4rem' }}
                         >
                           {r.is_liked_by_me ? '❤️' : '🤍'} {r.like_count}
                         </button>
                       </div>
-
-                      {/* Lado derecho: Fecha */}
                       <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
                     </div>
                     {r.comment && <div className="mt-1">{r.comment}</div>}
                     <small className="text-muted d-block mt-1">por {r.author_username}</small>
+                    {/* --- FIN DEL CONTENIDO ORIGINAL --- */}
+
+
+                    {/* --- INICIO DEL NUEVO BLOQUE DE COMENTARIOS --- */}
+                    <div className="mt-3 ps-3" style={{ borderLeft: '3px solid #eee' }}>
+
+                      {/* Lista de comentarios existentes */}
+                      {r.comments && r.comments.length > 0 && (
+                        <ul className="list-unstyled mb-2">
+                          {r.comments.map(c => (
+                            <li key={c.id} className="mb-2">
+                              <div className="d-flex justify-content-between align-items-center">
+                                <strong className="small">{c.author_username}</strong>
+                                <small className="text-muted" style={{ fontSize: '0.75em' }}>
+                                  {new Date(c.created_at).toLocaleString()}
+                                </small>
+                              </div>
+                              <p className="mb-0 small" style={{ whiteSpace: 'pre-wrap' }}>{c.comment}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {/* Formulario para nuevo comentario (solo si está logueado) */}
+                      {isLoggedIn && (
+                        <form onSubmit={(e) => submitComment(e, r.id)} className="d-flex gap-2">
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="Escribe una respuesta..."
+                            value={commentInputs[r.id] || ""}
+                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [r.id]: e.target.value }))}
+                          />
+                          <button
+                            className="btn btn-sm btn-celeste"
+                            type="submit"
+                            // Deshabilitar si el input está vacío
+                            disabled={!commentInputs[r.id] || !commentInputs[r.id].trim()}
+                          >
+                            Enviar
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                    {/* --- FIN DEL NUEVO BLOQUE DE COMENTARIOS --- */}
                   </li>
                 ))}
               </ul>

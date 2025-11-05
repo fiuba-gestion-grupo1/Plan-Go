@@ -150,6 +150,21 @@ class PublicationOut(BaseModel):
 # -------------------------------------------------
 # Reviews
 # -------------------------------------------------
+class ReviewCommentCreate(BaseModel):
+    comment: str = Field(..., min_length=1, max_length=1000)
+
+class ReviewCommentOut(BaseModel):
+    id: int
+    comment: str
+    author_username: str
+    created_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
 class ReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = None
@@ -164,6 +179,8 @@ class ReviewOut(BaseModel):
 
     like_count: int = 0
     is_liked_by_me: bool = False
+
+    comments: List[ReviewCommentOut] = []
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
