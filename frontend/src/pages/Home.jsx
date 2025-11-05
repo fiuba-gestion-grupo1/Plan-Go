@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import CreatePublicationForm from "../components/CreatePublicationForm";
 import ItineraryRequestForm from "../components/ItineraryRequestForm";
 import "../styles/buttons.css";
+import ItineraryRequest from "../pages/ItineraryRequest";
 
 /* Helper fetch */
 async function request(path, { method = "GET", token, body, isForm = false } = {}) {
@@ -980,6 +981,17 @@ export default function Home({ me, view = "publications" }) {
       });
     };
 
+    // Agregar aquí la nueva condición para 'itinerary'
+    if (view === 'itinerary') {
+      return (
+        <ItineraryRequest
+          initialView="form"
+          me={me}
+          token={token}
+        />
+      );
+    }
+
     return (
       <div className="container mt-4">
         <div className="d-flex align-items-center justify-content-between mb-4">
@@ -1476,7 +1488,7 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
         token={token}
         me={{}}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => {}}
+        onToggleFavorite={() => { }}
       />
     </div>
   );
@@ -1684,7 +1696,7 @@ function FavoritesView({
         me={{}}
         token={token}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => {}}
+        onToggleFavorite={() => { }}
       />
     </div>
   );

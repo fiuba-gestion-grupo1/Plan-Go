@@ -451,6 +451,41 @@ def seed_publications(db: Session):
                 (4, "Buena atención del personal, siempre amables. Los tragos bien.")
             ]
         },
+
+        {
+            "place_name": "Visita a la Torre Eiffel",
+            "country": "Francia", "province": "Isla de Francia", "city": "París",
+            "address": "Champ de Mars, 5 Av. Anatole France, 75007 Paris",
+            "description": "El ícono indiscutible de París. Sube a la cima para disfrutar de vistas panorámicas inigualables de la ciudad.",
+            "categories": [cat_actividad, cat_cultura],
+            "continent": "europa", "climate": "templado",
+            "activities": ["cultura", "historia", "ciudad", "romance", "vista_panoramica"],
+            "cost_per_day": 50, "duration_days": 1,
+            "images": ["torre_eiffel_1.jpg", "torre_eiffel_2.jpg"],
+            "reviews": [
+                (5, "¡Absolutamente mágico! Subir al atardecer es una experiencia que no tiene precio. París a tus pies."),
+                (4, "Mucha, mucha fila, incluso con entrada anticipada. Pero las vistas lo valen. Impresionante."),
+                (5, "Verla de noche, iluminada y destellando, es de las cosas más lindas que vi. Un ícono mundial."),
+                (3, "La experiencia arriba es un poco caótica por la cantidad de gente. Pero hay que hacerlo.")
+            ]
+        },
+        {
+            "place_name": "Palacio de Versalles",
+            "country": "Francia", "province": "Isla de Francia", "city": "Versalles",
+            "address": "Place d'Armes, 78000 Versailles",
+            "description": "Sumérgete en la opulencia de la monarquía francesa. Explora el Salón de los Espejos y los vastos jardines.",
+            "categories": [cat_actividad, cat_cultura],
+            "continent": "europa", "climate": "templado",
+            "activities": ["cultura", "historia", "arte", "naturaleza", "palacio"],
+            "cost_per_day": 70, "duration_days": 1,
+            "images": ["palacio_versalles_1.jpg", "palacio_versalles_2.jpg"],
+            "reviews": [
+                (5, "El Salón de los Espejos te deja sin aliento. Es una locura pensar cómo vivían."),
+                (5, "Los jardines son LO MEJOR. Alquilamos un carrito de golf para recorrerlos porque son inmensos. Un día no alcanza."),
+                (4, "Absolutamente desbordado de gente. Es difícil apreciar los salones. Recomiendo ir a los Trianon, que son más tranquilos."),
+                (5, "Historia pura en cada rincón. Es abrumador de tanta belleza y opulencia. Imperdible.")
+            ]
+        },
     ]
 
     # 4. Procesar y crear
