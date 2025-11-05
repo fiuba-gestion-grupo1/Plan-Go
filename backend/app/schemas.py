@@ -191,11 +191,16 @@ class UserPreferenceOut(UserPreferenceIn):
 # -------------------------------------------------
 # Deletion Requests (admin)
 # -------------------------------------------------
+class DeletionRequestCreate(BaseModel):
+    reason: Optional[str] = None
+
+
 class DeletionRequestOut(BaseModel):
     id: int
     publication_id: int
     requested_by_user_id: int
     status: str
+    reason: Optional[str] = None  # Motivo de la solicitud de eliminación
     rejection_reason: Optional[str] = None  # Razón de rechazo si status=rejected
     created_at: str
     publication: PublicationOut

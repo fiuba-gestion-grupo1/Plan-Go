@@ -4,7 +4,7 @@ from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
-import os, re
+import os, re, unicodedata
 from .. import models, schemas
 from ..db import get_db
 from .auth import get_current_user
@@ -77,6 +77,31 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 def _normalize_slug(s: str) -> str:
     return (s or "").strip().lower()
 
+def _remove_accents(text: str) -> str:
+    """
+    Elimina tildes y acentos del texto.
+    Ejemplo: "búsqueda" -> "busqueda", "España" -> "Espana"
+    """
+    if not text:
+        return text
+    # Normalizar a NFD (decomposed form)
+    nfd = unicodedata.normalize('NFD', text)
+    # Filtrar caracteres que no sean de la categoría "Mark" (incluye diacríticos)
+    return ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+
+def _normalize_search_text(text: str) -> str:
+    """
+    Normaliza texto para búsqueda:
+    1. Convierte a minúsculas
+    2. Elimina tildes y acentos
+    3. Usa wildcards para LIKE
+    """
+    if not text:
+        return ""
+    text = text.lower()
+    text = _remove_accents(text)
+    return f"%{text}%"
+
 def _get_or_create_category(db: Session, slug: str, name: Optional[str] = None) -> models.Category:
     slug = _normalize_slug(slug)
     if not slug:
@@ -107,6 +132,7 @@ def list_all_publications(db: Session = Depends(get_db), _: models.User = Depend
                 province=p.province,
                 city=p.city,
                 address=p.address,
+                description=getattr(p, "description", None),
                 status=p.status,
                 rejection_reason=getattr(p, "rejection_reason", None),
                 created_by_user_id=p.created_by_user_id,
@@ -115,6 +141,11 @@ def list_all_publications(db: Session = Depends(get_db), _: models.User = Depend
                 rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
                 rating_count=getattr(p, "rating_count", 0) or 0,
                 categories=[c.slug for c in getattr(p, "categories", [])],
+                continent=getattr(p, "continent", None),
+                climate=getattr(p, "climate", None),
+                activities=getattr(p, "activities", None),
+                cost_per_day=getattr(p, "cost_per_day", None),
+                duration_days=getattr(p, "duration_days", None),
             )
         )
     return out
@@ -138,6 +169,7 @@ def list_publications(db: Session = Depends(get_db), _: models.User = Depends(re
                 province=p.province,
                 city=p.city,
                 address=p.address,
+                description=getattr(p, "description", None),
                 status=p.status,
                 created_by_user_id=p.created_by_user_id,
                 created_at=p.created_at.isoformat() if p.created_at else "",
@@ -145,6 +177,11 @@ def list_publications(db: Session = Depends(get_db), _: models.User = Depends(re
                 rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
                 rating_count=getattr(p, "rating_count", 0) or 0,
                 categories=[c.slug for c in getattr(p, "categories", [])],
+                continent=getattr(p, "continent", None),
+                climate=getattr(p, "climate", None),
+                activities=getattr(p, "activities", None),
+                cost_per_day=getattr(p, "cost_per_day", None),
+                duration_days=getattr(p, "duration_days", None),
             )
         )
     return out
@@ -421,6 +458,10 @@ def list_my_submissions(db: Session = Depends(get_db), current_user: models.User
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
                 has_pending_deletion=p.id in pending_deletion_ids,
+                rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
+                rating_count=getattr(p, "rating_count", 0) or 0,
+                cost_per_day=getattr(p, "cost_per_day", 0.0) or 0.0,
+                categories=[c.name or c.slug for c in (p.categories or [])],
             )
         )
     return out
@@ -433,7 +474,12 @@ def search_publications(
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    Busca publicaciones aprobadas por: país, provincia, ciudad, lugar o dirección
+    Busca publicaciones aprobadas por múltiples campos sin importar tildes:
+    - Nombre del lugar
+    - Descripción
+    - País, provincia/estado, ciudad, dirección
+    - Continente, clima, actividades
+    - CATEGORÍAS
     """
     if not q or len(q.strip()) < 2:
         # Si no hay búsqueda o es muy corta, devolver todas las aprobadas
@@ -441,17 +487,63 @@ def search_publications(
             models.Publication.status == "approved"
         ).order_by(models.Publication.created_at.desc()).all()
     else:
-        search_term = f"%{q.lower()}%"
+        # Normalizar búsqueda: minúsculas y sin tildes
+        normalized_search = _normalize_search_text(q)
+        
+        # Crear filtro que busca en todos los campos relevantes
+        # Primero traemos todas las publicaciones aprobadas y filtramos en Python
+        # porque SQLite no tiene función COLLATE NOACCENT nativa
         pubs = db.query(models.Publication).filter(
-            models.Publication.status == "approved",
-            (
-                models.Publication.place_name.ilike(search_term) |
-                models.Publication.country.ilike(search_term) |
-                models.Publication.province.ilike(search_term) |
-                models.Publication.city.ilike(search_term) |
-                models.Publication.address.ilike(search_term)
-            )
-        ).order_by(models.Publication.created_at.desc()).all()
+            models.Publication.status == "approved"
+        ).all()
+        
+        # Filtrar en Python para buscar sin tildes
+        filtered_pubs = []
+        for p in pubs:
+            # Campos a buscar en la publicación
+            search_fields = [
+                p.place_name or "",
+                p.description or "",
+                p.country or "",
+                p.province or "",
+                p.city or "",
+                p.address or "",
+                p.continent or "",
+                p.climate or "",
+            ]
+            
+            # Agregar actividades si existen
+            if p.activities:
+                if isinstance(p.activities, list):
+                    search_fields.extend(p.activities)
+                else:
+                    search_fields.append(str(p.activities))
+            
+            # Agregar categorías si existen
+            if p.categories:
+                for cat in p.categories:
+                    search_fields.append(cat.slug or "")
+                    search_fields.append(cat.name or "")
+            
+            # Normalizar todos los campos y buscar
+            normalized_q_lower = q.lower()
+            normalized_q_no_accents = _remove_accents(normalized_q_lower)
+            
+            match = False
+            for field in search_fields:
+                field_lower = field.lower()
+                field_no_accents = _remove_accents(field_lower)
+                
+                # Buscar tanto con tildes como sin tildes
+                if normalized_q_lower in field_lower or normalized_q_no_accents in field_no_accents:
+                    match = True
+                    break
+            
+            if match:
+                filtered_pubs.append(p)
+        
+        # Ordenar por fecha de creación descendente
+        pubs = sorted(filtered_pubs, key=lambda p: p.created_at, reverse=True)
 
     # Obtener IDs de favoritos del usuario actual
     favorite_ids = {
@@ -469,10 +561,19 @@ def search_publications(
                 province=p.province,
                 city=p.city,
                 address=p.address,
+                description=p.description,
                 status=p.status,
                 created_by_user_id=p.created_by_user_id,
                 created_at=p.created_at.isoformat() if p.created_at else "",
                 photos=[ph.url for ph in p.photos],
+                rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
+                rating_count=getattr(p, "rating_count", 0) or 0,
+                categories=[c.slug for c in getattr(p, "categories", [])],
+                continent=p.continent,
+                climate=p.climate,
+                activities=p.activities,
+                cost_per_day=p.cost_per_day,
+                duration_days=p.duration_days,
                 is_favorite=p.id in favorite_ids,
             )
         )
@@ -576,6 +677,7 @@ def list_pending_publications(db: Session = Depends(get_db), _: models.User = De
                 province=p.province,
                 city=p.city,
                 address=p.address,
+                description=getattr(p, "description", None),
                 status=p.status,
                 created_by_user_id=p.created_by_user_id,
                 created_at=p.created_at.isoformat() if p.created_at else "",
@@ -583,6 +685,11 @@ def list_pending_publications(db: Session = Depends(get_db), _: models.User = De
                 rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
                 rating_count=getattr(p, "rating_count", 0) or 0,
                 categories=[c.slug for c in getattr(p, "categories", [])],
+                continent=getattr(p, "continent", None),
+                climate=getattr(p, "climate", None),
+                activities=getattr(p, "activities", None),
+                cost_per_day=getattr(p, "cost_per_day", None),
+                duration_days=getattr(p, "duration_days", None),
             )
         )
     return out
@@ -675,10 +782,19 @@ def approve_publication(pub_id: int, db: Session = Depends(get_db), _: models.Us
         province=pub.province,
         city=pub.city,
         address=pub.address,
+        description=getattr(pub, "description", None),
         status=pub.status,
         created_by_user_id=pub.created_by_user_id,
         created_at=pub.created_at.isoformat() if pub.created_at else "",
         photos=[ph.url for ph in pub.photos],
+        rating_avg=getattr(pub, "rating_avg", 0.0) or 0.0,
+        rating_count=getattr(pub, "rating_count", 0) or 0,
+        categories=[c.slug for c in getattr(pub, "categories", [])],
+        continent=getattr(pub, "continent", None),
+        climate=getattr(pub, "climate", None),
+        activities=getattr(pub, "activities", None),
+        cost_per_day=getattr(pub, "cost_per_day", None),
+        duration_days=getattr(pub, "duration_days", None),
     )
 
 # --- REJECT PUBLICATION (solo admin) - Cambia status a "rejected" ---
@@ -708,11 +824,20 @@ def reject_publication(
         province=pub.province,
         city=pub.city,
         address=pub.address,
+        description=getattr(pub, "description", None),
         status=pub.status,
         rejection_reason=pub.rejection_reason,
         created_by_user_id=pub.created_by_user_id,
         created_at=pub.created_at.isoformat() if pub.created_at else "",
         photos=[ph.url for ph in pub.photos],
+        rating_avg=getattr(pub, "rating_avg", 0.0) or 0.0,
+        rating_count=getattr(pub, "rating_count", 0) or 0,
+        categories=[c.slug for c in getattr(pub, "categories", [])],
+        continent=getattr(pub, "continent", None),
+        climate=getattr(pub, "climate", None),
+        activities=getattr(pub, "activities", None),
+        cost_per_day=getattr(pub, "cost_per_day", None),
+        duration_days=getattr(pub, "duration_days", None),
     )
 
 # --- TOGGLE FAVORITE ---
@@ -774,16 +899,21 @@ def list_my_favorites(db: Session = Depends(get_db), current_user: models.User =
                     photos=[ph.url for ph in p.photos],
                     is_favorite=True,
                     favorite_status=fav.status,
+                    rating_avg=getattr(p, "rating_avg", 0.0) or 0.0,
+                    rating_count=getattr(p, "rating_count", 0) or 0,
+                    cost_per_day=getattr(p, "cost_per_day", 0.0) or 0.0,
+                    categories=[c.name or c.slug for c in (p.categories or [])],
                 )
             )
     return out
 
 # --- REQUEST DELETION (usuarios básicos) ---
 @router.post("/{pub_id}/request-deletion", status_code=status.HTTP_200_OK)
-def request_deletion(pub_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def request_deletion(pub_id: int, req: schemas.DeletionRequestCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """
     Un usuario solicita eliminar una publicación (debe ser aprobada por admin)
     """
+    print(f"[DEBUG] request_deletion called: pub_id={pub_id}, reason={req.reason}, user_id={current_user.id}")
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
@@ -800,7 +930,8 @@ def request_deletion(pub_id: int, db: Session = Depends(get_db), current_user: m
     # Crear nueva solicitud
     new_request = models.DeletionRequest(
         publication_id=pub_id,
-        requested_by_user_id=current_user.id
+        requested_by_user_id=current_user.id,
+        reason=req.reason
     )
     db.add(new_request)
     db.commit()
@@ -845,6 +976,7 @@ def list_pending_deletion_requests(db: Session = Depends(get_db), _: models.User
                     publication_id=req.publication_id,
                     requested_by_user_id=req.requested_by_user_id,
                     status=req.status,
+                    reason=getattr(req, "reason", None),
                     rejection_reason=getattr(req, "rejection_reason", None),
                     created_at=req.created_at.isoformat() if req.created_at else "",
                     publication=pub_out
@@ -870,26 +1002,17 @@ def approve_deletion_request(request_id: int, db: Session = Depends(get_db), _: 
     if not pub:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
 
-    # Borrar archivos físicos
-    for ph in pub.photos:
-        filename = ph.url.split("/static/uploads/publications/")[-1]
-        abs_path = os.path.join(UPLOAD_DIR, filename)
-        try:
-            if os.path.exists(abs_path):
-                os.remove(abs_path)
-        except Exception:
-            pass
-
-    # Eliminar la publicación (cascada eliminará fotos y solicitud)
-    db.delete(pub)
-
+    # Cambiar status de la publicación a "deleted" en lugar de eliminarla físicamente
+    pub.status = "deleted"
+    pub.rejection_reason = req.reason  # Usar el motivo de la solicitud como razón de eliminación
+    
     # Actualizar estado de la solicitud
     req.status = "approved"
     req.resolved_at = datetime.now(timezone.utc)
-
+    
     db.commit()
 
-    return {"message": "Solicitud aprobada. Publicación eliminada."}
+    return {"message": "Solicitud aprobada. Publicación marcada como eliminada."}
 
 # --- REJECT DELETION REQUEST (solo admin) ---
 @router.put("/deletion-requests/{request_id}/reject", status_code=status.HTTP_200_OK)

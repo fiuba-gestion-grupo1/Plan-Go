@@ -81,6 +81,8 @@ def ensure_min_schema(engine):
                 publication_id INTEGER NOT NULL,
                 requested_by_user_id INTEGER NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending',
+                reason TEXT,
+                rejection_reason TEXT,
                 created_at TIMESTAMP DEFAULT (datetime('now')),
                 resolved_at TIMESTAMP,
                 FOREIGN KEY (publication_id) REFERENCES publications(id) ON DELETE CASCADE,
@@ -125,4 +127,9 @@ def ensure_min_schema(engine):
         if "rejection_reason" not in existing_deletion:
             conn.exec_driver_sql(
                 "ALTER TABLE deletion_requests ADD COLUMN rejection_reason TEXT"
+            )
+        
+        if "reason" not in existing_deletion:
+            conn.exec_driver_sql(
+                "ALTER TABLE deletion_requests ADD COLUMN reason TEXT"
             )

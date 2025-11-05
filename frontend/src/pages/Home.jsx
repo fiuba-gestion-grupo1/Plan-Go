@@ -479,21 +479,37 @@ export default function Home({ me, view = "publications" }) {
     }
   }
 
+  const [deletionReasonModal, setDeletionReasonModal] = useState(false);
+  const [deletionReasonPubId, setDeletionReasonPubId] = useState(null);
+  const [deletionReason, setDeletionReason] = useState("");
+
   async function requestDeletion(pubId) {
-    if (!window.confirm("¿Deseas solicitar la eliminación de esta publicación? Un administrador deberá aprobarla.")) {
+    setDeletionReasonPubId(pubId);
+    setDeletionReason("");
+    setDeletionReasonModal(true);
+  }
+
+  async function submitDeletionRequest() {
+    if (!deletionReasonPubId) return;
+    if (!deletionReason.trim()) {
+      setError("Por favor, escribe un motivo para solicitar la eliminación.");
       return;
     }
     try {
-      await request(`/api/publications/${pubId}/request-deletion`, {
+      await request(`/api/publications/${deletionReasonPubId}/request-deletion`, {
         method: "POST",
-        token
+        token,
+        body: { reason: deletionReason }
       });
       setSuccessMsg("Solicitud de eliminación enviada. Será revisada por un administrador.");
       setMyPubs(prevPubs =>
         prevPubs.map(p =>
-          p.id === pubId ? { ...p, has_pending_deletion: true } : p
+          p.id === deletionReasonPubId ? { ...p, has_pending_deletion: true } : p
         )
       );
+      setDeletionReasonModal(false);
+      setDeletionReasonPubId(null);
+      setDeletionReason("");
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e) {
       setError(e.message);
@@ -647,15 +663,67 @@ export default function Home({ me, view = "publications" }) {
   // Vista de Mis Publicaciones
   if (view === 'my-publications' && !subView) {
     return (
-      <MySubmissionsView
-        pubs={myPubs}
-        loading={loading}
-        error={error}
-        successMsg={successMsg}
-        onLoad={fetchMySubmissions}
-        onRequestDeletion={requestDeletion}
-        setSubView={setSubView}
-      />
+      <>
+        <MySubmissionsView
+          pubs={myPubs}
+          loading={loading}
+          error={error}
+          successMsg={successMsg}
+          onLoad={fetchMySubmissions}
+          onRequestDeletion={requestDeletion}
+          setSubView={setSubView}
+        />
+
+        {/* Modal de solicitud de eliminación */}
+        {deletionReasonModal && (
+          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 500, width: "90%" }}>
+              <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">Solicitar Eliminación de Publicación</h5>
+                <button className="btn-close" onClick={() => setDeletionReasonModal(false)}></button>
+              </div>
+              <div className="p-3">
+                <p className="text-muted mb-3">
+                  Un administrador revisará tu solicitud. Por favor, cuéntale por qué deseas eliminar esta publicación.
+                </p>
+                <form onSubmit={(e) => { e.preventDefault(); submitDeletionRequest(); }}>
+                  <div className="mb-3">
+                    <label className="form-label">Motivo de la eliminación</label>
+                    <textarea
+                      className="form-control"
+                      rows="4"
+                      placeholder="Escribe el motivo..."
+                      value={deletionReason}
+                      onChange={(e) => setDeletionReason(e.target.value)}
+                      maxLength="500"
+                    ></textarea>
+                    <small className="text-muted d-block mt-1">
+                      {deletionReason.length}/500 caracteres
+                    </small>
+                  </div>
+                  <div className="d-flex gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary flex-grow-1"
+                      onClick={() => setDeletionReasonModal(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-danger flex-grow-1"
+                      disabled={!deletionReason.trim()}
+                    >
+                      Solicitar Eliminación
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -813,6 +881,15 @@ export default function Home({ me, view = "publications" }) {
                               ))}
                             </div>
                           </div>
+
+                          <button
+                            className="btn btn-link p-0 ms-2"
+                            onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
+                            style={{ fontSize: "1.5rem", textDecoration: "none" }}
+                            title={p.is_favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+                          >
+                            {p.is_favorite ? "❤️" : "🤍"}
+                          </button>
                         </div>
                       </div>
 
@@ -847,8 +924,14 @@ export default function Home({ me, view = "publications" }) {
                         <div className="p-4 text-center text-muted">Sin fotos</div>
                       )}
 
-                      <div className="card-footer bg-white">
+                      <div className="card-footer bg-white d-flex justify-content-between align-items-center">
                         <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
+                        <button
+                          className="btn btn-sm btn-celeste"
+                          onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                        >
+                          Ver Detalles
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1015,7 +1098,7 @@ export default function Home({ me, view = "publications" }) {
           type="search"
           name="search"
           defaultValue={searchQuery}
-          placeholder="Buscar por país, ciudad, lugar..."
+          placeholder="Buscar por lugar, país, ciudad, clima, actividades, descripción..."
           aria-label="Buscar"
         />
       </form>
@@ -1135,12 +1218,71 @@ export default function Home({ me, view = "publications" }) {
         onClose={() => setOpenDetailModal(false)}
         onToggleFavorite={toggleFavorite}
       />
+
+      {/* Modal de solicitud de eliminación */}
+      {deletionReasonModal && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 500, width: "90%" }}>
+            <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Solicitar Eliminación de Publicación</h5>
+              <button className="btn-close" onClick={() => setDeletionReasonModal(false)}></button>
+            </div>
+            <div className="p-3">
+              <p className="text-muted mb-3">
+                Un administrador revisará tu solicitud. Por favor, cuéntale por qué deseas eliminar esta publicación.
+              </p>
+              <form onSubmit={(e) => { e.preventDefault(); submitDeletionRequest(); }}>
+                <div className="mb-3">
+                  <label className="form-label">Motivo de la eliminación</label>
+                  <textarea
+                    className="form-control"
+                    rows="4"
+                    placeholder="Escribe el motivo..."
+                    value={deletionReason}
+                    onChange={(e) => setDeletionReason(e.target.value)}
+                    maxLength="500"
+                  ></textarea>
+                  <small className="text-muted d-block mt-1">
+                    {deletionReason.length}/500 caracteres
+                  </small>
+                </div>
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary flex-grow-1"
+                    onClick={() => setDeletionReasonModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-danger flex-grow-1"
+                    disabled={!deletionReason.trim()}
+                  >
+                    Solicitar Eliminación
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequestDeletion, setSubView }) {
   React.useEffect(() => { onLoad(); }, []);
+
+  const [openDetailModal, setOpenDetailModal] = React.useState(false);
+  const [currentPub, setCurrentPub] = React.useState(null);
+  const token = React.useMemo(() => localStorage.getItem("token") || "", []);
+
+  function openPublicationDetail(p) {
+    setCurrentPub(p);
+    setOpenDetailModal(true);
+  }
 
   const getStatusBadge = (status) => {
     if (status === "approved") return <span className="badge bg-success">Aprobada</span>;
@@ -1173,16 +1315,37 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
       <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
         {pubs.map((p) => (
           <div className="col" key={p.id}>
-            <div className="card shadow-sm h-100">
+            <div
+              className="card shadow-sm h-100"
+              onClick={() => openPublicationDetail(p)}
+              style={{ cursor: "pointer" }}
+            >
               <div className="card-body pb-0">
-                <div className="d-flex justify-content-between align-items-start mb-2">
+                <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted d-block">
-                      {p.address}, {p.city}, {p.province}, {p.country}
-                    </small>
+                    <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+
+                    <div className="mt-2">
+                      {/* Renglón 1: Reseñas */}
+                      <div className="mb-2">
+                        <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                      </div>
+
+                      {/* Renglón 2: Categorías */}
+                      <div className="d-flex flex-wrap gap-1">
+                        {(p.categories || []).map((c) => (
+                          <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <p className="card-text mt-2 mb-0">
+                      <span className="text-success fw-bold">${p.cost_per_day}</span>
+                    </p>
                   </div>
-                  <div className="d-flex align-items-center gap-2">
+
+                  <div className="d-flex flex-column align-items-end gap-2 ms-2">
                     {getStatusBadge(p.status)}
                     {p.status === "approved" && !p.has_pending_deletion && (
                       <div className="dropdown">
@@ -1191,6 +1354,7 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                           data-bs-toggle="dropdown"
                           aria-expanded="false"
                           title="Más acciones"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           ⋯
                         </button>
@@ -1198,7 +1362,7 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                           <li>
                             <button
                               className="dropdown-item text-danger"
-                              onClick={() => onRequestDeletion(p.id)}
+                              onClick={(e) => { e.stopPropagation(); onRequestDeletion(p.id); }}
                             >
                               Solicitar eliminación
                             </button>
@@ -1253,9 +1417,16 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
               )}
 
               <div className="card-footer bg-white">
-                <small className="text-muted d-block">
-                  Enviado: {new Date(p.created_at).toLocaleString()}
-                </small>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <small className="text-muted">Enviado: {new Date(p.created_at).toLocaleString()}</small>
+                  <button
+                    className="btn btn-sm btn-celeste"
+                    onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                  >
+                    Ver Detalles
+                  </button>
+                </div>
+
                 {p.status === "rejected" && (
                   <small className="text-danger d-block mt-1">
                     ❌ Esta publicación fue rechazada por un administrador.
@@ -1297,6 +1468,16 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
           No has enviado ninguna publicación aún.
         </div>
       )}
+
+      {/* Modal de detalles */}
+      <PublicationDetailModal
+        open={openDetailModal}
+        pub={currentPub}
+        token={token}
+        me={{}}
+        onClose={() => setOpenDetailModal(false)}
+        onToggleFavorite={() => {}}
+      />
     </div>
   );
 }
@@ -1309,6 +1490,15 @@ function FavoritesView({
   onToggleFavorite,
   onUpdateStatus,
 }) {
+  const [openDetailModal, setOpenDetailModal] = React.useState(false);
+  const [currentPub, setCurrentPub] = React.useState(null);
+  const token = React.useMemo(() => localStorage.getItem("token") || "", []);
+
+  function openPublicationDetail(p) {
+    setCurrentPub(p);
+    setOpenDetailModal(true);
+  }
+
   React.useEffect(() => { onLoad(); }, []);
 
   const [filter, setFilter] = React.useState("all");
@@ -1318,7 +1508,7 @@ function FavoritesView({
   );
 
   return (
-    <div className="container mt-4">
+    <div className="container-fluid py-4">
       <div className="d-flex align-items-center justify-content-between mb-4">
         <h3 className="mb-0">Mis Favoritos</h3>
         <div className="btn-group btn-group-sm" role="group" aria-label="Filtro favoritos">
@@ -1370,25 +1560,38 @@ function FavoritesView({
           return (
             <div className="col" key={p.id}>
               <div
-                className="card shadow-sm h-100 border-0"
-                style={{
-                  overflow: "hidden",
-                  border: status === "done" ? "2px solid #28a745" : "1px solid #dee2e6",
-                  transition: "border 0.2s ease",
-                }}
+                className="card shadow-sm h-100"
+                onClick={() => openPublicationDetail(p)}
+                style={{ cursor: "pointer" }}
               >
                 <div className="card-body pb-0">
                   <div className="d-flex justify-content-between align-items-start">
                     <div className="flex-grow-1">
                       <h5 className="card-title mb-1">{p.place_name}</h5>
-                      <small className="text-muted">
-                        {p.address}, {p.city}, {p.province}, {p.country}
-                      </small>
+                      <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+
+                      <div className="mt-2">
+                        {/* Renglón 1: Reseñas */}
+                        <div className="mb-2">
+                          <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                        </div>
+
+                        {/* Renglón 2: Categorías */}
+                        <div className="d-flex flex-wrap gap-1">
+                          {(p.categories || []).map((c) => (
+                            <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="card-text mt-2 mb-0">
+                        <span className="text-success fw-bold">${p.cost_per_day}</span>
+                      </p>
                     </div>
 
                     <button
                       className="btn btn-link p-0 ms-2"
-                      onClick={() => onToggleFavorite(p.id)}
+                      onClick={(e) => { e.stopPropagation(); onToggleFavorite(p.id); }}
                       style={{ fontSize: "1.5rem", textDecoration: "none" }}
                       title="Quitar de favoritos"
                     >
@@ -1420,6 +1623,8 @@ function FavoritesView({
                           data-bs-target={`#fav-carousel-${p.id}`}
                           data-bs-slide="prev"
                           style={{ filter: "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))" }}
+                          aria-label="Anterior"
+                          title="Anterior"
                         >
                           <span className="carousel-control-prev-icon" />
                         </button>
@@ -1429,6 +1634,8 @@ function FavoritesView({
                           data-bs-target={`#fav-carousel-${p.id}`}
                           data-bs-slide="next"
                           style={{ filter: "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))" }}
+                          aria-label="Siguiente"
+                          title="Siguiente"
                         >
                           <span className="carousel-control-next-icon" />
                         </button>
@@ -1440,21 +1647,22 @@ function FavoritesView({
                 )}
 
                 <div className="card-footer bg-white d-flex justify-content-between align-items-center">
-                  <small className="text-muted">
-                    Creado: {new Date(p.created_at).toLocaleString()}
-                  </small>
-
                   <button
                     className={`btn btn-sm ${status === "done"
                       ? "btn-success border-success text-white"
                       : "btn-outline-secondary"
                       }`}
-                    onClick={() =>
-                      onUpdateStatus(p.id, status === "done" ? "pending" : "done")
-                    }
+                    onClick={(e) => { e.stopPropagation(); onUpdateStatus(p.id, status === "done" ? "pending" : "done"); }}
                     title={status === "done" ? "Marcar como Pendiente" : "Marcar como Realizado"}
                   >
                     {status === "done" ? "Realizado" : "✓ Marcar realizado"}
+                  </button>
+
+                  <button
+                    className="btn btn-sm btn-celeste"
+                    onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                  >
+                    Ver Detalles
                   </button>
                 </div>
               </div>
@@ -1468,6 +1676,16 @@ function FavoritesView({
           No tienes publicaciones favoritas aún. ¡Empieza a explorar y agrega tus lugares favoritos! 💝
         </div>
       )}
+
+      {/* Modal de detalles */}
+      <PublicationDetailModal
+        open={openDetailModal}
+        pub={currentPub}
+        me={{}}
+        token={token}
+        onClose={() => setOpenDetailModal(false)}
+        onToggleFavorite={() => {}}
+      />
     </div>
   );
 }

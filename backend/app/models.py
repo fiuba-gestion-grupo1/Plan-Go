@@ -168,6 +168,7 @@ class DeletionRequest(Base):
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
     requested_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|approved|rejected
+    reason = Column(Text, nullable=True)  # Motivo por el cual el usuario solicita la eliminación
     rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at = Column(DateTime(timezone=True), nullable=True)

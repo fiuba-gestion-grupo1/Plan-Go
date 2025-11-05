@@ -7,6 +7,7 @@ from .. import models, schemas
 from .auth import get_current_user
 from datetime import datetime
 import google.generativeai as genai
+import re
 
 router = APIRouter(prefix="/api/itineraries", tags=["itineraries"])
 
@@ -124,6 +125,52 @@ IMPORTANTE:
     return prompt
 
 
+def extract_used_publications(itinerary_text: str, available_publications: list) -> list:
+    """
+    Analiza el texto del itinerario generado y extrae solo las publicaciones que fueron realmente mencionadas.
+    """
+    used_publication_ids = []
+    
+    if not itinerary_text or not available_publications:
+        return used_publication_ids
+    
+    # Normalizar el texto del itinerario para búsqueda (lowercase, sin acentos)
+    itinerary_lower = itinerary_text.lower()
+    
+    for pub in available_publications:
+        publication_mentioned = False
+        
+        # Lista de términos a buscar para esta publicación
+        search_terms = []
+        
+        # Agregar el nombre del lugar
+        if pub.place_name:
+            search_terms.append(pub.place_name.lower())
+        
+        # Agregar palabras clave del nombre (dividir por espacios, comas, etc.)
+        if pub.place_name:
+            # Extraer palabras significativas (más de 2 caracteres)
+            words = re.findall(r'\b\w{3,}\b', pub.place_name.lower())
+            search_terms.extend(words)
+        
+        # Verificar si algún término de la publicación aparece en el itinerario
+        for term in search_terms:
+            if term and len(term) >= 3:  # Solo buscar términos de al menos 3 caracteres
+                # Buscar como palabra completa para evitar falsos positivos
+                pattern = r'\b' + re.escape(term) + r'\b'
+                if re.search(pattern, itinerary_lower):
+                    publication_mentioned = True
+                    break
+        
+        if publication_mentioned:
+            used_publication_ids.append(pub.id)
+            print(f"[ITINERARY DEBUG] Publicación USADA en itinerario: {pub.place_name}")
+        else:
+            print(f"[ITINERARY DEBUG] Publicación NO usada en itinerario: {pub.place_name}")
+    
+    return used_publication_ids
+
+
 @router.post("/request", response_model=schemas.ItineraryOut)
 def request_itinerary(
     payload: schemas.ItineraryRequest,
@@ -135,11 +182,11 @@ def request_itinerary(
     Solo usuarios con rol 'user' pueden solicitar itinerarios.
     """
     
-    # Verifica usuario (admin no puede hacer itin)
-    if current_user.role != "user":
+    # Verifica usuario (admin no puede hacer itinerarios, pero sí users y premium)
+    if current_user.role not in ["user", "premium"]:
         raise HTTPException(
             status_code=403,
-            detail="Solo usuarios básicos pueden solicitar itinerarios"
+            detail="Solo usuarios básicos y premium pueden solicitar itinerarios"
         )
     
     # Validar fechas
@@ -184,28 +231,55 @@ def request_itinerary(
     for pub in all_approved:
         print(f"[ITINERARY DEBUG] - {pub.place_name} | País: {pub.country} | Provincia: {pub.province} | Ciudad: {pub.city}")
     
-    # Dividir el destino en palabras clave (por comas, espacios, etc.)
-    # Ejemplo: "bogota, colombia" -> ["bogota", "colombia"]
-    import re
-    keywords = [word.strip() for word in re.split(r'[,;\s]+', destination_lower) if word.strip()]
-    print(f"[ITINERARY DEBUG] Palabras clave extraídas: {keywords}")
+    # Hacer búsqueda más específica y restrictiva
+    from sqlalchemy import or_, and_
     
-    # Buscar publicaciones que coincidan con CUALQUIERA de las palabras clave
-    from sqlalchemy import or_
-    
-    conditions = []
-    for keyword in keywords:
-        conditions.extend([
-            models.Publication.country.ilike(f"%{keyword}%"),
-            models.Publication.province.ilike(f"%{keyword}%"),
-            models.Publication.city.ilike(f"%{keyword}%"),
-            models.Publication.place_name.ilike(f"%{keyword}%")
-        ])
-    
-    publications = db.query(models.Publication).filter(
+    # Primero intentar con coincidencia exacta en ciudad o país
+    exact_match_pubs = db.query(models.Publication).filter(
         models.Publication.status == "approved",
-        or_(*conditions) if conditions else False
+        or_(
+            models.Publication.city.ilike(f"%{destination_lower}%"),
+            models.Publication.province.ilike(f"%{destination_lower}%"),
+            models.Publication.country.ilike(f"%{destination_lower}%"),
+            models.Publication.address.ilike(f"%{destination_lower}%")
+        )
     ).all()
+    
+    print(f"[ITINERARY DEBUG] Búsqueda exacta encontró: {len(exact_match_pubs)} publicaciones")
+    
+    # Si no encontramos con búsqueda exacta, dividir en palabras clave
+    if len(exact_match_pubs) == 0:
+        print(f"[ITINERARY DEBUG] No se encontró con búsqueda exacta, probando con palabras clave...")
+        import re
+        keywords = [word.strip() for word in re.split(r'[,;\s]+', destination_lower) if word.strip() and len(word.strip()) >= 4]
+        print(f"[ITINERARY DEBUG] Palabras clave extraídas (>=4 chars): {keywords}")
+        
+        if keywords:
+            # Buscar que TODAS las palabras clave importantes estén presentes (AND en lugar de OR)
+            conditions = []
+            for keyword in keywords:
+                keyword_conditions = or_(
+                    models.Publication.city.ilike(f"%{keyword}%"),
+                    models.Publication.province.ilike(f"%{keyword}%"),
+                    models.Publication.country.ilike(f"%{keyword}%"),
+                    models.Publication.address.ilike(f"%{keyword}%")
+                )
+                conditions.append(keyword_conditions)
+            
+            # Usar AND entre las palabras clave para ser más restrictivo
+            if len(conditions) == 1:
+                final_condition = conditions[0]
+            else:
+                final_condition = and_(*conditions)
+            
+            publications = db.query(models.Publication).filter(
+                models.Publication.status == "approved",
+                final_condition
+            ).all()
+        else:
+            publications = []
+    else:
+        publications = exact_match_pubs
     
     print(f"[ITINERARY DEBUG] Publicaciones encontradas: {len(publications)}")
     for pub in publications:
@@ -259,8 +333,13 @@ def request_itinerary(
         # Guardar el resultado
         itinerary.generated_itinerary = response.text
         itinerary.status = "completed"
-        # Guardar los IDs de las publicaciones utilizadas
-        itinerary.publication_ids = [pub.id for pub in publications]
+        
+        # Extraer solo las publicaciones que fueron realmente mencionadas en el itinerario
+        used_publication_ids = extract_used_publications(response.text, publications)
+        itinerary.publication_ids = used_publication_ids
+        
+        print(f"[ITINERARY DEBUG] Publicaciones disponibles: {len(publications)}")
+        print(f"[ITINERARY DEBUG] Publicaciones realmente usadas: {len(used_publication_ids)}")
         
     except Exception as e:
         itinerary.status = "failed"
@@ -269,6 +348,12 @@ def request_itinerary(
     db.commit()
     db.refresh(itinerary)
     
+    # Obtener IDs de favoritos del usuario actual
+    favorite_ids = {
+        fav.publication_id
+        for fav in db.query(models.Favorite).filter(models.Favorite.user_id == current_user.id).all()
+    }
+
     # Preparar lista de publicaciones para la respuesta
     publication_list = []
     if itinerary.publication_ids:
@@ -286,13 +371,20 @@ def request_itinerary(
                     province=pub.province,
                     city=pub.city,
                     address=pub.address,
+                    description=getattr(pub, "description", None),
                     status=pub.status,
                     created_by_user_id=pub.created_by_user_id,
                     created_at=pub.created_at.isoformat(),
                     photos=photos,
                     rating_avg=pub.rating_avg or 0.0,
                     rating_count=pub.rating_count or 0,
-                    categories=categories
+                    categories=categories,
+                    continent=getattr(pub, "continent", None),
+                    climate=getattr(pub, "climate", None),
+                    activities=getattr(pub, "activities", None) or [],
+                    cost_per_day=getattr(pub, "cost_per_day", None),
+                    duration_days=getattr(pub, "duration_days", None),
+                    is_favorite=pub.id in favorite_ids
                 ))
     
     # Convertir a schema de salida
@@ -326,6 +418,12 @@ def get_my_itineraries(
         models.Itinerary.user_id == current_user.id
     ).order_by(models.Itinerary.created_at.desc()).all()
     
+    # Obtener IDs de favoritos del usuario actual
+    favorite_ids = {
+        fav.publication_id
+        for fav in db.query(models.Favorite).filter(models.Favorite.user_id == current_user.id).all()
+    }
+    
     result = []
     for it in itineraries:
         # Obtener publicaciones si existen IDs guardados
@@ -346,13 +444,20 @@ def get_my_itineraries(
                     province=pub.province,
                     city=pub.city,
                     address=pub.address,
+                    description=getattr(pub, "description", None),
                     status=pub.status,
                     created_by_user_id=pub.created_by_user_id,
                     created_at=pub.created_at.isoformat(),
                     photos=photos,
                     rating_avg=pub.rating_avg or 0.0,
                     rating_count=pub.rating_count or 0,
-                    categories=categories
+                    categories=categories,
+                    continent=getattr(pub, "continent", None),
+                    climate=getattr(pub, "climate", None),
+                    activities=getattr(pub, "activities", None) or [],
+                    cost_per_day=getattr(pub, "cost_per_day", None),
+                    duration_days=getattr(pub, "duration_days", None),
+                    is_favorite=pub.id in favorite_ids
                 ))
         
         result.append(schemas.ItineraryOut(
@@ -396,6 +501,12 @@ def get_itinerary(
     if itinerary.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver este itinerario")
     
+    # Obtener IDs de favoritos del usuario actual
+    favorite_ids = {
+        fav.publication_id
+        for fav in db.query(models.Favorite).filter(models.Favorite.user_id == current_user.id).all()
+    }
+    
     # Obtener publicaciones si existen IDs guardados
     publication_list = []
     if itinerary.publication_ids:
@@ -414,13 +525,20 @@ def get_itinerary(
                 province=pub.province,
                 city=pub.city,
                 address=pub.address,
+                description=getattr(pub, "description", None),
                 status=pub.status,
                 created_by_user_id=pub.created_by_user_id,
                 created_at=pub.created_at.isoformat(),
                 photos=photos,
                 rating_avg=pub.rating_avg or 0.0,
                 rating_count=pub.rating_count or 0,
-                categories=categories
+                categories=categories,
+                continent=getattr(pub, "continent", None),
+                climate=getattr(pub, "climate", None),
+                activities=getattr(pub, "activities", None) or [],
+                cost_per_day=getattr(pub, "cost_per_day", None),
+                duration_days=getattr(pub, "duration_days", None),
+                is_favorite=pub.id in favorite_ids
             ))
     
     return schemas.ItineraryOut(

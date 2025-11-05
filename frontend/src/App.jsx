@@ -53,8 +53,8 @@ export default function App() {
     if (['pending-approvals', 'deletion-requests', 'approved-publications', 'all-publications'].includes(nextView) && !isAdmin) {
       return setAuthView('publications');
     }
-    // Evita que admins accedan a vistas de usuarios
-    if (['my-publications', 'favorites', 'preferences', 'my-itineraries'].includes(nextView) && isAdmin) {
+    // Evita que admins accedan a vistas de usuarios (excepto itinerary e my-itineraries)
+    if (['my-publications', 'favorites', 'preferences'].includes(nextView) && isAdmin) {
       return setAuthView('approved-publications');
     }
     setAuthView(nextView);
@@ -99,7 +99,7 @@ export default function App() {
             {authView === 'favorites' && !isAdmin && <Home me={me} view="favorites" />}
             {authView === 'preferences' && !isAdmin && <Home me={me} view="preferences" />}
             {authView === 'itinerary' && <Home me={me} view="itinerary" />}
-            {authView === 'my-itineraries' && !isAdmin && <Home me={me} view="my-itineraries" />}
+            {authView === 'my-itineraries' && <Home me={me} view="my-itineraries" />}
             
             {/* Vistas de Admin */}
             {authView === 'approved-publications' && isAdmin && <Backoffice me={me} view="publications" />}
