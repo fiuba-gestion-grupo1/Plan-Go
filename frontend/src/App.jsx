@@ -102,6 +102,9 @@ export default function App() {
             {authView === 'preferences' && !isAdmin && <Home me={me} view="preferences" />}
             {authView === 'itinerary' && <Home me={me} view="itinerary" />}
             {authView === 'my-itineraries' && <Home me={me} view="my-itineraries" />}
+
+            {authView === 'expenses' && !isAdmin && <Home me={me} view="expenses" />}
+
             {/* 👇 NUEVO: vista Invitar amigos */}
             {authView === 'invite-friends' && !isAdmin && <InviteFriend token={token} />}
 
