@@ -238,11 +238,11 @@ class Itinerary(Base):
 class Expense(Base):
     __tablename__ = "expenses"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     trip_name = Column(String, nullable=False)
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
     date = Column(Date, nullable=False)
 
-    user = relationship("User", back_populates="expenses")
+    user = relationship("User", backref="expenses")
