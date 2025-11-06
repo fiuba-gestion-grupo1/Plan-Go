@@ -37,7 +37,6 @@ app.include_router(categories.router)
 app.include_router(preferences.router)
 app.include_router(suggestions.router)
 app.include_router(itineraries.router)
-# 👇 NUEVO
 app.include_router(invitations.router)
 
 if os.getenv("ENV", "dev") == "dev":

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr
 import os
 import smtplib
+import socket
 from email.message import EmailMessage
 
 router = APIRouter(prefix="/api/invitations", tags=["invitations"])
@@ -58,8 +59,10 @@ def _send_email_smtp(to_email: str, subject: str, html_body: str):
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER")
     password = os.getenv("SMTP_PASS")
-    starttls = os.getenv("SMTP_STARTTLS", "true").lower() != "false"
+    use_starttls = os.getenv("SMTP_STARTTLS", "true").lower() != "false"
+    use_ssl = os.getenv("SMTP_SSL", "false").lower() == "true"
     sender = os.getenv("EMAIL_FROM", user or "no-reply@plango.local")
+    timeout = float(os.getenv("SMTP_TIMEOUT", "10"))
 
     if not host or not user or not password:
         raise RuntimeError("SMTP no configurado: faltan SMTP_HOST/SMTP_USER/SMTP_PASS")
@@ -71,11 +74,36 @@ def _send_email_smtp(to_email: str, subject: str, html_body: str):
     msg.set_content("Tu cliente de correo no soporta HTML.")
     msg.add_alternative(html_body, subtype="html")
 
-    with smtplib.SMTP(host, port) as server:
-        if starttls:
-            server.starttls()
-        server.login(user, password)
-        server.send_message(msg)
+    print(f"[MAIL] Conectando a {host}:{port} (ssl={use_ssl}, starttls={use_starttls}, timeout={timeout}s) ...")
+
+    try:
+        if use_ssl:
+            server = smtplib.SMTP_SSL(host, port, timeout=timeout)
+        else:
+            server = smtplib.SMTP(host, port, timeout=timeout)
+
+        with server:
+            server.ehlo()
+            if (not use_ssl) and use_starttls:
+                server.starttls()
+                server.ehlo()
+            server.login(user, password)
+            server.send_message(msg)
+    except (socket.timeout, TimeoutError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=f"Timeout conectando a SMTP ({host}:{port}). Verificá firewall/red: {e}",
+        )
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo autenticar contra el servidor SMTP (ver credenciales).",
+        )
+    except smtplib.SMTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error SMTP: {e}",
+        )
 
 @router.post("/send")
 def send_invitation(payload: InvitationPayload):
@@ -86,25 +114,14 @@ def send_invitation(payload: InvitationPayload):
     app_url = os.getenv("APP_PUBLIC_URL", "http://localhost:8000")
     inviter_name = None  # si luego queremos, podemos obtenerlo del JWT
 
+    # Modo DEV: no envía, solo loguea (útil si firewall bloquea 587)
+    if os.getenv("SMTP_DEV_LOG_ONLY", "false").lower() == "true":
+        print(f"[MAIL:DEV] Invitación simulada a {payload.email} -> {app_url}")
+        return {"ok": True, "message": "Invitación simulada (DEV)"}
+
     html = _build_email_html(payload.email, inviter_name, app_url)
     subject = f"Te invitaron a {os.getenv('APP_BRAND_NAME', 'Plan&Go')} ✈️"
 
-    try:
-        _send_email_smtp(payload.email, subject, html)
-    except RuntimeError as cfg_err:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(cfg_err),
-        )
-    except smtplib.SMTPAuthenticationError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No se pudo autenticar contra el servidor SMTP (ver credenciales).",
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"No se pudo enviar el correo: {e}",
-        )
+    _send_email_smtp(payload.email, subject, html)
 
     return {"ok": True, "message": "Invitación enviada"}
