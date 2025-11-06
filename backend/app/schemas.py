@@ -267,3 +267,16 @@ class ItineraryOut(BaseModel):
     else:
         class Config:
             orm_mode = True
+
+
+class ExpenseIn(BaseModel):
+    trip_name: str
+    name: str
+    category: str
+    amount: float
+    date: date
+
+class ExpenseOut(ExpenseIn):
+    id: int
+    class Config:
+        from_attributes = True
