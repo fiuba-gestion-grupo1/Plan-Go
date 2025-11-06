@@ -11,6 +11,8 @@ import ForgotPassword from './pages/ForgotPassword'
 import Backoffice from "./pages/Backoffice";
 import Suggestions from "./pages/Suggestions";
 
+// 👇 NUEVO
+import InviteFriend from "./pages/InviteFriend";
 
 export default function App() {
   const [view, setView] = useState('login') // login | register | forgot-password (solo para la vista pública)
@@ -53,8 +55,8 @@ export default function App() {
     if (['pending-approvals', 'deletion-requests', 'approved-publications', 'all-publications'].includes(nextView) && !isAdmin) {
       return setAuthView('publications');
     }
-    // Evita que admins accedan a vistas de usuarios (excepto itinerary e my-itineraries)
-    if (['my-publications', 'favorites', 'preferences'].includes(nextView) && isAdmin) {
+    // Evita que admins accedan a vistas de usuarios (agrego invite-friends)
+    if (['my-publications', 'favorites', 'preferences', 'invite-friends', 'suggestions'].includes(nextView) && isAdmin) {
       return setAuthView('approved-publications');
     }
     setAuthView(nextView);
@@ -100,7 +102,9 @@ export default function App() {
             {authView === 'preferences' && !isAdmin && <Home me={me} view="preferences" />}
             {authView === 'itinerary' && <Home me={me} view="itinerary" />}
             {authView === 'my-itineraries' && <Home me={me} view="my-itineraries" />}
-            
+            {/* 👇 NUEVO: vista Invitar amigos */}
+            {authView === 'invite-friends' && !isAdmin && <InviteFriend token={token} />}
+
             {/* Vistas de Admin */}
             {authView === 'approved-publications' && isAdmin && <Backoffice me={me} view="publications" />}
             {authView === 'all-publications' && isAdmin && <Backoffice me={me} view="all-publications" />}
