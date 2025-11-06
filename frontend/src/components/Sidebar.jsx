@@ -18,7 +18,8 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
     { id: 'favorites', label: '❤️ Mis favoritos' },
     { id: 'preferences', label: '⚙️ Configurar preferencias' },
     { id: 'itinerary', label: '🤖🗺️Generar itinerario con IA' },
-    { id: 'my-itineraries', label: '📅 Mis itinerarios' }
+    { id: 'my-itineraries', label: '📅 Mis itinerarios' },
+    { id: 'my-itineraries', label: '✉️ Invitar amigos' }
   ];
 
   return (
