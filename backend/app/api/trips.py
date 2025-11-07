@@ -3,6 +3,13 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from .auth import get_current_user
 from .. import models
+from fastapi.responses import FileResponse
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+import tempfile
 
 router = APIRouter(prefix="/api/trips", tags=["trips"])
 
@@ -66,3 +73,47 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
         "date": str(exp.date),
     }
 
+@router.get("/{trip_id}/expenses/export", response_class=FileResponse)
+def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    expenses = db.query(models.Expense).filter_by(trip_id=trip_id).all()
+    if not expenses:
+        raise HTTPException(status_code=404, detail="No hay gastos registrados")
+
+    # Crear archivo temporal
+    tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    doc = SimpleDocTemplate(tmpfile.name, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Título
+    elements.append(Paragraph(f"Gastos del viaje: {trip.name}", styles["Title"]))
+    elements.append(Spacer(1, 12))
+
+    # Tabla
+    data = [["Fecha", "Nombre", "Categoría", "Monto ($)"]]
+    total = 0
+    for e in expenses:
+        data.append([e.date.strftime("%d/%m/%Y"), e.name, e.category, f"{e.amount:.2f}"])
+        total += e.amount
+
+    data.append(["", "", "TOTAL", f"${total:.2f}"])
+
+    table = Table(data, colWidths=[80, 160, 120, 80])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3A92B5")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+
+    return FileResponse(tmpfile.name, filename=f"Gastos_{trip.name}.pdf", media_type="application/pdf")
