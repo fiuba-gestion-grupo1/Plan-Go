@@ -60,6 +60,13 @@ export default function ExpensesPage({ token }) {
       </div>
     );
   }
+  // --- Calcular totales por categoría ---
+  const totalsByCategory = expenses.reduce((acc, exp) => {
+    const cat = exp.category || "Sin categoría";
+    acc[cat] = (acc[cat] || 0) + parseFloat(exp.amount || 0);
+    return acc;
+  }, {});
+
 
   return (
     <div className="container mt-4">
@@ -69,13 +76,43 @@ export default function ExpensesPage({ token }) {
       <div className="card p-3 mb-4">
         <div className="row g-2">
           <div className="col-md-3"><input className="form-control" placeholder="Nombre" value={newExpense.name} onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })} /></div>
-          <div className="col-md-3"><input className="form-control" placeholder="Categoría" value={newExpense.category} onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })} /></div>
+          <div className="col-md-3">
+            <input
+              list="categories"
+              className="form-control"
+              placeholder="Categoría"
+              value={newExpense.category}
+              onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+            />
+            <datalist id="categories">
+              <option value="Comida" />
+              <option value="Transporte" />
+              <option value="Alojamiento" />
+              <option value="Entradas" />
+              <option value="Compras" />
+              <option value="Otros" />
+            </datalist>
+          </div>
+
           <div className="col-md-2"><input type="number" className="form-control" placeholder="Monto" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} /></div>
           <div className="col-md-3"><input type="date" className="form-control" value={newExpense.date} onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })} /></div>
           <div className="col-md-1"><button className="btn btn-success w-100" onClick={addExpense}>+</button></div>
         </div>
       </div>
-
+      
+      {expenses.length > 0 && (
+        <div className="card p-3 mt-4">
+          <h5 className="fw-bold mb-3">Totales por categoría</h5>
+          <ul className="list-group">
+            {Object.entries(totalsByCategory).map(([cat, total]) => (
+              <li key={cat} className="list-group-item d-flex justify-content-between">
+                <span>{cat}</span>
+                <span className="fw-bold">${total.toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {expenses.length === 0 ? (
         <div className="alert alert-secondary">Sin gastos registrados.</div>
       ) : (
@@ -91,6 +128,9 @@ export default function ExpensesPage({ token }) {
           ))}
         </ul>
       )}
+      
+      
+
     </div>
   );
 }
