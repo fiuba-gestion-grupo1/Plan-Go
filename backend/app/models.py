@@ -237,15 +237,18 @@ class Itinerary(Base):
 
 class Expense(Base):
     __tablename__ = "expenses"
-
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
     date = Column(Date, nullable=False)
 
+    user = relationship("User", backref="expenses")
     trip = relationship("Trip", back_populates="expenses")
+
+
 
 
 class Trip(Base):
@@ -259,3 +262,8 @@ class Trip(Base):
     user = relationship("User", backref="trips")
     expenses = relationship("Expense", back_populates="trip", cascade="all, delete-orphan")
 
+class TripParticipant(Base):
+    __tablename__ = "trip_participants"
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

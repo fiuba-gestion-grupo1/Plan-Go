@@ -8,7 +8,12 @@ export default function ExpensesPage({ token }) {
   const [newTrip, setNewTrip] = useState("");
   const [newExpense, setNewExpense] = useState({ name: "", category: "", amount: "", date: "" });
 
-  useEffect(() => { fetchTrips(); }, []);
+  const [balances, setBalances] = useState([]);
+  const [balancesData, setBalancesData] = useState({ total: 0, por_persona: 0, balances: [] });
+
+  useEffect(() => {
+    fetchTrips();
+  }, []);
 
   async function fetchTrips() {
     const data = await request("/api/trips", { token });
@@ -44,29 +49,6 @@ export default function ExpensesPage({ token }) {
     openTrip(selectedTrip);
   }
 
-  if (!selectedTrip) {
-    return (
-      <div className="container mt-4">
-        <h3>💰 Mis viajes</h3>
-        <div className="input-group mb-3">
-          <input className="form-control" value={newTrip} onChange={(e) => setNewTrip(e.target.value)} placeholder="Nombre del viaje..." />
-          <button className="btn btn-primary" onClick={createTrip}>Crear</button>
-        </div>
-        {trips.map((t) => (
-          <div key={t.id} className="list-group-item list-group-item-action" onClick={() => openTrip(t.id)} style={{ cursor: "pointer" }}>
-            <strong>{t.name}</strong> <small className="text-muted">{new Date(t.created_at).toLocaleDateString()}</small>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  // --- Calcular totales por categoría ---
-  const totalsByCategory = expenses.reduce((acc, exp) => {
-    const cat = exp.category || "Sin categoría";
-    acc[cat] = (acc[cat] || 0) + parseFloat(exp.amount || 0);
-    return acc;
-  }, {});
-
   async function exportToPDF() {
     if (!selectedTrip) return;
     const res = await fetch(`/api/trips/${selectedTrip}/expenses/export`, {
@@ -83,24 +65,85 @@ export default function ExpensesPage({ token }) {
     window.URL.revokeObjectURL(url);
   }
 
+  async function joinTrip() {
+    await request(`/api/trips/${selectedTrip}/participants`, { method: "POST", token });
+    alert("Te uniste al viaje como participante premium");
+  }
+
+  async function calculateBalances() {
+    const data = await request(`/api/trips/${selectedTrip}/balances`, { token });
+    setBalancesData(data);
+    setBalances(data.balances || []);
+  }
+
+  if (!selectedTrip) {
+    return (
+      <div className="container mt-4">
+        <h3>💰 Mis viajes</h3>
+        <div className="input-group mb-3">
+          <input
+            className="form-control"
+            value={newTrip}
+            onChange={(e) => setNewTrip(e.target.value)}
+            placeholder="Nombre del viaje..."
+          />
+          <button className="btn btn-primary" onClick={createTrip}>
+            Crear
+          </button>
+        </div>
+        {trips.map((t) => (
+          <div
+            key={t.id}
+            className="list-group-item list-group-item-action"
+            onClick={() => openTrip(t.id)}
+            style={{ cursor: "pointer" }}
+          >
+            <strong>{t.name}</strong>{" "}
+            <small className="text-muted">{new Date(t.created_at).toLocaleDateString()}</small>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // --- Calcular totales por categoría ---
+  const totalsByCategory = expenses.reduce((acc, exp) => {
+    const cat = exp.category || "Sin categoría";
+    acc[cat] = (acc[cat] || 0) + parseFloat(exp.amount || 0);
+    return acc;
+  }, {});
 
   return (
     <div className="container mt-4">
-      <button className="btn btn-outline-secondary mb-3" onClick={() => setSelectedTrip(null)}>← Volver</button>
+      <button className="btn btn-outline-secondary mb-3" onClick={() => setSelectedTrip(null)}>
+        ← Volver
+      </button>
+
       <div className="d-flex justify-content-between align-items-center">
         <h3>Gastos del viaje</h3>
-        <button
-          className="btn btn-outline-primary"
-          onClick={exportToPDF}
-        >
+        <div className="mb-3">
+          <button className="btn btn-outline-primary me-2" onClick={joinTrip}>
+            Unirse al viaje
+          </button>
+          <button className="btn btn-outline-success" onClick={calculateBalances}>
+            Calcular saldos
+          </button>
+        </div>
+        <button className="btn btn-outline-primary" onClick={exportToPDF}>
           📄 Exportar PDF
         </button>
       </div>
 
-
       <div className="card p-3 mb-4">
         <div className="row g-2">
-          <div className="col-md-3"><input className="form-control" placeholder="Nombre" value={newExpense.name} onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })} /></div>
+          <div className="col-md-3">
+            <input
+              className="form-control"
+              placeholder="Nombre"
+              value={newExpense.name}
+              onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })}
+            />
+          </div>
           <div className="col-md-3">
             <input
               list="categories"
@@ -118,13 +161,31 @@ export default function ExpensesPage({ token }) {
               <option value="Otros" />
             </datalist>
           </div>
-
-          <div className="col-md-2"><input type="number" className="form-control" placeholder="Monto" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} /></div>
-          <div className="col-md-3"><input type="date" className="form-control" value={newExpense.date} onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })} /></div>
-          <div className="col-md-1"><button className="btn btn-success w-100" onClick={addExpense}>+</button></div>
+          <div className="col-md-2">
+            <input
+              type="number"
+              className="form-control"
+              placeholder="Monto"
+              value={newExpense.amount}
+              onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+            />
+          </div>
+          <div className="col-md-3">
+            <input
+              type="date"
+              className="form-control"
+              value={newExpense.date}
+              onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+            />
+          </div>
+          <div className="col-md-1">
+            <button className="btn btn-success w-100" onClick={addExpense}>
+              +
+            </button>
+          </div>
         </div>
       </div>
-      
+
       {expenses.length > 0 && (
         <div className="card p-3 mt-4">
           <h5 className="fw-bold mb-3">Totales por categoría</h5>
@@ -138,6 +199,7 @@ export default function ExpensesPage({ token }) {
           </ul>
         </div>
       )}
+
       {expenses.length === 0 ? (
         <div className="alert alert-secondary">Sin gastos registrados.</div>
       ) : (
@@ -153,9 +215,31 @@ export default function ExpensesPage({ token }) {
           ))}
         </ul>
       )}
-      
-      
 
+      {balances.length > 0 && (
+        <div className="mt-4">
+          <h5>💸 Saldos del viaje</h5>
+          <div className="alert alert-info">
+            Total del viaje: <strong>${balancesData?.total?.toFixed(2) ?? 0}</strong> —{" "}
+            Por persona: <strong>${balancesData?.por_persona?.toFixed(2) ?? 0}</strong>
+          </div>
+
+          <ul className="list-group">
+            {balances.map((b, i) => (
+              <li key={i} className="list-group-item d-flex justify-content-between align-items-center">
+                <span>👤 {b.username}</span>
+                {b.debe_o_recibe > 0 ? (
+                  <span className="text-success fw-bold">Recibe ${b.debe_o_recibe}</span>
+                ) : b.debe_o_recibe < 0 ? (
+                  <span className="text-danger fw-bold">Debe ${Math.abs(b.debe_o_recibe)}</span>
+                ) : (
+                  <span className="text-muted">Está equilibrado</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
