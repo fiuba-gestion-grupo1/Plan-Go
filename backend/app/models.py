@@ -259,3 +259,8 @@ class Trip(Base):
     user = relationship("User", backref="trips")
     expenses = relationship("Expense", back_populates="trip", cascade="all, delete-orphan")
 
+class TripParticipant(Base):
+    __tablename__ = "trip_participants"
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

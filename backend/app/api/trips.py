@@ -117,3 +117,46 @@ def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depen
     doc.build(elements)
 
     return FileResponse(tmpfile.name, filename=f"Gastos_{trip.name}.pdf", media_type="application/pdf")
+
+
+
+# --- Agregar participante premium ---
+@router.post("/{trip_id}/participants")
+def join_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    if user.role != "premium":
+        raise HTTPException(status_code=403, detail="Solo los usuarios premium pueden unirse a un viaje")
+
+    existing = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya sos participante de este viaje")
+
+    participant = models.TripParticipant(trip_id=trip_id, user_id=user.id)
+    db.add(participant)
+    db.commit()
+    return {"message": f"Te uniste al viaje '{trip.name}'"}
+
+
+# --- Calcular saldos ---
+@router.get("/{trip_id}/balances")
+def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    expenses = db.query(models.Expense).filter_by(trip_id=trip_id).all()
+    if not expenses:
+        return {"total": 0, "balances": []}
+
+    total = sum(e.amount for e in expenses)
+    participants = db.query(models.TripParticipant).filter_by(trip_id=trip_id).all()
+    if not participants:
+        raise HTTPException(status_code=400, detail="No hay participantes en este viaje")
+
+    share = round(total / len(participants), 2)
+    balances = [{"user_id": p.user_id, "debe": share} for p in participants]
+
+    return {"total": total, "por_persona": share, "balances": balances}
