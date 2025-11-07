@@ -6,6 +6,8 @@ import ItineraryRequest from "../pages/ItineraryRequest";
 import PublicationDetailModal from "../components/PublicationDetailModal";
 import { Stars, RatingBadge } from "../components/shared/UIComponents";
 import { request } from '../utils/api';
+import ExpensesPage from "../pages/ExpensesPage";
+
 
 
 /* --- Dropdown multiselect --- */
@@ -714,6 +716,10 @@ export default function Home({ me, view = "publications" }) {
   // Vista de Configurar Preferencias
   if (view === 'preferences') {
     return <PreferencesBox token={token} />;
+  }
+
+  if (view === 'expenses') {
+    return <ExpensesPage me={me} token={token} />;
   }
 
   // Vista del formulario de itinerario o del itinerario seleccionado

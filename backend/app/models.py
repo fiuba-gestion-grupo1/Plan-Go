@@ -233,3 +233,29 @@ class Itinerary(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="itineraries")
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    date = Column(Date, nullable=False)
+
+    trip = relationship("Trip", back_populates="expenses")
+
+
+class Trip(Base):
+    __tablename__ = "trips"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="trips")
+    expenses = relationship("Expense", back_populates="trip", cascade="all, delete-orphan")
+
