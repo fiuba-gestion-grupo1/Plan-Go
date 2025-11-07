@@ -10,25 +10,42 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import tempfile
+from datetime import datetime
 
 router = APIRouter(prefix="/api/trips", tags=["trips"])
 
+
+# --- Obtener viajes del usuario ---
 @router.get("")
 def get_my_trips(db: Session = Depends(get_db), user=Depends(get_current_user)):
     trips = db.query(models.Trip).filter_by(user_id=user.id).all()
     return [{"id": t.id, "name": t.name, "created_at": t.created_at} for t in trips]
 
+
+# --- Crear viaje (agrega automáticamente al creador como participante) ---
 @router.post("")
 def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     name = payload.get("name")
     if not name:
         raise HTTPException(status_code=400, detail="El nombre del viaje es obligatorio")
+
+    # Crear el viaje
     trip = models.Trip(user_id=user.id, name=name)
     db.add(trip)
     db.commit()
     db.refresh(trip)
+
+    # Agregar al creador como participante (si no existe ya)
+    existing = db.query(models.TripParticipant).filter_by(trip_id=trip.id, user_id=user.id).first()
+    if not existing:
+        participant = models.TripParticipant(trip_id=trip.id, user_id=user.id)
+        db.add(participant)
+        db.commit()
+
     return {"id": trip.id, "name": trip.name}
 
+
+# --- Obtener gastos de un viaje ---
 @router.get("/{trip_id}/expenses")
 def get_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
@@ -39,14 +56,13 @@ def get_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(
         for e in trip.expenses
     ]
 
-from datetime import datetime
 
+# --- Agregar gasto ---
 @router.post("/{trip_id}/expenses")
 def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
-
 
     try:
         date_obj = datetime.strptime(payload.get("date"), "%Y-%m-%d").date()
@@ -58,7 +74,7 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
         name=payload.get("name"),
         category=payload.get("category"),
         amount=payload.get("amount"),
-        date=date_obj, 
+        date=date_obj,
     )
 
     db.add(exp)
@@ -73,6 +89,8 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
         "date": str(exp.date),
     }
 
+
+# --- Exportar gastos como PDF ---
 @router.get("/{trip_id}/expenses/export", response_class=FileResponse)
 def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
@@ -89,11 +107,9 @@ def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depen
     elements = []
     styles = getSampleStyleSheet()
 
-    # Título
     elements.append(Paragraph(f"Gastos del viaje: {trip.name}", styles["Title"]))
     elements.append(Spacer(1, 12))
 
-    # Tabla
     data = [["Fecha", "Nombre", "Categoría", "Monto ($)"]]
     total = 0
     for e in expenses:
@@ -119,8 +135,7 @@ def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depen
     return FileResponse(tmpfile.name, filename=f"Gastos_{trip.name}.pdf", media_type="application/pdf")
 
 
-
-# --- Agregar participante premium ---
+# --- Unirse a un viaje (solo premium) ---
 @router.post("/{trip_id}/participants")
 def join_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
@@ -147,15 +162,22 @@ def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
+    # Asegurar que el usuario actual esté como participante (se agrega automáticamente)
+    participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+    if not participant:
+        db.add(models.TripParticipant(trip_id=trip_id, user_id=user.id))
+        db.commit()
+
+    # Obtener gastos
     expenses = db.query(models.Expense).filter_by(trip_id=trip_id).all()
     if not expenses:
         return {"total": 0, "balances": []}
 
-    total = sum(e.amount for e in expenses)
     participants = db.query(models.TripParticipant).filter_by(trip_id=trip_id).all()
     if not participants:
         raise HTTPException(status_code=400, detail="No hay participantes en este viaje")
 
+    total = sum(e.amount for e in expenses)
     share = round(total / len(participants), 2)
     balances = [{"user_id": p.user_id, "debe": share} for p in participants]
 
