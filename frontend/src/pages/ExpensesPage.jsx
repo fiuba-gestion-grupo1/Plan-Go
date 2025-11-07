@@ -7,22 +7,17 @@ export default function ExpensesPage({ token }) {
   const [expenses, setExpenses] = useState([]);
   const [newTrip, setNewTrip] = useState("");
   const [newExpense, setNewExpense] = useState({ name: "", category: "", amount: "", date: "" });
-  const [balances, setBalances] = useState([]);
-  const [summary, setSummary] = useState({ total: 0, por_persona: 0 });
 
+  const [balances, setBalances] = useState([]);
+  const [balancesData, setBalancesData] = useState({ total: 0, por_persona: 0, balances: [] });
 
   useEffect(() => {
     fetchTrips();
   }, []);
 
   async function fetchTrips() {
-    try {
-      const data = await request("/api/trips", { token });
-      setTrips(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Error al cargar viajes:", err);
-      setTrips([]);
-    }
+    const data = await request("/api/trips", { token });
+    setTrips(data);
   }
 
   async function createTrip() {
@@ -37,15 +32,9 @@ export default function ExpensesPage({ token }) {
   }
 
   async function openTrip(tripId) {
-    try {
-      const data = await request(`/api/trips/${tripId}/expenses`, { token });
-      setSelectedTrip(tripId);
-      setExpenses(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Error al cargar gastos:", err);
-      alert("No se pudieron cargar los gastos del viaje.");
-      setExpenses([]);
-    }
+    const data = await request(`/api/trips/${tripId}/expenses`, { token });
+    setSelectedTrip(tripId);
+    setExpenses(data);
   }
 
   async function addExpense() {
@@ -77,37 +66,16 @@ export default function ExpensesPage({ token }) {
   }
 
   async function joinTrip() {
-    try {
-      await request(`/api/trips/${selectedTrip}/participants`, { method: "POST", token });
-      alert("Te uniste al viaje como participante premium");
-    } catch (err) {
-      console.error("Error al unirse al viaje:", err);
-      alert("No se pudo unir al viaje.");
-    }
+    await request(`/api/trips/${selectedTrip}/participants`, { method: "POST", token });
+    alert("Te uniste al viaje como participante premium");
   }
 
   async function calculateBalances() {
     const data = await request(`/api/trips/${selectedTrip}/balances`, { token });
-    if (data && data.balances) {
-      setBalances(data.balances);
-      setSummary({
-        total: data.total,
-        por_persona: data.por_persona,
-      });
-    }
+    setBalancesData(data);
+    setBalances(data.balances || []);
   }
 
-
-  // --- Manejo seguro para evitar errores de tipo ---
-  const safeExpenses = Array.isArray(expenses) ? expenses : [];
-
-  const totalsByCategory = safeExpenses.reduce((acc, exp) => {
-    const cat = exp.category || "Sin categoría";
-    acc[cat] = (acc[cat] || 0) + parseFloat(exp.amount || 0);
-    return acc;
-  }, {});
-
-  // --- Vista de selección de viajes ---
   if (!selectedTrip) {
     return (
       <div className="container mt-4">
@@ -119,7 +87,9 @@ export default function ExpensesPage({ token }) {
             onChange={(e) => setNewTrip(e.target.value)}
             placeholder="Nombre del viaje..."
           />
-          <button className="btn btn-primary" onClick={createTrip}>Crear</button>
+          <button className="btn btn-primary" onClick={createTrip}>
+            Crear
+          </button>
         </div>
         {trips.map((t) => (
           <div
@@ -129,16 +99,20 @@ export default function ExpensesPage({ token }) {
             style={{ cursor: "pointer" }}
           >
             <strong>{t.name}</strong>{" "}
-            <small className="text-muted">
-              {t.created_at ? new Date(t.created_at).toLocaleDateString() : ""}
-            </small>
+            <small className="text-muted">{new Date(t.created_at).toLocaleDateString()}</small>
           </div>
         ))}
       </div>
     );
   }
 
-  // --- Vista de gastos del viaje ---
+  // --- Calcular totales por categoría ---
+  const totalsByCategory = expenses.reduce((acc, exp) => {
+    const cat = exp.category || "Sin categoría";
+    acc[cat] = (acc[cat] || 0) + parseFloat(exp.amount || 0);
+    return acc;
+  }, {});
+
   return (
     <div className="container mt-4">
       <button className="btn btn-outline-secondary mb-3" onClick={() => setSelectedTrip(null)}>
@@ -148,13 +122,18 @@ export default function ExpensesPage({ token }) {
       <div className="d-flex justify-content-between align-items-center">
         <h3>Gastos del viaje</h3>
         <div className="mb-3">
-          <button className="btn btn-outline-primary me-2" onClick={joinTrip}>Unirse al viaje</button>
-          <button className="btn btn-outline-success" onClick={calculateBalances}>Calcular saldos</button>
+          <button className="btn btn-outline-primary me-2" onClick={joinTrip}>
+            Unirse al viaje
+          </button>
+          <button className="btn btn-outline-success" onClick={calculateBalances}>
+            Calcular saldos
+          </button>
         </div>
-        <button className="btn btn-outline-primary" onClick={exportToPDF}>📄 Exportar PDF</button>
+        <button className="btn btn-outline-primary" onClick={exportToPDF}>
+          📄 Exportar PDF
+        </button>
       </div>
 
-      {/* Formulario para agregar gasto */}
       <div className="card p-3 mb-4">
         <div className="row g-2">
           <div className="col-md-3">
@@ -200,13 +179,14 @@ export default function ExpensesPage({ token }) {
             />
           </div>
           <div className="col-md-1">
-            <button className="btn btn-success w-100" onClick={addExpense}>+</button>
+            <button className="btn btn-success w-100" onClick={addExpense}>
+              +
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Totales por categoría */}
-      {safeExpenses.length > 0 && (
+      {expenses.length > 0 && (
         <div className="card p-3 mt-4">
           <h5 className="fw-bold mb-3">Totales por categoría</h5>
           <ul className="list-group">
@@ -220,12 +200,11 @@ export default function ExpensesPage({ token }) {
         </div>
       )}
 
-      {/* Lista de gastos */}
-      {safeExpenses.length === 0 ? (
+      {expenses.length === 0 ? (
         <div className="alert alert-secondary">Sin gastos registrados.</div>
       ) : (
-        <ul className="list-group mt-3">
-          {safeExpenses.map((e) => (
+        <ul className="list-group">
+          {expenses.map((e) => (
             <li key={e.id} className="list-group-item d-flex justify-content-between">
               <div>
                 <strong>{e.name}</strong> — {e.category}
@@ -237,32 +216,30 @@ export default function ExpensesPage({ token }) {
         </ul>
       )}
 
-      {/* Saldos */}
       {balances.length > 0 && (
         <div className="mt-4">
           <h5>💸 Saldos del viaje</h5>
           <div className="alert alert-info">
-            Total del viaje: <strong>${summary.total.toFixed(2)}</strong> — 
-            Por persona: <strong>${summary.por_persona.toFixed(2)}</strong>
+            Total del viaje: <strong>${balancesData?.total?.toFixed(2) ?? 0}</strong> —{" "}
+            Por persona: <strong>${balancesData?.por_persona?.toFixed(2) ?? 0}</strong>
           </div>
 
           <ul className="list-group">
             {balances.map((b, i) => (
-              <li key={i} className="list-group-item d-flex justify-content-between">
-                <span>👤 Usuario #{b.user_id}</span>
-                <span>
-                  {b.debe_o_recibe > 0
-                    ? `🟢 Le deben $${b.debe_o_recibe}`
-                    : b.debe_o_recibe < 0
-                    ? `🔴 Debe $${Math.abs(b.debe_o_recibe)}`
-                    : "⚪ Está equilibrado"}
-                </span>
+              <li key={i} className="list-group-item d-flex justify-content-between align-items-center">
+                <span>👤 {b.username}</span>
+                {b.debe_o_recibe > 0 ? (
+                  <span className="text-success fw-bold">Recibe ${b.debe_o_recibe}</span>
+                ) : b.debe_o_recibe < 0 ? (
+                  <span className="text-danger fw-bold">Debe ${Math.abs(b.debe_o_recibe)}</span>
+                ) : (
+                  <span className="text-muted">Está equilibrado</span>
+                )}
               </li>
             ))}
           </ul>
         </div>
       )}
-
     </div>
   );
 }

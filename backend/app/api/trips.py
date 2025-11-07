@@ -200,8 +200,13 @@ def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends
     for p in participants:
         pagado = aportes_por_usuario.get(p.user_id, 0)
         balance = round(pagado - share, 2)  # positivo = le deben, negativo = debe
+
+        # 🔹 Traer el username asociado a este user_id
+        user_obj = db.query(models.User).filter_by(id=p.user_id).first()
+        username = user_obj.username if user_obj else f"usuario_{p.user_id}"
+
         balances.append({
-            "user_id": p.user_id,
+            "username": username,        # 👈 mostramos username en lugar del user_id
             "pagado": pagado,
             "debe_o_recibe": balance
         })
