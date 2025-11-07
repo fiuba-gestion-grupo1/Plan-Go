@@ -1,88 +1,96 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { request } from "../utils/api";
 
 export default function ExpensesPage({ token }) {
+  const [trips, setTrips] = useState([]);
+  const [selectedTrip, setSelectedTrip] = useState(null);
   const [expenses, setExpenses] = useState([]);
-  const [tripName, setTripName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [newTrip, setNewTrip] = useState("");
+  const [newExpense, setNewExpense] = useState({ name: "", category: "", amount: "", date: "" });
 
-  async function fetchExpenses() {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await request("/api/expenses", { token });
-      setExpenses(data);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => { fetchTrips(); }, []);
+
+  async function fetchTrips() {
+    const data = await request("/api/trips", { token });
+    setTrips(data);
   }
 
-  async function handleAddExpense() {
-    if (!tripName.trim()) return;
-    setLoading(true);
-    try {
-      await request("/api/expenses", {
-        method: "POST",
-        token,
-        body: {
-          trip_name: tripName,
-          name: "Nuevo gasto",
-          category: "general",
-          amount: 0,
-          date: new Date().toISOString().split("T")[0],
-        },
-      });
-      setTripName("");
-      fetchExpenses();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+  async function createTrip() {
+    if (!newTrip.trim()) return;
+    await request("/api/trips", {
+      method: "POST",
+      token,
+      body: { name: newTrip },
+    });
+    setNewTrip("");
+    fetchTrips();
   }
 
-  useEffect(() => {
-    fetchExpenses();
-  }, []);
+  async function openTrip(tripId) {
+    const data = await request(`/api/trips/${tripId}/expenses`, { token });
+    setSelectedTrip(tripId);
+    setExpenses(data);
+  }
 
-  return (
-    <div className="container mt-4">
-      <h3 className="mb-4">💰 Mis Gastos</h3>
+  async function addExpense() {
+    const { name, category, amount, date } = newExpense;
+    if (!name || !category || !amount || !date) return;
+    await request(`/api/trips/${selectedTrip}/expenses`, {
+      method: "POST",
+      token,
+      body: { name, category, amount: parseFloat(amount), date },
+    });
+    setNewExpense({ name: "", category: "", amount: "", date: "" });
+    openTrip(selectedTrip);
+  }
 
-      <div className="input-group mb-4">
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Nombre del viaje..."
-          value={tripName}
-          onChange={(e) => setTripName(e.target.value)}
-        />
-        <button className="btn btn-primary" onClick={handleAddExpense}>
-          Crear viaje
-        </button>
-      </div>
-
-      {loading && <div className="alert alert-info">Cargando...</div>}
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      {!loading && expenses.length === 0 && (
-        <div className="alert alert-secondary">Aún no registraste ningún gasto.</div>
-      )}
-
-      <div className="list-group">
-        {expenses.map((e) => (
-          <div key={e.id} className="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <strong>{e.trip_name}</strong> — {e.category}
-              <div className="small text-muted">{e.date}</div>
-            </div>
-            <span className="badge bg-success">${e.amount}</span>
+  if (!selectedTrip) {
+    return (
+      <div className="container mt-4">
+        <h3>💰 Mis viajes</h3>
+        <div className="input-group mb-3">
+          <input className="form-control" value={newTrip} onChange={(e) => setNewTrip(e.target.value)} placeholder="Nombre del viaje..." />
+          <button className="btn btn-primary" onClick={createTrip}>Crear</button>
+        </div>
+        {trips.map((t) => (
+          <div key={t.id} className="list-group-item list-group-item-action" onClick={() => openTrip(t.id)} style={{ cursor: "pointer" }}>
+            <strong>{t.name}</strong> <small className="text-muted">{new Date(t.created_at).toLocaleDateString()}</small>
           </div>
         ))}
       </div>
+    );
+  }
+
+  return (
+    <div className="container mt-4">
+      <button className="btn btn-outline-secondary mb-3" onClick={() => setSelectedTrip(null)}>← Volver</button>
+      <h3>Gastos del viaje</h3>
+
+      <div className="card p-3 mb-4">
+        <div className="row g-2">
+          <div className="col-md-3"><input className="form-control" placeholder="Nombre" value={newExpense.name} onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })} /></div>
+          <div className="col-md-3"><input className="form-control" placeholder="Categoría" value={newExpense.category} onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })} /></div>
+          <div className="col-md-2"><input type="number" className="form-control" placeholder="Monto" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} /></div>
+          <div className="col-md-3"><input type="date" className="form-control" value={newExpense.date} onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })} /></div>
+          <div className="col-md-1"><button className="btn btn-success w-100" onClick={addExpense}>+</button></div>
+        </div>
+      </div>
+
+      {expenses.length === 0 ? (
+        <div className="alert alert-secondary">Sin gastos registrados.</div>
+      ) : (
+        <ul className="list-group">
+          {expenses.map((e) => (
+            <li key={e.id} className="list-group-item d-flex justify-content-between">
+              <div>
+                <strong>{e.name}</strong> — {e.category}
+                <div className="text-muted small">{e.date}</div>
+              </div>
+              <span className="badge bg-success">${e.amount}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
