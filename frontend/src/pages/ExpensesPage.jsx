@@ -67,11 +67,36 @@ export default function ExpensesPage({ token }) {
     return acc;
   }, {});
 
+  async function exportToPDF() {
+    if (!selectedTrip) return;
+    const res = await fetch(`/api/trips/${selectedTrip}/expenses/export`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return alert("Error al generar el PDF");
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Gastos_Viaje_${selectedTrip}.pdf`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  }
+
 
   return (
     <div className="container mt-4">
       <button className="btn btn-outline-secondary mb-3" onClick={() => setSelectedTrip(null)}>← Volver</button>
-      <h3>Gastos del viaje</h3>
+      <div className="d-flex justify-content-between align-items-center">
+        <h3>Gastos del viaje</h3>
+        <button
+          className="btn btn-outline-primary"
+          onClick={exportToPDF}
+        >
+          📄 Exportar PDF
+        </button>
+      </div>
+
 
       <div className="card p-3 mb-4">
         <div className="row g-2">
