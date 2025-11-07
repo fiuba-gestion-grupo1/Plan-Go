@@ -71,11 +71,13 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
 
     exp = models.Expense(
         trip_id=trip.id,
+        user_id=user.id,  # 👈 guarda quién cargó el gasto
         name=payload.get("name"),
         category=payload.get("category"),
         amount=payload.get("amount"),
         date=date_obj,
     )
+
 
     db.add(exp)
     db.commit()
@@ -158,27 +160,50 @@ def join_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_curr
 # --- Calcular saldos ---
 @router.get("/{trip_id}/balances")
 def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """
+    Calcula saldos individuales tipo Splitwise:
+    - Cada participante puede haber cargado gastos.
+    - Se calcula cuánto debería haber aportado y el balance final.
+    """
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # Asegurar que el usuario actual esté como participante (se agrega automáticamente)
+    # Asegurar que el usuario esté agregado como participante
     participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
     if not participant:
         db.add(models.TripParticipant(trip_id=trip_id, user_id=user.id))
         db.commit()
 
-    # Obtener gastos
-    expenses = db.query(models.Expense).filter_by(trip_id=trip_id).all()
-    if not expenses:
-        return {"total": 0, "balances": []}
-
+    # --- Obtener participantes y gastos ---
     participants = db.query(models.TripParticipant).filter_by(trip_id=trip_id).all()
     if not participants:
         raise HTTPException(status_code=400, detail="No hay participantes en este viaje")
 
-    total = sum(e.amount for e in expenses)
-    share = round(total / len(participants), 2)
-    balances = [{"user_id": p.user_id, "debe": share} for p in participants]
+    expenses = db.query(models.Expense).filter_by(trip_id=trip_id).all()
+    if not expenses:
+        return {"total": 0, "balances": []}
 
-    return {"total": total, "por_persona": share, "balances": balances}
+    # --- Calcular total por usuario ---
+    total_gastos = sum(float(e.amount or 0) for e in expenses)
+    aportes_por_usuario = {}
+
+    for p in participants:
+        user_gastos = db.query(models.Expense).filter_by(trip_id=trip_id, user_id=p.user_id).all()
+        total_user = sum(float(e.amount or 0) for e in user_gastos)
+        aportes_por_usuario[p.user_id] = total_user
+
+    # --- Calcular cuánto debería haber aportado cada uno ---
+    share = round(total_gastos / len(participants), 2)
+
+    balances = []
+    for p in participants:
+        pagado = aportes_por_usuario.get(p.user_id, 0)
+        balance = round(pagado - share, 2)  # positivo = le deben, negativo = debe
+        balances.append({
+            "user_id": p.user_id,
+            "pagado": pagado,
+            "debe_o_recibe": balance
+        })
+
+    return {"total": total_gastos, "por_persona": share, "balances": balances}

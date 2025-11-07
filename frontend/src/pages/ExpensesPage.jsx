@@ -8,6 +8,8 @@ export default function ExpensesPage({ token }) {
   const [newTrip, setNewTrip] = useState("");
   const [newExpense, setNewExpense] = useState({ name: "", category: "", amount: "", date: "" });
   const [balances, setBalances] = useState([]);
+  const [summary, setSummary] = useState({ total: 0, por_persona: 0 });
+
 
   useEffect(() => {
     fetchTrips();
@@ -85,14 +87,16 @@ export default function ExpensesPage({ token }) {
   }
 
   async function calculateBalances() {
-    try {
-      const data = await request(`/api/trips/${selectedTrip}/balances`, { token });
-      setBalances(data.balances || []);
-    } catch (err) {
-      console.error("Error al calcular saldos:", err);
-      setBalances([]);
+    const data = await request(`/api/trips/${selectedTrip}/balances`, { token });
+    if (data && data.balances) {
+      setBalances(data.balances);
+      setSummary({
+        total: data.total,
+        por_persona: data.por_persona,
+      });
     }
   }
+
 
   // --- Manejo seguro para evitar errores de tipo ---
   const safeExpenses = Array.isArray(expenses) ? expenses : [];
@@ -236,17 +240,29 @@ export default function ExpensesPage({ token }) {
       {/* Saldos */}
       {balances.length > 0 && (
         <div className="mt-4">
-          <h5>Saldos</h5>
+          <h5>💸 Saldos del viaje</h5>
+          <div className="alert alert-info">
+            Total del viaje: <strong>${summary.total.toFixed(2)}</strong> — 
+            Por persona: <strong>${summary.por_persona.toFixed(2)}</strong>
+          </div>
+
           <ul className="list-group">
             {balances.map((b, i) => (
               <li key={i} className="list-group-item d-flex justify-content-between">
-                <span>Usuario #{b.user_id}</span>
-                <span>${b.debe}</span>
+                <span>👤 Usuario #{b.user_id}</span>
+                <span>
+                  {b.debe_o_recibe > 0
+                    ? `🟢 Le deben $${b.debe_o_recibe}`
+                    : b.debe_o_recibe < 0
+                    ? `🔴 Debe $${Math.abs(b.debe_o_recibe)}`
+                    : "⚪ Está equilibrado"}
+                </span>
               </li>
             ))}
           </ul>
         </div>
       )}
+
     </div>
   );
 }
