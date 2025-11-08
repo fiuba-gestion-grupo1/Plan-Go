@@ -95,13 +95,12 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
 
     exp = models.Expense(
         trip_id=trip.id,
-        user_id=user.id,  # 👈 guarda quién cargó el gasto
+        user_id=user.id,  
         name=payload.get("name"),
         category=payload.get("category"),
         amount=payload.get("amount"),
         date=date_obj,
     )
-
 
     db.add(exp)
     db.commit()
@@ -115,6 +114,63 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
         "date": str(exp.date),
     }
 
+@router.delete("/{trip_id}/expenses/{expense_id}")
+def delete_expense(trip_id: int, expense_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    
+    # Buscamos el gasto asegurándonos que pertenezca al usuario y al viaje
+    expense = db.query(models.Expense).filter(
+        models.Expense.id == expense_id,
+        models.Expense.trip_id == trip_id
+    ).first()
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+    # Seguridad: Solo el usuario que creó el gasto puede borrarlo
+    if expense.user_id != user.id:
+        raise HTTPException(status_code=403, detail="No autorizado para eliminar este gasto")
+
+    db.delete(expense)
+    db.commit()
+    return {"message": "Gasto eliminado correctamente"}
+
+# --- Editar un gasto ---
+@router.put("/{trip_id}/expenses/{expense_id}")
+def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    
+    expense = db.query(models.Expense).filter(
+        models.Expense.id == expense_id,
+        models.Expense.trip_id == trip_id
+    ).first()
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+    # Seguridad: Solo el usuario que creó el gasto puede editarlo
+    if expense.user_id != user.id:
+        raise HTTPException(status_code=403, detail="No autorizado para editar este gasto")
+
+    # Actualizar campos
+    expense.name = payload.get("name", expense.name)
+    expense.category = payload.get("category", expense.category)
+    expense.amount = payload.get("amount", expense.amount)
+    
+    if payload.get("date"):
+        try:
+            expense.date = datetime.strptime(payload.get("date"), "%Y-%m-%d").date()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Formato de fecha inválido (use YYYY-MM-DD)")
+
+    db.commit()
+    db.refresh(expense)
+    
+    return {
+        "id": expense.id,
+        "name": expense.name,
+        "category": expense.category,
+        "amount": expense.amount,
+        "date": str(expense.date),
+    }
 
 # --- Exportar gastos como PDF ---
 @router.get("/{trip_id}/expenses/export", response_class=FileResponse)
