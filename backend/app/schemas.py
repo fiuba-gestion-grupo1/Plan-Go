@@ -280,3 +280,15 @@ class ExpenseOut(ExpenseIn):
     id: int
     class Config:
         from_attributes = True
+
+class TripOut(BaseModel):
+    id: int
+    name: str
+    start_date: date | None = None
+    end_date: date | None = None
+    created_at: datetime
+    participants_count: int = 0
+
+    class Config:
+        from_attributes = True
+

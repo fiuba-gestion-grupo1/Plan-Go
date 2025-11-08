@@ -7,7 +7,8 @@ export default function ExpensesPage({ token }) {
   const [expenses, setExpenses] = useState([]);
   const [newTrip, setNewTrip] = useState("");
   const [newExpense, setNewExpense] = useState({ name: "", category: "", amount: "", date: "" });
-
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [balances, setBalances] = useState([]);
   const [balancesData, setBalancesData] = useState({ total: 0, por_persona: 0, balances: [] });
 
@@ -22,12 +23,22 @@ export default function ExpensesPage({ token }) {
 
   async function createTrip() {
     if (!newTrip.trim()) return;
+
+    const formatDate = (d) => d ? d : null;
+
     await request("/api/trips", {
       method: "POST",
       token,
-      body: { name: newTrip },
+      body: { 
+        name: newTrip,
+        start_date: formatDate(startDate),
+        end_date: formatDate(endDate)
+      },
     });
+
     setNewTrip("");
+    setStartDate("");
+    setEndDate("");
     fetchTrips();
   }
 
@@ -79,29 +90,94 @@ export default function ExpensesPage({ token }) {
   if (!selectedTrip) {
     return (
       <div className="container mt-4">
-        <h3>💰 Mis viajes</h3>
-        <div className="input-group mb-3">
-          <input
-            className="form-control"
-            value={newTrip}
-            onChange={(e) => setNewTrip(e.target.value)}
-            placeholder="Nombre del viaje..."
-          />
-          <button className="btn btn-primary" onClick={createTrip}>
-            Crear
-          </button>
-        </div>
-        {trips.map((t) => (
-          <div
-            key={t.id}
-            className="list-group-item list-group-item-action"
-            onClick={() => openTrip(t.id)}
-            style={{ cursor: "pointer" }}
-          >
-            <strong>{t.name}</strong>{" "}
-            <small className="text-muted">{new Date(t.created_at).toLocaleDateString()}</small>
+        <h3 className="mb-4 fw-bold">💼 Mis viajes</h3>
+
+        {/* --- Formulario crear viaje --- */}
+        <div className="card shadow-sm mb-4">
+          <div className="card-body">
+            <h5 className="mb-3 fw-semibold">Crear nuevo viaje</h5>
+            
+            <div className="row g-3">
+              <div className="col-md-4">
+                <input
+                  className="form-control"
+                  placeholder="Nombre del viaje"
+                  value={newTrip}
+                  onChange={(e) => setNewTrip(e.target.value)}
+                />
+              </div>
+
+              <div className="col-md-3">
+                <input
+                  type="date"
+                  className="form-control"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+
+              <div className="col-md-3">
+                <input
+                  type="date"
+                  className="form-control"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+
+              <div className="col-md-2 d-grid">
+                <button className="btn btn-primary fw-semibold" onClick={createTrip}>
+                  Crear viaje
+                </button>
+              </div>
+            </div>
           </div>
-        ))}
+        </div>
+
+        {/* --- Tabla viajes --- */}
+        <div className="card shadow-sm">
+          <div className="card-body">
+            <h5 className="fw-semibold mb-3">Viajes creados</h5>
+
+            <table className="table table-hover align-middle text-center">
+              <thead className="table-light">
+                <tr>
+                  <th className="text-center">📍 Viaje</th>
+                  <th className="text-center">📅 Inicio</th>
+                  <th className="text-center">📅 Fin</th>
+                  <th className="text-center">👥 Integrantes</th>
+                  <th className="text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trips.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="text-center text-muted py-4">
+                      No tenés viajes creados aún.
+                    </td>
+                  </tr>
+                )}
+
+                {trips.map((t) => (
+                  <tr key={t.id}>
+                    <td className="fw-semibold text-center">{t.name}</td>
+                    <td>{t.start_date ? new Date(t.start_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
+                    <td>{t.end_date ? new Date(t.end_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
+                    <td>{t.participants_count ?? 1}</td>
+                    <td>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => openTrip(t.id)}
+                      >
+                        Abrir →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     );
   }

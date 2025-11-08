@@ -248,19 +248,20 @@ class Expense(Base):
     user = relationship("User", backref="expenses")
     trip = relationship("Trip", back_populates="expenses")
 
-
-
-
 class Trip(Base):
     __tablename__ = "trips"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
+    
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="trips")
     expenses = relationship("Expense", back_populates="trip", cascade="all, delete-orphan")
+    participants = relationship("TripParticipant", backref="trip", cascade="all, delete-orphan")
 
 class TripParticipant(Base):
     __tablename__ = "trip_participants"

@@ -19,31 +19,55 @@ router = APIRouter(prefix="/api/trips", tags=["trips"])
 @router.get("")
 def get_my_trips(db: Session = Depends(get_db), user=Depends(get_current_user)):
     trips = db.query(models.Trip).filter_by(user_id=user.id).all()
-    return [{"id": t.id, "name": t.name, "created_at": t.created_at} for t in trips]
-
+    
+    return [
+        {
+            "id": t.id,
+            "name": t.name,
+            "start_date": t.start_date,
+            "end_date": t.end_date,
+            "created_at": t.created_at,
+            "participants_count": len(t.participants)
+        }
+        for t in trips
+    ]
 
 # --- Crear viaje (agrega automáticamente al creador como participante) ---
+from datetime import datetime
+
 @router.post("")
 def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     name = payload.get("name")
+    start = payload.get("start_date")
+    end = payload.get("end_date")
+
     if not name:
         raise HTTPException(status_code=400, detail="El nombre del viaje es obligatorio")
 
-    # Crear el viaje
-    trip = models.Trip(user_id=user.id, name=name)
+    # ✅ Convert strings to date objects
+    start_date = datetime.strptime(start, "%Y-%m-%d").date() if start else None
+    end_date = datetime.strptime(end, "%Y-%m-%d").date() if end else None
+
+    trip = models.Trip(
+        user_id=user.id,
+        name=name,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
     db.add(trip)
     db.commit()
     db.refresh(trip)
 
-    # Agregar al creador como participante (si no existe ya)
-    existing = db.query(models.TripParticipant).filter_by(trip_id=trip.id, user_id=user.id).first()
-    if not existing:
-        participant = models.TripParticipant(trip_id=trip.id, user_id=user.id)
-        db.add(participant)
-        db.commit()
+    db.add(models.TripParticipant(trip_id=trip.id, user_id=user.id))
+    db.commit()
 
-    return {"id": trip.id, "name": trip.name}
-
+    return {
+        "id": trip.id,
+        "name": trip.name,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date
+    }
 
 # --- Obtener gastos de un viaje ---
 @router.get("/{trip_id}/expenses")

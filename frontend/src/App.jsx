@@ -10,6 +10,7 @@ import Profile from './pages/Profile'
 import ForgotPassword from './pages/ForgotPassword'
 import Backoffice from "./pages/Backoffice";
 import Suggestions from "./pages/Suggestions";
+import "./styles/buttons.css";
 
 // 👇 NUEVO
 import InviteFriend from "./pages/InviteFriend";
