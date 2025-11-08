@@ -69,6 +69,54 @@ def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_c
         "end_date": trip.end_date
     }
 
+# --- Editar un viaje ---
+@router.put("/{trip_id}")
+def update_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    
+    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # Actualizar campos
+    trip.name = payload.get("name", trip.name)
+    
+    # Convertir fechas si vienen en el payload
+    if "start_date" in payload:
+        start = payload.get("start_date")
+        trip.start_date = datetime.strptime(start, "%Y-%m-%d").date() if start else None
+    
+    if "end_date" in payload:
+        end = payload.get("end_date")
+        trip.end_date = datetime.strptime(end, "%Y-%m-%d").date() if end else None
+
+    db.commit()
+    db.refresh(trip)
+    
+    return {
+        "id": trip.id,
+        "name": trip.name,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date
+    }
+
+# --- Eliminar un viaje (y todos sus gastos/participantes asociados) ---
+@router.delete("/{trip_id}")
+def delete_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    
+    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # Seguridad: Eliminar primero los hijos (si no tenés 'cascade delete' en el modelo)
+    db.query(models.Expense).filter(models.Expense.trip_id == trip_id).delete()
+    db.query(models.TripParticipant).filter(models.TripParticipant.trip_id == trip_id).delete()
+    
+    # Ahora eliminar el viaje
+    db.delete(trip)
+    db.commit()
+    
+    return {"message": "Viaje eliminado correctamente"}
+
 # --- Obtener gastos de un viaje ---
 @router.get("/{trip_id}/expenses")
 def get_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
@@ -105,14 +153,21 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
             status_code=400, 
             detail=f"La fecha del gasto ({date_obj}) no puede ser posterior al fin del viaje ({trip.end_date})."
         )
-    # --- FIN VALIDACIÓN ---
+
+    # --- VALIDACIÓN DE MONTO ---
+    try:
+        amount_val = float(payload.get("amount", 0))
+        if amount_val < 0:
+            raise HTTPException(status_code=400, detail="El monto del gasto no puede ser negativo.")
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="El monto debe ser un número válido.")
 
     exp = models.Expense(
         trip_id=trip.id,
         user_id=user.id,  
         name=payload.get("name"),
         category=payload.get("category"),
-        amount=payload.get("amount"),
+        amount=amount_val, 
         date=date_obj,
     )
 
@@ -152,12 +207,10 @@ def delete_expense(trip_id: int, expense_id: int, db: Session = Depends(get_db),
 @router.put("/{trip_id}/expenses/{expense_id}")
 def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     
-    # 1. Buscar el viaje para obtener sus fechas
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # 2. Buscar el gasto
     expense = db.query(models.Expense).filter(
         models.Expense.id == expense_id,
         models.Expense.trip_id == trip_id
@@ -166,16 +219,24 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    # 3. Seguridad: Solo el creador edita
     if expense.user_id != user.id:
         raise HTTPException(status_code=403, detail="No autorizado para editar este gasto")
 
-    # 4. Actualizar campos (en memoria, sin commit)
     expense.name = payload.get("name", expense.name)
     expense.category = payload.get("category", expense.category)
-    expense.amount = payload.get("amount", expense.amount)
     
-    # 5. Determinar y validar la nueva fecha
+    new_amount_val = expense.amount  # Valor por defecto es el actual
+    
+    if "amount" in payload: # Solo validamos si se está intentando cambiar el monto
+        try:
+            new_amount_val = float(payload.get("amount"))
+            if new_amount_val < 0:
+                raise HTTPException(status_code=400, detail="El monto del gasto no puede ser negativo.")
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="El monto debe ser un número válido.")
+    
+    expense.amount = new_amount_val # Asignamos el monto validado (o el original si no cambió)
+    
     new_date_obj = expense.date  # Por defecto, la fecha que ya tiene
     
     if payload.get("date"):
@@ -196,12 +257,8 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
             status_code=400, 
             detail=f"La fecha del gasto ({new_date_obj}) no puede ser posterior al fin del viaje ({trip.end_date})."
         )
-    # --- FIN VALIDACIÓN ---
-
-    # Si la validación pasó, actualizamos la fecha en el objeto
     expense.date = new_date_obj
 
-    # 6. Guardar cambios
     db.commit()
     db.refresh(expense)
     

@@ -15,6 +15,8 @@ export default function ExpensesPage({ token }) {
   const [editingExpense, setEditingExpense] = useState(null); 
   const [addError, setAddError] = useState(""); // Error para el formulario de 'Agregar'
   const [editError, setEditError] = useState(""); // Error para el 'Modal de Edición'
+  const [editingTrip, setEditingTrip] = useState(null); // Para el modal de editar viaje
+  const [editTripError, setEditTripError] = useState(""); // Error para ese modal
 
   useEffect(() => {
     fetchTrips();
@@ -69,8 +71,9 @@ export default function ExpensesPage({ token }) {
 
     } catch (error) {
       console.error("Error al agregar gasto:", error);
-      // Asumimos que tu 'request' utility pone el detalle del error en error.detail
-      setAddError(error.detail || "Error al agregar. Verifique que la fecha esté dentro del viaje.");
+      // Leemos 'error.message' o 'error.detail' y usamos un fallback genérico.
+      const errorMessage = error.message || error.detail || "Error al agregar. Verifique los datos ingresados.";
+      setAddError(errorMessage);
     }
   }
 
@@ -106,7 +109,9 @@ export default function ExpensesPage({ token }) {
       openTrip(selectedTrip); // Refresca la lista
     } catch (error) {
       console.error("Error al actualizar gasto:", error);
-      setEditError(error.detail || "Error al actualizar. Verifique que la fecha esté dentro del viaje.");
+      // Leemos 'error.message' o 'error.detail' y usamos un fallback genérico.
+      const errorMessage = error.message || error.detail || "Error al actualizar. Verifique los datos ingresados.";
+      setEditError(errorMessage);
     }
   }
 
@@ -149,7 +154,61 @@ export default function ExpensesPage({ token }) {
     setBalances(data.balances || []);
   }
 
-  if (!selectedTrip) {
+  async function handleDeleteTrip(tripId) {
+    if (!window.confirm("¿Seguro que querés eliminar este viaje? Se borrarán todos sus gastos.")) {
+      return;
+    }
+    try {
+      await request(`/api/trips/${tripId}`, {
+        method: "DELETE",
+        token,
+      });
+      fetchTrips(); // Refresca la lista de viajes
+    } catch (error) {
+      console.error("Error al eliminar viaje:", error);
+      alert(error.detail || "Error al eliminar el viaje.");
+    }
+  }
+
+  const handleOpenEditTripModal = (trip) => {
+    // Formateamos las fechas para el input type="date"
+    const format = (dateStr) => dateStr ? new Date(dateStr).toISOString().split('T')[0] : "";
+    
+    setEditingTrip({
+      ...trip,
+      start_date: format(trip.start_date),
+      end_date: format(trip.end_date)
+    });
+    setEditTripError("");
+  };
+
+  const handleCloseEditTripModal = () => {
+    setEditingTrip(null);
+    setEditTripError("");
+  };
+
+  async function handleUpdateTrip() {
+    if (!editingTrip) return;
+
+    const { id, name, start_date, end_date } = editingTrip;
+
+    try {
+      await request(`/api/trips/${id}`, {
+        method: "PUT",
+        token,
+        body: { name, start_date, end_date },
+      });
+      
+      handleCloseEditTripModal();
+      fetchTrips(); // Refresca la lista de viajes
+
+    } catch (error) {
+      console.error("Error al actualizar el viaje:", error);
+      setEditTripError(error.detail || "Error al guardar los cambios.");
+    }
+  }
+
+if (!selectedTrip) {
     return (
       <div className="container mt-4">
         <h3 className="mb-4 fw-bold">💼 Mis viajes</h3>
@@ -226,13 +285,29 @@ export default function ExpensesPage({ token }) {
                     <td>{t.start_date ? new Date(t.start_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
                     <td>{t.end_date ? new Date(t.end_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
                     <td>{t.participants_count ?? 1}</td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => openTrip(t.id)}
-                      >
-                        Abrir →
-                      </button>
+                    <td className="text-center">
+                      <div className="btn-group btn-group-sm" role="group">
+                        <button 
+                          className="btn btn-outline-primary" 
+                          onClick={() => openTrip(t.id)}
+                        >
+                          Abrir
+                        </button>
+                        <button 
+                          className="btn btn-outline-secondary" 
+                          onClick={() => handleOpenEditTripModal(t)} 
+                          title="Editar Viaje"
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="btn btn-outline-danger" 
+                          onClick={() => handleDeleteTrip(t.id)} 
+                          title="Eliminar Viaje"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -240,6 +315,65 @@ export default function ExpensesPage({ token }) {
             </table>
           </div>
         </div>
+
+        {/* --- NUEVO: MODAL DE EDICIÓN DE VIAJE --- */}
+        {editingTrip && (
+          <>
+            <div className="modal-backdrop fade show"></div>
+            <div className="modal fade show d-block" tabIndex="-1">
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Editar Viaje</h5>
+                    <button type="button" className="btn-close" onClick={handleCloseEditTripModal}></button>
+                  </div>
+                  <div className="modal-body">
+                    
+                    {editTripError && (
+                      <div className="alert alert-danger" role="alert">
+                        {editTripError}
+                      </div>
+                    )}
+
+                    <div className="mb-3">
+                      <label className="form-label">Nombre del Viaje</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editingTrip.name}
+                        onChange={(e) => setEditingTrip({ ...editingTrip, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Fecha de Inicio</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={editingTrip.start_date}
+                        onChange={(e) => setEditingTrip({ ...editingTrip, start_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Fecha de Fin</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={editingTrip.end_date}
+                        onChange={(e) => setEditingTrip({ ...editingTrip, end_date: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={handleCloseEditTripModal}>Cancelar</button>
+                    <button type="button" className="btn btn-primary" onClick={handleUpdateTrip}>Guardar Cambios</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        {/* --- FIN MODAL EDICIÓN VIAJE --- */}
+
       </div>
     );
   }
