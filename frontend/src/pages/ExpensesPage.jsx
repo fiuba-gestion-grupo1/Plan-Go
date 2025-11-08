@@ -13,6 +13,8 @@ export default function ExpensesPage({ token }) {
   const [balancesData, setBalancesData] = useState({ total: 0, por_persona: 0, balances: [] });
   const [view, setView] = useState('list'); // 'list' o 'report'
   const [editingExpense, setEditingExpense] = useState(null); 
+  const [addError, setAddError] = useState(""); // Error para el formulario de 'Agregar'
+  const [editError, setEditError] = useState(""); // Error para el 'Modal de Edición'
 
   useEffect(() => {
     fetchTrips();
@@ -53,13 +55,23 @@ export default function ExpensesPage({ token }) {
   async function addExpense() {
     const { name, category, amount, date } = newExpense;
     if (!name || !category || !amount || !date) return;
-    await request(`/api/trips/${selectedTrip}/expenses`, {
-      method: "POST",
-      token,
-      body: { name, category, amount: parseFloat(amount), date },
-    });
-    setNewExpense({ name: "", category: "", amount: "", date: "" });
-    openTrip(selectedTrip);
+    
+    try {
+      await request(`/api/trips/${selectedTrip}/expenses`, {
+        method: "POST",
+        token,
+        body: { name, category, amount: parseFloat(amount), date },
+      });
+      
+      setNewExpense({ name: "", category: "", amount: "", date: "" });
+      setAddError(""); // Limpiamos el error si tuvo éxito
+      openTrip(selectedTrip);
+
+    } catch (error) {
+      console.error("Error al agregar gasto:", error);
+      // Asumimos que tu 'request' utility pone el detalle del error en error.detail
+      setAddError(error.detail || "Error al agregar. Verifique que la fecha esté dentro del viaje.");
+    }
   }
 
   async function handleDeleteExpense(expenseId) {
@@ -90,22 +102,24 @@ export default function ExpensesPage({ token }) {
         body: { name, category, amount: parseFloat(amount), date },
       });
       setEditingExpense(null); // Cierra el modal
+      setEditError(""); // Limpiamos el error
       openTrip(selectedTrip); // Refresca la lista
     } catch (error) {
       console.error("Error al actualizar gasto:", error);
-      alert("Error al actualizar el gasto.");
+      setEditError(error.detail || "Error al actualizar. Verifique que la fecha esté dentro del viaje.");
     }
   }
 
   // Funciones auxiliares para abrir/cerrar el modal
   const handleOpenEditModal = (expense) => {
-    // Nos aseguramos que la fecha esté en formato YYYY-MM-DD para el input
     const dateFormatted = expense.date ? new Date(expense.date).toISOString().split('T')[0] : "";
     setEditingExpense({...expense, date: dateFormatted});
+    setEditError(""); // Limpia el error al abrir
   };
 
   const handleCloseEditModal = () => {
     setEditingExpense(null);
+    setEditError(""); // Limpia el error al cerrar
   };
 
   async function exportToPDF() {
@@ -311,6 +325,14 @@ export default function ExpensesPage({ token }) {
         </div>
       </div>
 
+      {/* --- NUEVO: Mensaje de error para 'add' --- */}
+      {addError && (
+        <div className="alert alert-danger alert-dismissible fade show" role="alert">
+          <strong>Error:</strong> {addError}
+          <button type="button" className="btn-close" onClick={() => setAddError("")}></button>
+        </div>
+      )}
+
       {/* --- NUEVO: Botones para cambiar de vista --- */}
       <div className="mb-3">
         <button 
@@ -438,6 +460,11 @@ export default function ExpensesPage({ token }) {
                   <button type="button" className="btn-close" onClick={handleCloseEditModal}></button>
                 </div>
                 <div className="modal-body">
+                  {editError && (
+                    <div className="alert alert-danger" role="alert">
+                      {editError}
+                    </div>
+                  )}
                   <div className="mb-3">
                     <label className="form-label">Nombre</label>
                     <input

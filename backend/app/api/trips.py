@@ -93,6 +93,20 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
     except Exception:
         raise HTTPException(status_code=400, detail="Formato de fecha inválido (use YYYY-MM-DD)")
 
+    # --- VALIDACIÓN DE FECHAS ---
+    if trip.start_date and date_obj < trip.start_date:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"La fecha del gasto ({date_obj}) no puede ser anterior al inicio del viaje ({trip.start_date})."
+        )
+    
+    if trip.end_date and date_obj > trip.end_date:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"La fecha del gasto ({date_obj}) no puede ser posterior al fin del viaje ({trip.end_date})."
+        )
+    # --- FIN VALIDACIÓN ---
+
     exp = models.Expense(
         trip_id=trip.id,
         user_id=user.id,  
@@ -138,6 +152,12 @@ def delete_expense(trip_id: int, expense_id: int, db: Session = Depends(get_db),
 @router.put("/{trip_id}/expenses/{expense_id}")
 def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     
+    # 1. Buscar el viaje para obtener sus fechas
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # 2. Buscar el gasto
     expense = db.query(models.Expense).filter(
         models.Expense.id == expense_id,
         models.Expense.trip_id == trip_id
@@ -146,21 +166,42 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    # Seguridad: Solo el usuario que creó el gasto puede editarlo
+    # 3. Seguridad: Solo el creador edita
     if expense.user_id != user.id:
         raise HTTPException(status_code=403, detail="No autorizado para editar este gasto")
 
-    # Actualizar campos
+    # 4. Actualizar campos (en memoria, sin commit)
     expense.name = payload.get("name", expense.name)
     expense.category = payload.get("category", expense.category)
     expense.amount = payload.get("amount", expense.amount)
     
+    # 5. Determinar y validar la nueva fecha
+    new_date_obj = expense.date  # Por defecto, la fecha que ya tiene
+    
     if payload.get("date"):
         try:
-            expense.date = datetime.strptime(payload.get("date"), "%Y-%m-%d").date()
+            new_date_obj = datetime.strptime(payload.get("date"), "%Y-%m-%d").date()
         except Exception:
             raise HTTPException(status_code=400, detail="Formato de fecha inválido (use YYYY-MM-DD)")
 
+    # --- VALIDACIÓN DE FECHAS ---
+    if trip.start_date and new_date_obj < trip.start_date:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"La fecha del gasto ({new_date_obj}) no puede ser anterior al inicio del viaje ({trip.start_date})."
+        )
+    
+    if trip.end_date and new_date_obj > trip.end_date:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"La fecha del gasto ({new_date_obj}) no puede ser posterior al fin del viaje ({trip.end_date})."
+        )
+    # --- FIN VALIDACIÓN ---
+
+    # Si la validación pasó, actualizamos la fecha en el objeto
+    expense.date = new_date_obj
+
+    # 6. Guardar cambios
     db.commit()
     db.refresh(expense)
     
