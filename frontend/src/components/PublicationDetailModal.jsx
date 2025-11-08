@@ -21,6 +21,12 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
 
     const isPremium = me?.role === "premium" || me?.username === "admin";
 
+    //Estado para el modal de reporte ---
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportingReview, setReportingReview] = useState(null); // La reseña que se está reportando
+    const [reportReason, setReportReason] = useState("");
+    const [reportComment, setReportComment] = useState("");
+
     // Efecto para cargar reseñas
     useEffect(() => {
         if (!open || !pub?.id) {
@@ -125,6 +131,54 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
         }
     }
 
+    // --- NUEVAS FUNCIONES PARA REPORTE ---
+    const handleOpenReportModal = (review) => {
+        setReportingReview(review);
+        setIsReportModalOpen(true);
+    };
+
+    const handleCloseReportModal = () => {
+        setIsReportModalOpen(false);
+        setReportingReview(null);
+        setReportReason("");
+        setReportComment("");
+    };
+
+    async function handleSubmitReport(e) {
+        e.preventDefault();
+        if (!reportingReview || !reportReason) {
+            alert("Por favor, selecciona una razón para el reporte.");
+            return;
+        }
+
+        console.log("--- SIMULACIÓN DE REPORTE (FRONTEND) ---");
+        console.log("Reportando reseña ID:", reportingReview.id);
+        console.log("Razón:", reportReason);
+        console.log("Comentario:", reportComment);
+        console.log("-----------------------------------------");
+
+        // --- INICIO: Lógica de Backend (para el otro desarrollador) ---
+        /*
+        try {
+            // Descomentar y ajustar el endpoint/body cuando el backend esté listo
+            await request(`/api/publications/reviews/${reportingReview.id}/report`, {
+                method: "POST",
+                token,
+                body: { reason: reportReason, comment: reportComment || undefined }
+            });
+            alert("Reporte enviado con éxito. Gracias por tu colaboración.");
+        } catch (err) {
+            alert("Error al enviar el reporte: " + (err?.message || "Error"));
+        }
+        */
+        // --- FIN: Lógica de Backend ---
+
+        // Simulación de éxito (solo frontend)
+        alert("Reporte enviado (simulación). Gracias por tu colaboración.");
+
+        handleCloseReportModal();
+    }
+
     //FUNCION TOGGLE FAVORITE
     async function handleToggleFavorite(e) {
         if (e && e.stopPropagation) e.stopPropagation();
@@ -137,6 +191,8 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
             alert('Error actualizando favoritos: ' + (err?.message || err));
         }
     }
+
+
 
     return (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -247,9 +303,20 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                                                 </button>
                                             </div>
                                             <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
+                                            {isLoggedIn && (
+                                                <button
+                                                    className="btn btn-link btn-sm p-0 ms-2 text-danger"
+                                                    title="Reportar reseña"
+                                                    onClick={() => handleOpenReportModal(r)}
+                                                    style={{ textDecoration: 'none' }}
+                                                >
+                                                    🚩 Reportar
+                                                </button>
+                                            )}
+                                            {/* --- FIN BOTÓN DE REPORTE --- */}
                                         </div>
                                         {r.comment && <div className="mt-1">{r.comment}</div>}
-                                        <small className="text-muted d-block mt-1">por {r.author_username}</small>
+                                        < small className="text-muted d-block mt-1" > por {r.author_username}</small>
 
                                         {/* Bloque de comentarios de la reseña */}
                                         <div className="mt-3 ps-3" style={{ borderLeft: '3px solid #eee' }}>
@@ -321,7 +388,63 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+            {/* Modal de reporte */}
+            {isReportModalOpen && reportingReview && (
+                <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                    style={{ background: "rgba(0,0,0,.6)", zIndex: 1060 }}> {/* zIndex más alto para superponer */}
+                    <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 500, width: "90%" }}>
+                        <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0">Reportar Reseña</h5>
+                            <button className="btn-close" onClick={handleCloseReportModal}></button>
+                        </div>
+                        <form onSubmit={handleSubmitReport}>
+                            <div className="p-3" style={{ maxHeight: "70vh", overflowY: "auto" }}>
+                                <p>Estás reportando la reseña de <strong>{reportingReview.author_username}</strong>:</p>
+                                <blockquote className="small fst-italic border-start ps-2 bg-light p-2 rounded">
+                                    "{reportingReview.comment || "(Sin comentario de texto)"}"
+                                </blockquote>
+
+                                <label className="form-label mt-3 mb-1">Razón del reporte (requerido):</label>
+                                <div className="form-check">
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason1" value="Spam" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Spam"} />
+                                    <label className="form-check-label" htmlFor="reason1">Es spam o publicidad</label>
+                                </div>
+                                <div className="form-check">
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason2" value="Inapropiado" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Inapropiado"} />
+                                    <label className="form-check-label" htmlFor="reason2">Contenido inapropiado u ofensivo</label>
+                                </div>
+                                <div className="form-check">
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason3" value="Odio" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Odio"} />
+                                    <label className="form-check-label" htmlFor="reason3">Discurso de odio o discriminación</label>
+                                </div>
+                                <div className="form-check">
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason4" value="Irrelevante" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Irrelevante"} />
+                                    <label className="form-check-label" htmlFor="reason4">No es relevante para la publicación</label>
+                                </div>
+                                <div className="form-check">
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason5" value="Otro" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Otro"} />
+                                    <label className="form-check-label" htmlFor="reason5">Otra razón</label>
+                                </div>
+
+                                <label className="form-label mt-3">Comentarios (opcional):</label>
+                                <textarea
+                                    className="form-control"
+                                    rows="3"
+                                    value={reportComment}
+                                    onChange={(e) => setReportComment(e.target.value)}
+                                    placeholder="Danos más detalles..."
+                                />
+                            </div>
+                            <div className="p-3 border-top text-end">
+                                <button type="button" className="btn btn-secondary me-2" onClick={handleCloseReportModal}>Cancelar</button>
+                                <button type="submit" className="btn btn-danger" disabled={!reportReason}>Enviar Reporte</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* === FIN MODAL DE REPORTE === */}
+        </div >
     );
 }
