@@ -15,11 +15,18 @@ from datetime import datetime
 router = APIRouter(prefix="/api/trips", tags=["trips"])
 
 
-# --- Obtener viajes del usuario ---
 @router.get("")
 def get_my_trips(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    trips = db.query(models.Trip).filter_by(user_id=user.id).all()
+    # viajes que el usuario creó
+    own_trips = db.query(models.Trip).filter_by(user_id=user.id).all()
     
+    # viajes donde es participante
+    participant_links = db.query(models.TripParticipant).filter_by(user_id=user.id).all()
+    participant_trips = [p.trip for p in participant_links if p.trip is not None]
+
+    # combinar y evitar duplicados
+    all_trips = {t.id: t for t in (own_trips + participant_trips)}.values()
+
     return [
         {
             "id": t.id,
@@ -29,8 +36,9 @@ def get_my_trips(db: Session = Depends(get_db), user=Depends(get_current_user)):
             "created_at": t.created_at,
             "participants_count": len(t.participants)
         }
-        for t in trips
+        for t in all_trips
     ]
+
 
 # --- Crear viaje (agrega automáticamente al creador como participante) ---
 from datetime import datetime
@@ -68,6 +76,84 @@ def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_c
         "start_date": trip.start_date,
         "end_date": trip.end_date
     }
+
+
+
+@router.post("/{trip_id}/invite")
+def invite_user_to_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    username_to_invite = payload.get("username")
+    if not username_to_invite:
+        raise HTTPException(status_code=400, detail="Debe indicar el nombre de usuario a invitar")
+
+    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado o no autorizado")
+
+    invited_user = db.query(models.User).filter_by(username=username_to_invite).first()
+    if not invited_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if invited_user.role != "premium":
+        raise HTTPException(status_code=403, detail="Solo se pueden invitar usuarios premium")
+
+    existing = db.query(models.TripInvitation).filter_by(
+        trip_id=trip_id,
+        invited_user_id=invited_user.id,
+        status="pending"
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya se ha enviado una invitación pendiente a este usuario")
+
+    invitation = models.TripInvitation(
+        trip_id=trip_id,
+        invited_user_id=invited_user.id,
+        invited_by_user_id=user.id,
+        status="pending"
+    )
+
+    db.add(invitation)
+    db.commit()
+    return {"message": f"Invitación enviada a {username_to_invite}"}
+
+
+@router.get("/invitations")
+def get_my_invitations(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    invites = db.query(models.TripInvitation).filter_by(invited_user_id=user.id, status="pending").all()
+    return [
+        {
+            "id": inv.id,
+            "trip_id": inv.trip_id,
+            "trip_name": inv.trip.name,
+            "invited_by": inv.invited_by_user.username,
+            "created_at": inv.created_at
+        }
+        for inv in invites
+    ]
+
+
+@router.post("/invitations/{invitation_id}/respond")
+def respond_to_invitation(invitation_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    action = payload.get("action")  # "accept" o "reject"
+    if action not in ["accept", "reject"]:
+        raise HTTPException(status_code=400, detail="Acción inválida")
+
+    invitation = db.query(models.TripInvitation).filter_by(id=invitation_id, invited_user_id=user.id).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitación no encontrada")
+
+    if invitation.status != "pending":
+        raise HTTPException(status_code=400, detail="Esta invitación ya fue respondida")
+
+    if action == "accept":
+        invitation.status = "accepted"
+        db.add(models.TripParticipant(trip_id=invitation.trip_id, user_id=user.id))
+    else:
+        invitation.status = "rejected"
+
+    db.commit()
+    return {"message": f"Invitación {action}ed correctamente"}
+
 
 # --- Editar un viaje ---
 @router.put("/{trip_id}")
@@ -349,9 +435,14 @@ def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends
 
     # Asegurar que el usuario esté agregado como participante
     participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
-    if not participant:
-        db.add(models.TripParticipant(trip_id=trip_id, user_id=user.id))
-        db.commit()
+
+    # --- Validar acceso al cálculo de saldos ---
+    # El creador del viaje siempre puede ver y calcular
+    if trip.user_id != user.id:
+        participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
+
 
     # --- Obtener participantes y gastos ---
     participants = db.query(models.TripParticipant).filter_by(trip_id=trip_id).all()

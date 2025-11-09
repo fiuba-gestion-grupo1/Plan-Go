@@ -293,3 +293,19 @@ class TripParticipant(Base):
     id = Column(Integer, primary_key=True, index=True)
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+
+
+class TripInvitation(Base):
+    __tablename__ = "trip_invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    invited_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), nullable=False, server_default="pending", default="pending")  # pending|accepted|rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    invited_user = relationship("User", foreign_keys=[invited_user_id])
+    invited_by_user = relationship("User", foreign_keys=[invited_by_user_id])
+    trip = relationship("Trip", backref="invitations")
