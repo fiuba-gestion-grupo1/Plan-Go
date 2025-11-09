@@ -76,7 +76,7 @@ class Publication(Base):
     climate       = Column(String, nullable=True)   # ej: "templado", "tropical"
     activities    = Column(JSON, nullable=True)     # ej: ["playa", "gastronomía"]
     cost_per_day  = Column(Float, nullable=True)
-    duration_days = Column(Integer, nullable=True)
+    duration_min = Column(Integer, nullable=True)
 
     # Ratings (US-5.1)
     rating_avg   = Column(Float,  nullable=False, server_default="0")
@@ -143,6 +143,7 @@ class Review(Base):
     author_id      = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     rating   = Column(Integer, nullable=False)  # 1..5
     comment  = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)  # approved|under_review|hidden
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     publication = relationship("Publication", backref="reviews")
@@ -150,6 +151,30 @@ class Review(Base):
 
     likes = relationship("ReviewLike", back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
     comments = relationship("ReviewComment", back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
+
+
+# ---------------------------
+# Review Reports
+# ---------------------------
+class ReviewReport(Base):
+    __tablename__ = "review_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_id = Column(Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    reporter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    reason = Column(String(100), nullable=False)  # spam, inappropriate, fake, etc.
+    comments = Column(Text, nullable=True)  # Comentarios adicionales del usuario que reporta
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|approved|rejected
+    rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    review = relationship("Review")
+    reporter = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("review_id", "reporter_id", name="uq_review_report"),
+    )
 
 
 # ---------------------------

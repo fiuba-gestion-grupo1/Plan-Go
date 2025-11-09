@@ -140,8 +140,15 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
           <ul className="list-unstyled mb-0">
             {list.map((r) => (
               <li key={r.id} className="border rounded-3 p-3 mb-2">
-                <div className="d-flex justify-content-between">
-                  <Stars value={r.rating} />
+                <div className="d-flex justify-content-between align-items-start">
+                  <div className="d-flex align-items-center gap-2">
+                    <Stars value={r.rating} />
+                    {r.status === "under_review" && (
+                      <span className="badge bg-warning text-dark">
+                        🔍 Bajo investigación
+                      </span>
+                    )}
+                  </div>
                   <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
                 </div>
                 {r.comment && <div className="mt-1">{r.comment}</div>}
@@ -296,6 +303,11 @@ export default function Home({ me, view = "publications" }) {
   const [myItineraries, setMyItineraries] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Estados para modal de confirmación de eliminación de itinerarios
+  const [deleteItineraryModal, setDeleteItineraryModal] = useState(false);
+  const [itineraryToDelete, setItineraryToDelete] = useState(null);
+  
   const token = useMemo(() => localStorage.getItem("token") || "", []);
   // leer ?pub=ID una sola vez
   const [paramPubId] = useState(() => {
@@ -520,23 +532,27 @@ export default function Home({ me, view = "publications" }) {
   }
 
   async function handleDeleteItinerary(itineraryId) {
-    if (!window.confirm("¿Estás seguro de que deseas eliminar este itinerario? Esta acción no se puede deshacer.")) {
-      return;
-    }
+    // Mostrar modal de confirmación en lugar de window.confirm
+    setItineraryToDelete(itineraryId);
+    setDeleteItineraryModal(true);
+  }
+
+  async function confirmDeleteItinerary() {
+    if (!itineraryToDelete) return;
 
     setLoading(true);
     setError("");
     setSuccessMsg("");
 
     try {
-      await request(`/api/itineraries/${itineraryId}`, {
+      await request(`/api/itineraries/${itineraryToDelete}`, {
         method: "DELETE",
         token
       });
 
       setSuccessMsg("Itinerario eliminado exitosamente");
 
-      if (selectedItinerary && selectedItinerary.id === itineraryId) {
+      if (selectedItinerary && selectedItinerary.id === itineraryToDelete) {
         setSelectedItinerary(null);
       }
 
@@ -546,6 +562,9 @@ export default function Home({ me, view = "publications" }) {
       setError(e.message || "Error al eliminar el itinerario");
     } finally {
       setLoading(false);
+      // Cerrar modal y limpiar estado
+      setDeleteItineraryModal(false);
+      setItineraryToDelete(null);
     }
   }
 
@@ -563,7 +582,7 @@ export default function Home({ me, view = "publications" }) {
 
     // Convertir campos numéricos de string a number
     const costPerDay = fd.get('cost_per_day');
-    const durationDays = fd.get('duration_days');
+    const durationMin = fd.get('duration_min');
 
     if (costPerDay && costPerDay.trim() !== '') {
       fd.set('cost_per_day', parseFloat(costPerDay));
@@ -571,10 +590,10 @@ export default function Home({ me, view = "publications" }) {
       fd.delete('cost_per_day');
     }
 
-    if (durationDays && durationDays.trim() !== '') {
-      fd.set('duration_days', parseInt(durationDays, 10));
+    if (durationMin && durationMin.trim() !== '') {
+      fd.set('duration_min', parseInt(durationMin, 10));
     } else {
-      fd.delete('duration_days');
+      fd.delete('duration_min');
     }
 
     // Debug: mostrar qué se está enviando
@@ -915,6 +934,32 @@ export default function Home({ me, view = "publications" }) {
           <div className="alert alert-info mt-4">
             <strong>💡 Tip:</strong> Usa el botón "📋 Copiar" para copiar todo el itinerario y pegarlo donde necesites.
           </div>
+
+          {/* Modal de confirmación de eliminación de itinerario */}
+          {deleteItineraryModal && (
+            <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+              <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+                <div className="p-4 text-center">
+                  <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+                  <div className="d-flex gap-2 justify-content-center">
+                    <button
+                      className="btn btn-outline-secondary"
+                      onClick={() => setDeleteItineraryModal(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={confirmDeleteItinerary}
+                    >
+                      Aceptar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -1018,7 +1063,10 @@ export default function Home({ me, view = "publications" }) {
                     </button>
                     <button
                       className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleDeleteItinerary(itinerary.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteItinerary(itinerary.id);
+                      }}
                       title="Eliminar itinerario"
                       disabled={loading}
                     >
@@ -1038,6 +1086,32 @@ export default function Home({ me, view = "publications" }) {
         {!loading && myItineraries.length === 0 && (
           <div className="alert alert-secondary">
             No tienes itinerarios generados aún. ¡Crea tu primer itinerario con IA!
+          </div>
+        )}
+
+        {/* Modal de confirmación de eliminación de itinerario */}
+        {deleteItineraryModal && (
+          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+              <div className="p-4 text-center">
+                <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+                <div className="d-flex gap-2 justify-content-center">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setDeleteItineraryModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={confirmDeleteItinerary}
+                  >
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1250,6 +1324,44 @@ export default function Home({ me, view = "publications" }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de confirmación de eliminación de itinerario */}
+      {console.log("🎯 EVALUATING MODAL CONDITION:", deleteItineraryModal, typeof deleteItineraryModal)}
+      {deleteItineraryModal ? (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+          {console.log("🎯 MODAL IS RENDERING!")}
+          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+            <div className="p-4 text-center">
+              <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+              <div className="d-flex gap-2 justify-content-center">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => {
+                    console.log("🎯 CANCEL CLICKED");
+                    setDeleteItineraryModal(false);
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => {
+                    console.log("🎯 CONFIRM CLICKED");
+                    confirmDeleteItinerary();
+                  }}
+                >
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {console.log("🎯 MODAL NOT RENDERING - value is:", deleteItineraryModal)}
+        </>
       )}
     </div>
   );

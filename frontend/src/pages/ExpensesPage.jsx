@@ -18,6 +18,12 @@ export default function ExpensesPage({ token }) {
   const [editingTrip, setEditingTrip] = useState(null); // Para el modal de editar viaje
   const [editTripError, setEditTripError] = useState(""); // Error para ese modal
 
+  // Estados para modales de confirmación
+  const [deleteExpenseModal, setDeleteExpenseModal] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
+  const [deleteTripModal, setDeleteTripModal] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState(null);
+
   useEffect(() => {
     fetchTrips();
   }, []);
@@ -78,11 +84,16 @@ export default function ExpensesPage({ token }) {
   }
 
   async function handleDeleteExpense(expenseId) {
-    if (!window.confirm("¿Estás seguro de que querés eliminar este gasto?")) {
-      return;
-    }
+    // Mostrar modal de confirmación
+    setExpenseToDelete(expenseId);
+    setDeleteExpenseModal(true);
+  }
+
+  async function confirmDeleteExpense() {
+    if (!expenseToDelete) return;
+
     try {
-      await request(`/api/trips/${selectedTrip}/expenses/${expenseId}`, {
+      await request(`/api/trips/${selectedTrip}/expenses/${expenseToDelete}`, {
         method: "DELETE",
         token,
       });
@@ -90,6 +101,10 @@ export default function ExpensesPage({ token }) {
     } catch (error) {
       console.error("Error al eliminar gasto:", error);
       alert("Error al eliminar. Es posible que no tengas permiso para borrar este gasto.");
+    } finally {
+      // Cerrar modal
+      setDeleteExpenseModal(false);
+      setExpenseToDelete(null);
     }
   }
 
@@ -155,18 +170,31 @@ export default function ExpensesPage({ token }) {
   }
 
   async function handleDeleteTrip(tripId) {
-    if (!window.confirm("¿Seguro que querés eliminar este viaje? Se borrarán todos sus gastos.")) {
-      return;
-    }
+    // Mostrar modal de confirmación
+    setTripToDelete(tripId);
+    setDeleteTripModal(true);
+  }
+
+  async function confirmDeleteTrip() {
+    if (!tripToDelete) return;
+
     try {
-      await request(`/api/trips/${tripId}`, {
+      await request(`/api/trips/${tripToDelete}`, {
         method: "DELETE",
         token,
       });
       fetchTrips(); // Refresca la lista de viajes
+      // Si eliminamos el viaje seleccionado, volver a la lista
+      if (selectedTrip === tripToDelete) {
+        setSelectedTrip(null);
+      }
     } catch (error) {
       console.error("Error al eliminar viaje:", error);
       alert(error.detail || "Error al eliminar el viaje.");
+    } finally {
+      // Cerrar modal
+      setDeleteTripModal(false);
+      setTripToDelete(null);
     }
   }
 
@@ -374,6 +402,33 @@ if (!selectedTrip) {
         )}
         {/* --- FIN MODAL EDICIÓN VIAJE --- */}
 
+        {/* Modal de confirmación para eliminar viaje (en vista de lista) */}
+        {deleteTripModal && (
+          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+              <div className="p-4 text-center">
+                <h5 className="mb-3">¿Seguro que querés eliminar este viaje?</h5>
+                <p className="text-muted mb-3">Se borrarán todos sus gastos.</p>
+                <div className="d-flex gap-2 justify-content-center">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setDeleteTripModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={confirmDeleteTrip}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   }
@@ -395,17 +450,27 @@ if (!selectedTrip) {
       {/* --- Cabecera y botones de acción --- */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3 className="mb-0">Gastos del viaje</h3>
-        <div>
-          <button className="btn btn-outline-primary me-2" onClick={joinTrip}>
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-primary" onClick={joinTrip}>
             Unirse al viaje
           </button>
           <button className="btn btn-outline-success" onClick={calculateBalances}>
             Calcular saldos
           </button>
+          <button className="btn btn-outline-primary" onClick={exportToPDF}>
+            📄 Exportar PDF
+          </button>
+          <button 
+            className="btn btn-outline-danger" 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteTrip(selectedTrip);
+            }} 
+            title="Eliminar Viaje"
+          >
+            🗑️ Eliminar Viaje
+          </button>
         </div>
-        <button className="btn btn-outline-primary" onClick={exportToPDF}>
-          📄 Exportar PDF
-        </button>
       </div>
 
       {/* --- Formulario de nuevo gasto (sin cambios) --- */}
@@ -651,6 +716,59 @@ if (!selectedTrip) {
             </div>
           </div>
         </>
+      )}
+
+      {/* Modal de confirmación para eliminar gasto */}
+      {deleteExpenseModal && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+            <div className="p-4 text-center">
+              <h5 className="mb-3">¿Estás seguro de que querés eliminar este gasto?</h5>
+              <div className="d-flex gap-2 justify-content-center">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => setDeleteExpenseModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={confirmDeleteExpense}
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminar viaje */}
+      {deleteTripModal && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+            <div className="p-4 text-center">
+              <h5 className="mb-3">¿Seguro que querés eliminar este viaje?</h5>
+              <p className="text-muted mb-3">Se borrarán todos sus gastos.</p>
+              <div className="d-flex gap-2 justify-content-center">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => setDeleteTripModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={confirmDeleteTrip}
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

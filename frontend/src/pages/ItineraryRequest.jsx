@@ -13,6 +13,10 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   const [selectedItinerary, setSelectedItinerary] = useState(null);
   const token = localStorage.getItem('token') || '';
 
+  // Estados para modal de confirmación de eliminación
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [itineraryToDelete, setItineraryToDelete] = useState(null);
+
   //Estado para el modal de publicación ---
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
@@ -37,23 +41,28 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   }
 
   async function handleDeleteItinerary(itineraryId) {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este itinerario? Esta acción no se puede deshacer.')) {
-      return;
-    }
+    // Mostrar modal de confirmación
+    console.log("🔥 ItineraryRequest: handleDeleteItinerary ejecutada con ID:", itineraryId);
+    setItineraryToDelete(itineraryId);
+    setDeleteModal(true);
+  }
+
+  async function confirmDeleteItinerary() {
+    if (!itineraryToDelete) return;
 
     setLoading(true);
     setError('');
     setSuccessMsg('');
 
     try {
-      await request(`/api/itineraries/${itineraryId}`, {
+      await request(`/api/itineraries/${itineraryToDelete}`, {
         method: 'DELETE',
         token
       });
 
       setSuccessMsg('Itinerario eliminado exitosamente');
 
-      if (selectedItinerary && selectedItinerary.id === itineraryId) {
+      if (selectedItinerary && selectedItinerary.id === itineraryToDelete) {
         setSelectedItinerary(null);
         setShowList(true);
       }
@@ -64,6 +73,9 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
       setError(e.message || 'Error al eliminar el itinerario');
     } finally {
       setLoading(false);
+      // Cerrar modal
+      setDeleteModal(false);
+      setItineraryToDelete(null);
     }
   }
 
@@ -188,7 +200,13 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
                     </button>
                     <button
                       className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleDeleteItinerary(itinerary.id)}
+                      onClick={(e) => {
+                        console.log("ItineraryRequest: Botón eliminar clickeado!");
+                        console.log("Event:", e);
+                        console.log("Itinerary ID:", itinerary.id);
+                        e.stopPropagation();
+                        handleDeleteItinerary(itinerary.id);
+                      }}
                       title="Eliminar itinerario"
                       disabled={loading}
                     >
@@ -391,6 +409,33 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
           onClose={() => setOpenDetailModal(false)}
           onToggleFavorite={toggleFavorite}
         />
+
+        {/* Modal de confirmación de eliminación */}
+        {deleteModal && (
+          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+              <div className="p-4 text-center">
+                <h5 className="mb-3">¿Estás seguro de que deseas eliminar este itinerario?</h5>
+                <p className="text-muted mb-3">Esta acción no se puede deshacer.</p>
+                <div className="d-flex gap-2 justify-content-center">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setDeleteModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={confirmDeleteItinerary}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }

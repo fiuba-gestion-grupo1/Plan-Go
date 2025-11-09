@@ -6,7 +6,7 @@ from pathlib import Path
 
 from backend.app.api import suggestions
 from .db import Base, engine, log_db_info
-from .api import auth, health, users, publications, debug, categories, preferences, itineraries, expenses, trips
+from .api import auth, health, users, publications, debug, categories, preferences, itineraries, expenses, trips, reviews
 from .db_migrations import ensure_min_schema
 
 # 👇 NUEVO
@@ -33,6 +33,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(publications.router)
+app.include_router(reviews.router)
 app.include_router(categories.router)
 app.include_router(preferences.router)
 app.include_router(suggestions.router)

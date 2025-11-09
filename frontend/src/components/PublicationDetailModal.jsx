@@ -151,30 +151,21 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
             return;
         }
 
-        console.log("--- SIMULACIÓN DE REPORTE (FRONTEND) ---");
-        console.log("Reportando reseña ID:", reportingReview.id);
-        console.log("Razón:", reportReason);
-        console.log("Comentario:", reportComment);
-        console.log("-----------------------------------------");
-
-        // --- INICIO: Lógica de Backend (para el otro desarrollador) ---
-        /*
         try {
-            // Descomentar y ajustar el endpoint/body cuando el backend esté listo
-            await request(`/api/publications/reviews/${reportingReview.id}/report`, {
+            // Enviar reporte al backend
+            await request(`/api/publications/${pub.id}/reviews/${reportingReview.id}/report`, {
                 method: "POST",
                 token,
-                body: { reason: reportReason, comment: reportComment || undefined }
+                body: { reason: reportReason, comments: reportComment || undefined }
             });
             alert("Reporte enviado con éxito. Gracias por tu colaboración.");
+            
+            // Recargar las reseñas para ver el estado actualizado
+            const rows = await request(`/api/publications/${pub.id}/reviews`, { token });
+            setList(rows);
         } catch (err) {
             alert("Error al enviar el reporte: " + (err?.message || "Error"));
         }
-        */
-        // --- FIN: Lógica de Backend ---
-
-        // Simulación de éxito (solo frontend)
-        alert("Reporte enviado (simulación). Gracias por tu colaboración.");
 
         handleCloseReportModal();
     }
@@ -278,6 +269,15 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                         <p className="mb-2">
                             ${pub.cost_per_day} por día
                         </p>
+
+                        {pub.duration_min && (
+                            <>
+                                <h6 className="mt-3 mb-2">Duración</h6>
+                                <p className="mb-2">
+                                    ⏱️ {pub.duration_min < 60 ? `${pub.duration_min} minutos` : `${Math.round(pub.duration_min / 60)} horas`}
+                                </p>
+                            </>
+                        )}
                         <hr />
                         <h6 className="mt-3 mb-2">Reseñas</h6>
 
@@ -291,7 +291,14 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                                     <li key={r.id} className="border rounded-3 p-3 mb-2">
                                         <div className="d-flex justify-content-between align-items-center">
                                             <div className="d-flex align-items-center gap-3">
-                                                <Stars value={r.rating} />
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <Stars value={r.rating} />
+                                                    {r.status === "under_review" && (
+                                                        <span className="badge bg-warning text-dark">
+                                                            🔍 Reportada
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <button
                                                     className={`btn btn-sm ${r.is_liked_by_me ? 'btn-danger' : 'btn-outline-danger'} ${!isPremium ? 'disabled' : ''}`}
                                                     onClick={() => handleLikeReview(r.id)}
@@ -302,18 +309,19 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                                                     {r.is_liked_by_me ? '❤️' : '🤍'} {r.like_count}
                                                 </button>
                                             </div>
-                                            <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
-                                            {isLoggedIn && (
-                                                <button
-                                                    className="btn btn-link btn-sm p-0 ms-2 text-danger"
-                                                    title="Reportar reseña"
-                                                    onClick={() => handleOpenReportModal(r)}
-                                                    style={{ textDecoration: 'none' }}
-                                                >
-                                                    🚩 Reportar
-                                                </button>
-                                            )}
-                                            {/* --- FIN BOTÓN DE REPORTE --- */}
+                                            <div className="d-flex align-items-center gap-2">
+                                                <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
+                                                {isLoggedIn && (
+                                                    <button
+                                                        className="btn btn-link btn-sm p-0 text-danger"
+                                                        title="Reportar reseña"
+                                                        onClick={() => handleOpenReportModal(r)}
+                                                        style={{ textDecoration: 'none' }}
+                                                    >
+                                                        🚩 Reportar
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                         {r.comment && <div className="mt-1">{r.comment}</div>}
                                         < small className="text-muted d-block mt-1" > por {r.author_username}</small>
@@ -407,23 +415,23 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
 
                                 <label className="form-label mt-3 mb-1">Razón del reporte (requerido):</label>
                                 <div className="form-check">
-                                    <input className="form-check-input" type="radio" name="reportReason" id="reason1" value="Spam" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Spam"} />
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason1" value="Spam" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Es spam o publicidad"} />
                                     <label className="form-check-label" htmlFor="reason1">Es spam o publicidad</label>
                                 </div>
                                 <div className="form-check">
-                                    <input className="form-check-input" type="radio" name="reportReason" id="reason2" value="Inapropiado" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Inapropiado"} />
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason2" value="Inapropiado" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Contenido inapropiado u ofensivo"} />
                                     <label className="form-check-label" htmlFor="reason2">Contenido inapropiado u ofensivo</label>
                                 </div>
                                 <div className="form-check">
-                                    <input className="form-check-input" type="radio" name="reportReason" id="reason3" value="Odio" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Odio"} />
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason3" value="Odio" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Discurso de odio o discriminación"} />
                                     <label className="form-check-label" htmlFor="reason3">Discurso de odio o discriminación</label>
                                 </div>
                                 <div className="form-check">
-                                    <input className="form-check-input" type="radio" name="reportReason" id="reason4" value="Irrelevante" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Irrelevante"} />
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason4" value="Irrelevante" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "No es relevante para la publicación"} />
                                     <label className="form-check-label" htmlFor="reason4">No es relevante para la publicación</label>
                                 </div>
                                 <div className="form-check">
-                                    <input className="form-check-input" type="radio" name="reportReason" id="reason5" value="Otro" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Otro"} />
+                                    <input className="form-check-input" type="radio" name="reportReason" id="reason5" value="Otro" onChange={(e) => setReportReason(e.target.value)} checked={reportReason === "Otra razón"} />
                                     <label className="form-check-label" htmlFor="reason5">Otra razón</label>
                                 </div>
 

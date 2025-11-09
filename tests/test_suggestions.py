@@ -18,7 +18,7 @@ def create_pub(db, **kw):
         climate=kw.get("climate"),              # str
         activities=kw.get("activities"),        # list[str] | None
         cost_per_day=kw.get("cost_per_day"),    # float | None
-        duration_days=kw.get("duration_days"),  # int | None
+        duration_min=kw.get("duration_min"),  # int | None
     )
     db.add(p)
     db.commit()

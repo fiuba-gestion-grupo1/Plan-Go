@@ -94,17 +94,17 @@ export default function App() {
           <div className="container-fluid p-4">
             {/* Vista de Publicaciones (común para todos) */}
             {authView === 'publications' && (
-              isAdmin ? <Backoffice me={me} view="publications" /> : <Home me={me} view="publications" />
+              isAdmin ? <Backoffice me={me} view="publications" /> : <Home key="publications" me={me} view="publications" />
             )}
             
             {/* Vistas de Usuario */}
-            {authView === 'my-publications' && !isAdmin && <Home me={me} view="my-publications" />}
-            {authView === 'favorites' && !isAdmin && <Home me={me} view="favorites" />}
-            {authView === 'preferences' && !isAdmin && <Home me={me} view="preferences" />}
-            {authView === 'itinerary' && <Home me={me} view="itinerary" />}
-            {authView === 'my-itineraries' && <Home me={me} view="my-itineraries" />}
+            {authView === 'my-publications' && !isAdmin && <Home key="my-publications" me={me} view="my-publications" />}
+            {authView === 'favorites' && !isAdmin && <Home key="favorites" me={me} view="favorites" />}
+            {authView === 'preferences' && !isAdmin && <Home key="preferences" me={me} view="preferences" />}
+            {authView === 'itinerary' && <Home key="itinerary" me={me} view="itinerary" />}
+            {authView === 'my-itineraries' && <Home key="my-itineraries" me={me} view="my-itineraries" />}
 
-            {authView === 'expenses' && !isAdmin && <Home me={me} view="expenses" />}
+            {authView === 'expenses' && !isAdmin && <Home key="expenses" me={me} view="expenses" />}
 
             {/* 👇 NUEVO: vista Invitar amigos */}
             {authView === 'invite-friends' && !isAdmin && <InviteFriend token={token} />}
@@ -114,6 +114,7 @@ export default function App() {
             {authView === 'all-publications' && isAdmin && <Backoffice me={me} view="all-publications" />}
             {authView === 'pending-approvals' && isAdmin && <Backoffice me={me} view="pending" />}
             {authView === 'deletion-requests' && isAdmin && <Backoffice me={me} view="deletion-requests" />}
+            {authView === 'review-reports' && isAdmin && <Backoffice me={me} view="review-reports" />}
             
             {/* Vistas comunes */}
             {authView === 'profile' && (

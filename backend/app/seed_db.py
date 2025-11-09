@@ -115,7 +115,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura, cat_gastro],
             "continent": "américa", "climate": "templado",
             "activities": ["cultura", "gastronomia", "ciudad", "noche"],
-            "cost_per_day": 200, "duration_days": 1,
+            "cost_per_day": 200, "duration_min": 1440,
             "images": ["hotel_continental_1.jpg", "hotel_continental_2.jpg"],
             "reviews": [
                 (5, "Excelente ubicación, pleno centro. La habitación muy cómoda y el personal amable."),
@@ -132,7 +132,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura, cat_gastro],
             "continent": "europa", "climate": "templado",
             "activities": ["cultura", "gastronomia", "lujo", "romance", "ciudad"],
-            "cost_per_day": 1200, "duration_days": 1,
+            "cost_per_day": 1200, "duration_min": 1440,
             "images": ["ritz_paris_1.jpg", "ritz_paris_2.jpg"],
             "reviews": [
                 (5, "Insuperable. Cada detalle es perfecto. El servicio es de otro nivel."),
@@ -149,7 +149,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura],
             "continent": "asia", "climate": "templado",
             "activities": ["cultura", "relax", "naturaleza", "historia"],
-            "cost_per_day": 900, "duration_days": 1,
+            "cost_per_day": 900, "duration_min": 1440,
             "images": ["four_seasons_kyoto_1.jpg", "four_seasons_kyoto_2.jpg"],
             "reviews": [
                 (5, "Paz absoluta. El jardín es mágico, parece salido de una pintura."),
@@ -166,7 +166,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "américa", "climate": "seco",
             "activities": ["show", "casino", "gastronomia", "noche"],
-            "cost_per_day": 450, "duration_days": 1,
+            "cost_per_day": 450, "duration_min": 1440,
             "images": ["palms_casino_1.jpg", "palms_casino_2.jpg"],
             "reviews": [
                 (4, "Habitaciones modernas y muy limpias. Buenas opciones de comida."),
@@ -185,7 +185,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_gastro],
             "continent": "américa", "climate": "seco",
             "activities": ["gastronomia", "tour", "naturaleza"],
-            "cost_per_day": 150, "duration_days": 1,
+            "cost_per_day": 150, "duration_min": 1440,
             "images": ["tour_vinos_mendoza_1.jpg", "tour_vinos_mendoza_2.jpg"],
             "reviews": [
                 (5, "Increíble. Las bodegas son hermosas y los vinos espectaculares."),
@@ -202,7 +202,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_aventura],
             "continent": "oceanía", "climate": "templado",
             "activities": ["playa", "deporte", "aventura"],
-            "cost_per_day": 100, "duration_days": 1,
+            "cost_per_day": 100, "duration_min": 1440,
             "images": ["surf_bondi_1.jpg", "surf_bondi_2.jpg"],
             "reviews": [
                 (5, "¡Genial! Era mi primera vez y logré pararme en la tabla. El instructor un genio."),
@@ -219,7 +219,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_aventura, cat_cultura],
             "continent": "américa", "climate": "frío",
             "activities": ["trekking", "cultura", "aventura", "montaña", "historia"],
-            "cost_per_day": 125, "duration_days": 4,
+            "cost_per_day": 125, "duration_min": 5760,
             "images": ["machu_picchu_1.jpg", "machu_picchu_2.jpg"],
             "reviews": [
                 (5, "La mejor experiencia de mi vida. Llegar a la Puerta del Sol al amanecer es algo que no me olvidaré jamás."),
@@ -236,7 +236,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_cultura],
             "continent": "europa", "climate": "templado",
             "activities": ["cultura", "arte", "historia", "ciudad"],
-            "cost_per_day": 25, "duration_days": 1,
+            "cost_per_day": 25, "duration_min": 1440,
             "images": ["museo_louvre_1.jpg", "museo_louvre_2.jpg"],
             "reviews": [
                 (5, "Impresionante. Es enorme, necesitas días para verlo bien."),
@@ -255,7 +255,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "áfrica", "climate": "tropical",
             "activities": ["playa", "relax", "naturaleza"],
-            "cost_per_day": 750, "duration_days": 1,
+            "cost_per_day": 750, "duration_min": 1440,
             "images": ["palms_zanzibar_1.jpg", "palms_zanzibar_2.jpg"],
             "reviews": [
                 (5, "El paraíso en la tierra. Privacidad total, servicio de mayordomo impecable."),
@@ -272,7 +272,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_aventura],
             "continent": "áfrica", "climate": "seco",
             "activities": ["aventura", "naturaleza", "safari"],
-            "cost_per_day": 600, "duration_days": 5,
+            "cost_per_day": 600, "duration_min": 7200,
             "images": ["serengeti_1.jpg", "serengeti_2.jpg"],
             "reviews": [
                 (5, "¡Vi a los 5 grandes en dos días! Nuestro guía, Joseph, fue el mejor."),
@@ -289,7 +289,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura],
             "continent": "asia", "climate": "tropical",
             "activities": ["playa", "relax", "cultura", "gastronomia", "naturaleza"],
-            "cost_per_day": 300, "duration_days": 1,
+            "cost_per_day": 300, "duration_min": 1440,
             "images": ["bali_villa_1.jpg", "bali_villa_2.jpg"],
             "reviews": [
                 (5, "Paz total en medio de la selva. La piscina privada es un lujo."),
@@ -306,7 +306,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_aventura],
             "continent": "américa", "climate": "frío",
             "activities": ["naturaleza", "montaña", "trekking"],
-            "cost_per_day": 100, "duration_days": 1,
+            "cost_per_day": 100, "duration_min": 1440,
             "images": ["perito_moreno_1.jpg", "perito_moreno_2.jpg"],
             "reviews": [
                 (5, "Imponente. Te sentís muy chiquito al lado de esa masa de hielo."),
@@ -323,7 +323,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura],
             "continent": "américa", "climate": "templado",
             "activities": ["ciudad", "cultura", "gastronomia", "noche", "show"],
-            "cost_per_day": 550, "duration_days": 1,
+            "cost_per_day": 550, "duration_min": 1440,
             "images": ["standard_nyc_1.jpg", "standard_nyc_2.jpg"],
             "reviews": [
                 (4, "Las vistas desde la habitación (con ventana de piso a techo) son LO MÁS."),
@@ -340,7 +340,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_gastro, cat_cultura],
             "continent": "europa", "climate": "templado",
             "activities": ["historia", "cultura", "ciudad", "gastronomia"],
-            "cost_per_day": 90, "duration_days": 1,
+            "cost_per_day": 90, "duration_min": 1440,
             "images": ["roma_gastro_1.jpg", "roma_gastro_2.jpg"],
             "reviews": [
                 (5, "La mejor pasta Cacio e Pepe que probé en mi vida. El guía un genio."),
@@ -357,7 +357,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "américa", "climate": "tropical",
             "activities": ["playa", "ciudad", "noche", "gastronomia"],
-            "cost_per_day": 650, "duration_days": 1,
+            "cost_per_day": 650, "duration_min": 1440,
             "images": ["fasano_rio_1.jpg", "fasano_rio_2.jpg"],
             "reviews": [
                 (5, "La piscina en el rooftop es TODO. La vista a Ipanema y al Morro Dos Hermanos no tiene precio."),
@@ -374,7 +374,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_gastro, cat_cultura],
             "continent": "asia", "climate": "tropical",
             "activities": ["gastronomia", "ciudad", "cultura", "noche"],
-            "cost_per_day": 40, "duration_days": 1,
+            "cost_per_day": 40, "duration_min": 1440,
             "images": ["bangkok_food_1.jpg", "bangkok_food_2.jpg"],
             "reviews": [
                 (5, "Sabores que nunca había probado. Una locura. El guía nos llevó a puestos increíbles."),
@@ -391,7 +391,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_aventura],
             "continent": "oceanía", "climate": "templado",
             "activities": ["aventura", "deporte", "montaña", "naturaleza"],
-            "cost_per_day": 180, "duration_days": 1,
+            "cost_per_day": 180, "duration_min": 1440,
             "images": ["queenstown_bungee_1.jpg", "queenstown_bungee_2.jpg"],
             "reviews": [
                 (5, "¡Adrenalina pura! La sensación de caer es indescriptible."),
@@ -408,7 +408,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_aventura],
             "continent": "europa", "climate": "frío",
             "activities": ["naturaleza", "aventura", "noche"],
-            "cost_per_day": 110, "duration_days": 1,
+            "cost_per_day": 110, "duration_min": 1440,
             "images": ["aurora_iceland_1.jpg", "aurora_iceland_2.jpg"],
             "reviews": [
                 (5, "¡Las vimos! Bailaron en el cielo por más de una hora. Mágico."),
@@ -425,7 +425,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_cultura, cat_aventura],
             "continent": "áfrica", "climate": "seco",
             "activities": ["historia", "cultura", "desierto"],
-            "cost_per_day": 80, "duration_days": 1,
+            "cost_per_day": 80, "duration_min": 1440,
             "images": ["giza_pyramids_1.jpg", "giza_pyramids_2.jpg"],
             "reviews": [
                 (5, "No hay foto ni video que le haga justicia. Estar ahí es imponente."),
@@ -442,7 +442,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "américa", "climate": "tropical",
             "activities": ["playa", "relax", "noche", "gastronomia"],
-            "cost_per_day": 400, "duration_days": 1,
+            "cost_per_day": 400, "duration_min": 1440,
             "images": ["cancun_resort_1.jpg", "cancun_resort_2.jpg"],
             "reviews": [
                 (4, "Playa hermosa y la piscina gigante. Ideal para no moverse en una semana."),
@@ -460,7 +460,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_cultura],
             "continent": "europa", "climate": "templado",
             "activities": ["cultura", "historia", "ciudad", "romance", "vista_panoramica"],
-            "cost_per_day": 50, "duration_days": 1,
+            "cost_per_day": 50, "duration_min": 1440,
             "images": ["torre_eiffel_1.jpg", "torre_eiffel_2.jpg"],
             "reviews": [
                 (5, "¡Absolutamente mágico! Subir al atardecer es una experiencia que no tiene precio. París a tus pies."),
@@ -477,7 +477,7 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_cultura],
             "continent": "europa", "climate": "templado",
             "activities": ["cultura", "historia", "arte", "naturaleza", "palacio"],
-            "cost_per_day": 70, "duration_days": 1,
+            "cost_per_day": 70, "duration_min": 1440,
             "images": ["palacio_versalles_1.jpg", "palacio_versalles_2.jpg"],
             "reviews": [
                 (5, "El Salón de los Espejos te deja sin aliento. Es una locura pensar cómo vivían."),
@@ -514,7 +514,7 @@ def seed_publications(db: Session):
             climate=item.get("climate"),
             activities=item.get("activities"),
             cost_per_day=item.get("cost_per_day"),
-            duration_days=item.get("duration_days"),
+            duration_min=item.get("duration_min"),
             name=item["place_name"],
             street=item["address"].split(",")[0],
             # Los campos rating_avg y rating_count se actualizan abajo

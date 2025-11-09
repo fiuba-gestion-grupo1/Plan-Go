@@ -42,6 +42,12 @@ def build_itinerary_prompt(
         if pub.categories:
             cats = ", ".join([cat.slug for cat in pub.categories])
             place_details += f" - Categorías: {cats}"
+        if hasattr(pub, 'duration_min') and pub.duration_min:
+            if pub.duration_min < 60:
+                place_details += f" - Duración: {pub.duration_min} min"
+            else:
+                hours = pub.duration_min / 60
+                place_details += f" - Duración: {hours:.1f}h"
         places_info.append(place_details)
     
     places_list = "\n".join(places_info) if places_info else "No hay lugares disponibles."
@@ -87,7 +93,9 @@ RESTRICCIONES CRÍTICAS:
 - Si hay {num_places} lugar(es) disponible(s) y el viaje dura {total_days} días, GENERA SOLO {days_to_generate} DÍA(S) DE ITINERARIO.
 - REGLA: Genera 1 día de itinerario por cada lugar disponible (máximo).
 - Si hay menos lugares que días solicitados, MUESTRA ESTE AVISO AL INICIO: "⚠️ AVISO: Se encontraron solo {num_places} publicación(es) para generar el itinerario de {destination}. Se muestra itinerario de {days_to_generate} día(s) con los lugares disponibles."
-- Organiza las actividades de forma lógica según su ubicación y categoría.
+- IMPORTANTE: Considera la duración estimada de cada actividad/lugar para planificar horarios realistas.
+- Para lugares con duración específica, respeta ese tiempo en tu planificación.
+- Organiza las actividades de forma lógica según su ubicación, categoría y duración.
 - No incluyas transporte ni vuelos. Solo actividades.
 - Podés repetir el mismo lugar varias veces en el mismo día para diferentes actividades.
 
@@ -383,7 +391,7 @@ def request_itinerary(
                     climate=getattr(pub, "climate", None),
                     activities=getattr(pub, "activities", None) or [],
                     cost_per_day=getattr(pub, "cost_per_day", None),
-                    duration_days=getattr(pub, "duration_days", None),
+                    duration_min=getattr(pub, "duration_min", None),
                     is_favorite=pub.id in favorite_ids
                 ))
     
@@ -456,7 +464,7 @@ def get_my_itineraries(
                     climate=getattr(pub, "climate", None),
                     activities=getattr(pub, "activities", None) or [],
                     cost_per_day=getattr(pub, "cost_per_day", None),
-                    duration_days=getattr(pub, "duration_days", None),
+                    duration_min=getattr(pub, "duration_min", None),
                     is_favorite=pub.id in favorite_ids
                 ))
         
@@ -537,7 +545,7 @@ def get_itinerary(
                 climate=getattr(pub, "climate", None),
                 activities=getattr(pub, "activities", None) or [],
                 cost_per_day=getattr(pub, "cost_per_day", None),
-                duration_days=getattr(pub, "duration_days", None),
+                duration_min=getattr(pub, "duration_min", None),
                 is_favorite=pub.id in favorite_ids
             ))
     

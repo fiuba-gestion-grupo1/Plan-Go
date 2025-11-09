@@ -132,7 +132,7 @@ class PublicationOut(BaseModel):
     climate: Optional[str] = None
     activities: Optional[List[str]] = None
     cost_per_day: Optional[float] = None
-    duration_days: Optional[int] = None
+    duration_min: Optional[int] = None
 
     favorite_status: Optional[str] = "pending"
 
@@ -176,6 +176,7 @@ class ReviewOut(BaseModel):
     comment: Optional[str] = None
     author_username: str
     created_at: str
+    status: str = "approved"
 
     like_count: int = 0
     is_liked_by_me: bool = False
@@ -187,6 +188,40 @@ class ReviewOut(BaseModel):
     else:
         class Config:
             orm_mode = True
+
+
+# -------------------------------------------------
+# Review Reports
+# -------------------------------------------------
+class ReviewReportCreate(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=100)
+    comments: Optional[str] = Field(None, max_length=500)
+
+
+class ReviewReportOut(BaseModel):
+    id: int
+    review_id: int
+    reporter_username: str
+    reason: str
+    comments: Optional[str] = None
+    status: str
+    created_at: str
+    resolved_at: Optional[str] = None
+    
+    # Información de la reseña reportada
+    review: ReviewOut
+    # Información de la publicación
+    publication: "PublicationOut"
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class ReviewReportReject(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 # -------------------------------------------------
