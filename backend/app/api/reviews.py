@@ -48,14 +48,15 @@ async def get_pending_review_reports(
             "reason": report.reason,
             "comments": report.comments,
             "status": report.status,
-            "created_at": report.created_at.isoformat()[:19] if report.created_at else "",
-            "resolved_at": report.resolved_at.isoformat()[:19] if report.resolved_at else None,
+            "created_at": report.created_at.strftime("%Y-%m-%d %H:%M:%S") if report.created_at else None,
+            "resolved_at": report.resolved_at.strftime("%Y-%m-%d %H:%M:%S") if report.resolved_at else None,
             "review": {
                 "id": review.id if review else None,
                 "rating": review.rating if review else 0,
                 "comment": review.comment if review else "",
                 "author_username": review.author.username if review and review.author else "Unknown",
-                "status": review.status if review else "unknown"
+                "status": review.status if review else "unknown",
+                "created_at": review.created_at.strftime("%Y-%m-%d %H:%M:%S") if review and review.created_at else None
             } if review else None,
             "publication": {
                 "id": review.publication.id if review and review.publication else None,

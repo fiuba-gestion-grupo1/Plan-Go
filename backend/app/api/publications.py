@@ -722,7 +722,7 @@ def create_review(
         rating=review.rating,
         comment=review.comment,
         author_username=user.username,
-        created_at=review.created_at.isoformat()[:19],
+        created_at=review.created_at.strftime("%Y-%m-%d %H:%M:%S") if review.created_at else None,
     )
 
 @router.get("/{pub_id}/reviews", response_model=List[schemas.ReviewOut])
@@ -781,7 +781,7 @@ def list_reviews(
                             id=c.id,
                             comment=c.comment,
                             author_username=c.author.username,
-                            created_at=c.created_at.isoformat()[:19]
+                            created_at=c.created_at.strftime("%Y-%m-%d %H:%M:%S") if c.created_at else None
                         )
                     )
         # --- FIN DEL BLOQUE AÑADIDO ---
@@ -792,7 +792,7 @@ def list_reviews(
                 rating=r.rating,
                 comment=r.comment,
                 author_username=username,
-                created_at=r.created_at.isoformat()[:19],
+                created_at=r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None,
                 status=r.status,
                 like_count=like_count or 0,
                 is_liked_by_me=bool(is_liked),
@@ -872,7 +872,7 @@ def create_review_comment(
         id=new_comment.id,
         comment=new_comment.comment,
         author_username=user.username, # user ya está disponible desde get_current_user
-        created_at=new_comment.created_at.isoformat()[:19],
+        created_at=new_comment.created_at.strftime("%Y-%m-%d %H:%M:%S") if new_comment.created_at else None,
     )
 
 # --- APPROVE PUBLICATION (solo admin) ---
