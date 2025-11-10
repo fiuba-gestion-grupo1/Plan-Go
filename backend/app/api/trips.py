@@ -81,6 +81,13 @@ def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_c
 
 @router.post("/{trip_id}/invite")
 def invite_user_to_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    # ✅ Nuevo chequeo: solo Premium puede invitar
+    if user.role != "premium":
+        raise HTTPException(
+            status_code=403,
+            detail="Solo los usuarios premium pueden enviar invitaciones."
+        )
+
     username_to_invite = payload.get("username")
     if not username_to_invite:
         raise HTTPException(status_code=400, detail="Debe indicar el nombre de usuario a invitar")
