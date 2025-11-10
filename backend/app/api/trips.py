@@ -158,10 +158,15 @@ def respond_to_invitation(invitation_id: int, payload: dict, db: Session = Depen
 # --- Editar un viaje ---
 @router.put("/{trip_id}")
 def update_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    
-    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # 🔒 Permisos: el creador o cualquier participante aceptado pueden editar
+    if trip.user_id != user.id:
+        is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not is_participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
     # Actualizar campos
     trip.name = payload.get("name", trip.name)
@@ -188,20 +193,27 @@ def update_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user
 # --- Eliminar un viaje (y todos sus gastos/participantes asociados) ---
 @router.delete("/{trip_id}")
 def delete_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    
-    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # Seguridad: Eliminar primero los hijos (si no tenés 'cascade delete' en el modelo)
+    # 🔒 Permisos: el creador o cualquier participante aceptado pueden eliminar
+    if trip.user_id != user.id:
+        is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not is_participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
+
+    # 🔽 Eliminar todas las entidades relacionadas con este viaje
     db.query(models.Expense).filter(models.Expense.trip_id == trip_id).delete()
     db.query(models.TripParticipant).filter(models.TripParticipant.trip_id == trip_id).delete()
-    
-    # Ahora eliminar el viaje
+    db.query(models.TripInvitation).filter(models.TripInvitation.trip_id == trip_id).delete()  # 👈 ESTA ES LA CLAVE
+
     db.delete(trip)
     db.commit()
-    
+
     return {"message": "Viaje eliminado correctamente"}
+
+
 
 # --- Obtener gastos de un viaje ---
 @router.get("/{trip_id}/expenses")
@@ -395,9 +407,18 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
 # --- Exportar gastos como PDF ---
 @router.get("/{trip_id}/expenses/export", response_class=FileResponse)
 def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+
+
+# Buscar el viaje sin limitar por user_id
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # 🔒 Permisos: creador o participante aceptado pueden exportar
+    if trip.user_id != user.id:
+        is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not is_participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
     expenses = db.query(models.Expense).filter_by(trip_id=trip_id).all()
     if not expenses:
