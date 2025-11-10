@@ -52,29 +52,31 @@ def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_c
     if not name:
         raise HTTPException(status_code=400, detail="El nombre del viaje es obligatorio")
 
-    # ✅ Convert strings to date objects
+    # ✅ Convertir strings a fechas (si existen)
     start_date = datetime.strptime(start, "%Y-%m-%d").date() if start else None
     end_date = datetime.strptime(end, "%Y-%m-%d").date() if end else None
 
+    # ✅ Crear viaje
     trip = models.Trip(
         user_id=user.id,
         name=name,
         start_date=start_date,
         end_date=end_date,
     )
-
     db.add(trip)
-    db.commit()
-    db.refresh(trip)
+    db.flush()  # 👈 asegura que trip.id exista sin commit todavía
 
+    # ✅ Agregar creador como participante (mismo flush)
     db.add(models.TripParticipant(trip_id=trip.id, user_id=user.id))
-    db.commit()
+    db.commit()  # 👈 commit único, sincronizado
+
+    db.refresh(trip)
 
     return {
         "id": trip.id,
         "name": trip.name,
         "start_date": trip.start_date,
-        "end_date": trip.end_date
+        "end_date": trip.end_date,
     }
 
 
@@ -99,10 +101,22 @@ def invite_user_to_trip(
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # ✅ El invitador debe ser participante aceptado o el creador
-    inviter_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+    # ✅ El invitador debe ser participante o el creador
+    inviter_participant = db.query(models.TripParticipant).filter_by(
+        trip_id=trip_id, user_id=user.id
+    ).first()
+
+    # 🔹 Si no figura como participante pero es el creador, lo agregamos implícitamente
+    if not inviter_participant and trip.user_id == user.id:
+        inviter_participant = models.TripParticipant(trip_id=trip_id, user_id=user.id)
+        db.add(inviter_participant)
+        db.commit()  # 👈 asegura persistencia inmediata
+
     if not inviter_participant:
-        raise HTTPException(status_code=403, detail="Solo los participantes del viaje pueden invitar a otros usuarios.")
+        raise HTTPException(
+            status_code=403,
+            detail="Solo los participantes del viaje pueden invitar a otros usuarios."
+        )
 
     # 🔍 Buscar usuario a invitar
     invited_user = db.query(models.User).filter_by(username=username_to_invite).first()

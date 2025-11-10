@@ -132,19 +132,14 @@ def test_invite_user_rejected_if_not_premium(client, db_session, test_user, auth
     non_premium = create_user(db_session, "usuario_comun", role="user")
     headers_user = get_auth_headers(non_premium)
 
-    # Crear destino de invitación
-    invited_user = create_user(db_session, "destinatario", role="premium")
-
-    # Crear viaje
     trip = create_trip(db_session, non_premium.id)
 
     # Intenta invitar
     r = client.post(
         f"/api/trips/{trip.id}/invite",
         headers=headers_user,
-        json={"username": invited_user.username},  # ✅ usuario existente
+        json={"username": "alguien"},
     )
-
     assert r.status_code in (403, 400)
     assert "premium" in r.text.lower() or "no autorizado" in r.text.lower()
 
@@ -191,3 +186,167 @@ def test_delete_trip_removes_expenses(client, db_session, test_user, auth_header
     # Verificar que no queden gastos asociados
     remaining = db_session.query(models.Expense).filter_by(trip_id=trip.id).count()
     assert remaining == 0
+
+
+# ------------------- NUEVOS TESTS: Invitaciones extendidas -------------------
+
+def test_cannot_invite_same_user_twice(client, db_session, test_user, auth_headers):
+    """Un usuario premium no puede invitar dos veces al mismo usuario."""
+    # Hacer premium al usuario autenticado
+    test_user.role = "premium"
+    db_session.commit()
+
+    # Crear invitado premium
+    invited = create_user(db_session, "premium_dupe", role="premium")
+
+    # Crear viaje
+    trip = create_trip(db_session, test_user.id, "Duplicado Test")
+
+    # Primera invitación
+    r1 = client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=auth_headers,
+        json={"username": invited.username},
+    )
+    assert r1.status_code == 200, r1.text
+
+    # Segunda invitación al mismo usuario → debe fallar
+    r2 = client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=auth_headers,
+        json={"username": invited.username},
+    )
+    assert r2.status_code == 400
+    assert "ya existe" in r2.text.lower() or "pendiente" in r2.text.lower()
+
+
+def test_invited_user_cannot_invite_if_not_participant(client, db_session, test_user, auth_headers):
+    """Un usuario invitado pero que aún no aceptó NO puede invitar a otros."""
+    # Usuario creador premium
+    test_user.role = "premium"
+    db_session.commit()
+
+    # Crear invitado premium
+    invited = create_user(db_session, "premium_waiting", role="premium")
+    headers_invited = get_auth_headers(invited)
+
+    # Crear viaje e invitar
+    trip = create_trip(db_session, test_user.id, "Viaje Bloqueado")
+    r_invite = client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=auth_headers,
+        json={"username": invited.username},
+    )
+    assert r_invite.status_code == 200
+
+    # Invitado intenta invitar a otro sin aceptar → debería fallar
+    invited2 = create_user(db_session, "premium_otro", role="premium")
+    r_fail = client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=get_auth_headers(invited),
+        json={"username": invited2.username},
+    )
+    assert r_fail.status_code == 403
+    assert "participante" in r_fail.text.lower()
+
+
+def test_premium_participant_can_invite_other_premium(client, db_session, test_user, auth_headers):
+    """Un usuario premium que fue invitado y aceptó puede invitar a otros premium."""
+    # Usuario creador premium
+    test_user.role = "premium"
+    db_session.commit()
+
+    # Crear invitado A y B (ambos premium)
+    invited_a = create_user(db_session, "premium_a", role="premium")
+    invited_b = create_user(db_session, "premium_b", role="premium")
+
+    headers_inv_a = get_auth_headers(invited_a)
+    headers_inv_b = get_auth_headers(invited_b)
+
+    # Crear viaje e invitar a A
+    trip = create_trip(db_session, test_user.id, "Viaje en cadena")
+    r_invite = client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=auth_headers,
+        json={"username": invited_a.username},
+    )
+    assert r_invite.status_code == 200
+
+    # Aceptar invitación (A se convierte en participante)
+    inv_list = client.get("/api/trips/invitations", headers=headers_inv_a)
+    inv_id = inv_list.json()[0]["id"]
+    r_accept = client.post(
+        f"/api/trips/invitations/{inv_id}/respond",
+        headers=headers_inv_a,
+        json={"action": "accept"},
+    )
+    assert r_accept.status_code == 200
+
+    # Ahora A invita a B → debería funcionar (A es premium + participante)
+    r_chain = client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=headers_inv_a,
+        json={"username": invited_b.username},
+    )
+    assert r_chain.status_code == 200
+    assert "invitación enviada" in r_chain.text.lower()
+
+
+def test_cannot_invite_user_already_participant(client, db_session, test_user, auth_headers):
+    """No se puede invitar a un usuario que ya es participante del viaje."""
+    test_user.role = "premium"
+    db_session.commit()
+
+    invited = create_user(db_session, "ya_participa", role="premium")
+
+    # Crear viaje
+    trip = create_trip(db_session, test_user.id, "Viaje duplicado")
+
+    # Agregar al invitado como participante directamente
+    db_session.add(models.TripParticipant(trip_id=trip.id, user_id=invited.id))
+    db_session.commit()
+
+    # Intentar invitarlo → debe fallar
+    r = client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=auth_headers,
+        json={"username": invited.username},
+    )
+    assert r.status_code == 400
+    assert "ya es participante" in r.text.lower()
+
+
+def test_invitation_accept_twice_is_rejected(client, db_session, test_user, auth_headers):
+    """Una invitación aceptada no puede volver a ser respondida."""
+    test_user.role = "premium"
+    db_session.commit()
+
+    invited = create_user(db_session, "premium_repeat", role="premium")
+    headers_inv = get_auth_headers(invited)
+
+    trip = create_trip(db_session, test_user.id, "Repetición")
+
+    # Invitar
+    client.post(
+        f"/api/trips/{trip.id}/invite",
+        headers=auth_headers,
+        json={"username": invited.username},
+    )
+
+    # Aceptar la invitación
+    inv_list = client.get("/api/trips/invitations", headers=headers_inv)
+    inv_id = inv_list.json()[0]["id"]
+    client.post(
+        f"/api/trips/invitations/{inv_id}/respond",
+        headers=headers_inv,
+        json={"action": "accept"},
+    )
+
+    # Intentar aceptar otra vez
+    r_reaccept = client.post(
+        f"/api/trips/invitations/{inv_id}/respond",
+        headers=headers_inv,
+        json={"action": "accept"},
+    )
+    assert r_reaccept.status_code == 400
+    assert "ya fue respondida" in r_reaccept.text.lower()
