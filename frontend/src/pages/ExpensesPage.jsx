@@ -24,9 +24,50 @@ export default function ExpensesPage({ token }) {
   const [deleteTripModal, setDeleteTripModal] = useState(false);
   const [tripToDelete, setTripToDelete] = useState(null);
 
+  // --- NUEVO: estados para invitación ---
+  const [inviteUsername, setInviteUsername] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteError, setInviteError] = useState("");
+
+    // --- INVITACIONES ---
+  const [invitations, setInvitations] = useState([]);
+  const [invitationsLoaded, setInvitationsLoaded] = useState(false);
+
+  async function fetchInvitations() {
+    try {
+      const data = await request("/api/trips/invitations", { token });
+      setInvitations(data);
+    } catch (error) {
+      console.error("Error al cargar invitaciones:", error);
+    } finally {
+      setInvitationsLoaded(true);
+    }
+  }
+
+  async function respondInvitation(invitationId, action) {
+    try {
+      await request(`/api/trips/invitations/${invitationId}/respond`, {
+        method: "POST",
+        token,
+        body: { action },
+      });
+      fetchInvitations(); // actualiza lista
+      fetchTrips();       // refresca viajes (por si se aceptó)
+    } catch (error) {
+      alert(error.detail || "Error al responder invitación");
+    }
+  }
+
+
+  // --- Cargar viajes al iniciar ---
   useEffect(() => {
     fetchTrips();
   }, []);
+
+  // --- NUEVO: limpiar mensaje de invitación al cambiar de vista o viaje ---
+  useEffect(() => {
+    setInviteMessage(""); // 🔹 Limpia el cartel “Invitación enviada a…”
+  }, [selectedTrip, view]);
 
   async function fetchTrips() {
     const data = await request("/api/trips", { token });
@@ -55,10 +96,14 @@ export default function ExpensesPage({ token }) {
   }
 
   async function openTrip(tripId) {
+    setInviteMessage(""); // 🔹 Limpia cartel anterior
+    setBalances([]);
+    setBalancesData({ total: 0, por_persona: 0, balances: [] });
     const data = await request(`/api/trips/${tripId}/expenses`, { token });
     setSelectedTrip(tripId);
     setExpenses(data);
   }
+
 
   async function addExpense() {
     const { name, category, amount, date } = newExpense;
@@ -236,202 +281,292 @@ export default function ExpensesPage({ token }) {
     }
   }
 
-if (!selectedTrip) {
-    return (
-      <div className="container mt-4">
-        <h3 className="mb-4 fw-bold">💼 Mis viajes</h3>
+  // --- NUEVO: función para enviar invitación (usa /api/trips/{trip_id}/invite) ---
+  async function sendInvitation() {
+    if (!inviteUsername.trim()) return;
+    try {
+      const res = await request(`/api/trips/${selectedTrip}/invite`, {
+        method: "POST",
+        token,
+        body: { username: inviteUsername },
+      });
+      setInviteMessage(res.message || `Invitación enviada a ${inviteUsername}`);
+      setTimeout(() => setInviteMessage(""), 3000);
+      setInviteError("");
+      setInviteUsername("");
+    } catch (error) {
+      const msg = error?.detail || error?.message || "Error al enviar invitación";
+      setInviteError(msg);
+      setInviteMessage("");
+    }
+  }
 
-        {/* --- Formulario crear viaje --- */}
+if (!selectedTrip) {
+  return (
+    <div className="container mt-4">
+
+      {/* --- Pestañas --- */}
+      <div className="d-flex mb-4 border-bottom">
+        <button
+          className={`btn me-3 pb-2 ${view === "trips" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
+          onClick={() => { setView("trips"); fetchTrips(); }}
+        >
+          💼 Mis viajes
+        </button>
+        <button
+          className={`btn pb-2 ${view === "invitations" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
+          onClick={() => { setView("invitations"); fetchInvitations(); }}
+        >
+          ✉️ Mis invitaciones
+        </button>
+      </div>
+
+      {/* --- Vista de Invitaciones Pendientes --- */}
+      {view === "invitations" && (
         <div className="card shadow-sm mb-4">
           <div className="card-body">
-            <h5 className="mb-3 fw-semibold">Crear nuevo viaje</h5>
-            
-            <div className="row g-3">
-              <div className="col-md-4">
-                <input
-                  className="form-control"
-                  placeholder="Nombre del viaje"
-                  value={newTrip}
-                  onChange={(e) => setNewTrip(e.target.value)}
-                />
-              </div>
+            <h5 className="fw-semibold mb-3">Invitaciones recibidas</h5>
 
-              <div className="col-md-3">
-                <input
-                  type="date"
-                  className="form-control"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-
-              <div className="col-md-3">
-                <input
-                  type="date"
-                  className="form-control"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-
-              <div className="col-md-2 d-grid">
-                <button className="btn btn-primary fw-semibold" onClick={createTrip}>
-                  Crear viaje
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* --- Tabla viajes --- */}
-        <div className="card shadow-sm">
-          <div className="card-body">
-            <h5 className="fw-semibold mb-3">Viajes creados</h5>
-
-            <table className="table table-hover align-middle text-center">
-              <thead className="table-light">
-                <tr>
-                  <th className="text-center">Viaje</th>
-                  <th className="text-center">Inicio</th>
-                  <th className="text-center">Fin</th>
-                  <th className="text-center">Integrantes</th>
-                  <th className="text-center">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trips.length === 0 && (
+            {!invitationsLoaded ? (
+              <p className="text-muted">Cargando invitaciones...</p>
+            ) : invitations.length === 0 ? (
+              <p className="text-muted">No tenés invitaciones pendientes.</p>
+            ) : (
+              <table className="table align-middle text-center">
+                <thead className="table-light">
                   <tr>
-                    <td colSpan="5" className="text-center text-muted py-4">
-                      No tenés viajes creados aún.
-                    </td>
+                    <th>Viaje</th>
+                    <th>Invitado por</th>
+                    <th>Fecha</th>
+                    <th>Acciones</th>
                   </tr>
-                )}
-
-                {trips.map((t) => (
-                  <tr key={t.id}>
-                    <td className="fw-semibold text-center">{t.name}</td>
-                    <td>{t.start_date ? new Date(t.start_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
-                    <td>{t.end_date ? new Date(t.end_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
-                    <td>{t.participants_count ?? 1}</td>
-                    <td className="text-center">
-                      <div className="btn-group btn-group-sm" role="group">
-                        <button 
-                          className="btn btn-outline-primary" 
-                          onClick={() => openTrip(t.id)}
-                        >
-                          Abrir
-                        </button>
-                        <button 
-                          className="btn btn-outline-secondary" 
-                          onClick={() => handleOpenEditTripModal(t)} 
-                          title="Editar Viaje"
-                        >
-                          ✏️
-                        </button>
-                        <button 
-                          className="btn btn-outline-danger" 
-                          onClick={() => handleDeleteTrip(t.id)} 
-                          title="Eliminar Viaje"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {invitations.map((inv) => (
+                    <tr key={inv.id}>
+                      <td className="fw-semibold">{inv.trip_name}</td>
+                      <td>{inv.invited_by}</td>
+                      <td>{new Date(inv.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <div className="btn-group btn-group-sm">
+                          <button
+                            className="btn btn-outline-success"
+                            onClick={() => respondInvitation(inv.id, "accept")}
+                          >
+                            ✅ Aceptar
+                          </button>
+                          <button
+                            className="btn btn-outline-danger"
+                            onClick={() => respondInvitation(inv.id, "reject")}
+                          >
+                            ❌ Rechazar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
+      )}
 
-        {/* --- NUEVO: MODAL DE EDICIÓN DE VIAJE --- */}
-        {editingTrip && (
-          <>
-            <div className="modal-backdrop fade show"></div>
-            <div className="modal fade show d-block" tabIndex="-1">
-              <div className="modal-dialog modal-dialog-centered">
-                <div className="modal-content">
-                  <div className="modal-header">
-                    <h5 className="modal-title">Editar Viaje</h5>
-                    <button type="button" className="btn-close" onClick={handleCloseEditTripModal}></button>
-                  </div>
-                  <div className="modal-body">
-                    
-                    {editTripError && (
-                      <div className="alert alert-danger" role="alert">
-                        {editTripError}
-                      </div>
-                    )}
-
-                    <div className="mb-3">
-                      <label className="form-label">Nombre del Viaje</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={editingTrip.name}
-                        onChange={(e) => setEditingTrip({ ...editingTrip, name: e.target.value })}
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Fecha de Inicio</label>
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={editingTrip.start_date}
-                        onChange={(e) => setEditingTrip({ ...editingTrip, start_date: e.target.value })}
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Fecha de Fin</label>
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={editingTrip.end_date}
-                        onChange={(e) => setEditingTrip({ ...editingTrip, end_date: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary" onClick={handleCloseEditTripModal}>Cancelar</button>
-                    <button type="button" className="btn btn-primary" onClick={handleUpdateTrip}>Guardar Cambios</button>
-                  </div>
+      {/* --- Formulario crear viaje --- */}
+      {view === "trips" && (
+        <>
+          <div className="card shadow-sm mb-4">
+            <div className="card-body">
+              <h5 className="mb-3 fw-semibold">Crear nuevo viaje</h5>
+              
+              <div className="row g-3">
+                <div className="col-md-4">
+                  <input
+                    className="form-control"
+                    placeholder="Nombre del viaje"
+                    value={newTrip}
+                    onChange={(e) => setNewTrip(e.target.value)}
+                  />
                 </div>
-              </div>
-            </div>
-          </>
-        )}
-        {/* --- FIN MODAL EDICIÓN VIAJE --- */}
 
-        {/* Modal de confirmación para eliminar viaje (en vista de lista) */}
-        {deleteTripModal && (
-          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
-            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
-              <div className="p-4 text-center">
-                <h5 className="mb-3">¿Seguro que querés eliminar este viaje?</h5>
-                <p className="text-muted mb-3">Se borrarán todos sus gastos.</p>
-                <div className="d-flex gap-2 justify-content-center">
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={() => setDeleteTripModal(false)}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    onClick={confirmDeleteTrip}
-                  >
-                    Eliminar
+                <div className="col-md-3">
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-md-3">
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-md-2 d-grid">
+                  <button className="btn btn-primary fw-semibold" onClick={createTrip}>
+                    Crear viaje
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
 
-      </div>
-    );
-  }
+          {/* --- Tabla viajes --- */}
+          <div className="card shadow-sm">
+            <div className="card-body">
+              <h5 className="fw-semibold mb-3">Viajes creados</h5>
+
+              <table className="table table-hover align-middle text-center">
+                <thead className="table-light">
+                  <tr>
+                    <th className="text-center">Viaje</th>
+                    <th className="text-center">Inicio</th>
+                    <th className="text-center">Fin</th>
+                    <th className="text-center">Integrantes</th>
+                    <th className="text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trips.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="text-center text-muted py-4">
+                        No tenés viajes creados aún.
+                      </td>
+                    </tr>
+                  )}
+
+                  {trips.map((t) => (
+                    <tr key={t.id}>
+                      <td className="fw-semibold text-center">{t.name}</td>
+                      <td>{t.start_date ? new Date(t.start_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
+                      <td>{t.end_date ? new Date(t.end_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : "-"}</td>
+                      <td>{t.participants_count ?? 1}</td>
+                      <td className="text-center">
+                        <div className="btn-group btn-group-sm" role="group">
+                          <button 
+                            className="btn btn-outline-primary" 
+                            onClick={() => openTrip(t.id)}
+                          >
+                            Abrir
+                          </button>
+                          <button 
+                            className="btn btn-outline-secondary" 
+                            onClick={() => handleOpenEditTripModal(t)} 
+                            title="Editar Viaje"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            className="btn btn-outline-danger" 
+                            onClick={() => handleDeleteTrip(t.id)} 
+                            title="Eliminar Viaje"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* --- NUEVO: MODAL DE EDICIÓN DE VIAJE --- */}
+          {editingTrip && (
+            <>
+              <div className="modal-backdrop fade show"></div>
+              <div className="modal fade show d-block" tabIndex="-1">
+                <div className="modal-dialog modal-dialog-centered">
+                  <div className="modal-content">
+                    <div className="modal-header">
+                      <h5 className="modal-title">Editar Viaje</h5>
+                      <button type="button" className="btn-close" onClick={handleCloseEditTripModal}></button>
+                    </div>
+                    <div className="modal-body">
+                      
+                      {editTripError && (
+                        <div className="alert alert-danger" role="alert">
+                          {editTripError}
+                        </div>
+                      )}
+
+                      <div className="mb-3">
+                        <label className="form-label">Nombre del Viaje</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={editingTrip.name}
+                          onChange={(e) => setEditingTrip({ ...editingTrip, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Fecha de Inicio</label>
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={editingTrip.start_date}
+                          onChange={(e) => setEditingTrip({ ...editingTrip, start_date: e.target.value })}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Fecha de Fin</label>
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={editingTrip.end_date}
+                          onChange={(e) => setEditingTrip({ ...editingTrip, end_date: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="modal-footer">
+                      <button type="button" className="btn btn-secondary" onClick={handleCloseEditTripModal}>Cancelar</button>
+                      <button type="button" className="btn btn-primary" onClick={handleUpdateTrip}>Guardar Cambios</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+          {/* --- FIN MODAL EDICIÓN DE VIAJE --- */}
+
+          {/* Modal de confirmación para eliminar viaje (en vista de lista) */}
+          {deleteTripModal && (
+            <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+              <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+                <div className="p-4 text-center">
+                  <h5 className="mb-3">¿Seguro que querés eliminar este viaje?</h5>
+                  <p className="text-muted mb-3">Se borrarán todos sus gastos.</p>
+                  <div className="d-flex gap-2 justify-content-center">
+                    <button
+                      className="btn btn-outline-secondary"
+                      onClick={() => setDeleteTripModal(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={confirmDeleteTrip}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 
   // --- Calcular totales por categoría ---
   // (Esta lógica la dejamos como está)
@@ -443,7 +578,15 @@ if (!selectedTrip) {
 
   return (
     <div className="container mt-4">
-      <button className="btn btn-outline-secondary mb-3" onClick={() => setSelectedTrip(null)}>
+      <button
+        className="btn btn-outline-secondary mb-3"
+        onClick={() => {
+          setSelectedTrip(null);
+          setInviteMessage(""); // 🔹 Limpia cartel
+          setBalances([]);
+          setBalancesData({ total: 0, por_persona: 0, balances: [] });
+        }}
+      >
         ← Volver
       </button>
 
@@ -451,9 +594,6 @@ if (!selectedTrip) {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3 className="mb-0">Gastos del viaje</h3>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary" onClick={joinTrip}>
-            Unirse al viaje
-          </button>
           <button className="btn btn-outline-success" onClick={calculateBalances}>
             Calcular saldos
           </button>
@@ -471,6 +611,38 @@ if (!selectedTrip) {
             🗑️ Eliminar Viaje
           </button>
         </div>
+      </div>
+
+      {/* --- NUEVO: Invitar usuario premium al viaje --- */}
+      <div className="card p-3 mb-4 shadow-sm">
+        <h5 className="mb-3 fw-semibold">Invitar usuario premium al viaje</h5>
+        <div className="row g-2 align-items-center">
+          <div className="col-md-6">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Nombre de usuario"
+              value={inviteUsername}
+              onChange={(e) => setInviteUsername(e.target.value)}
+            />
+          </div>
+          <div className="col-md-3 d-grid">
+            <button className="btn btn-outline-primary" onClick={sendInvitation}>
+              Enviar invitación
+            </button>
+          </div>
+        </div>
+
+        {inviteMessage && (
+          <div className="alert alert-success mt-3 mb-0 py-2">
+            ✅ {inviteMessage}
+          </div>
+        )}
+        {inviteError && (
+          <div className="alert alert-danger mt-3 mb-0 py-2">
+            ⚠️ {inviteError}
+          </div>
+        )}
       </div>
 
       {/* --- Formulario de nuevo gasto (sin cambios) --- */}
@@ -536,7 +708,13 @@ if (!selectedTrip) {
       <div className="mb-3">
         <button 
           className={`btn ${view === 'list' ? 'btn-light' : 'btn-outline-secondary'} me-2`}
-          onClick={() => setView('list')}
+          onClick={() => {
+            setView('list');
+            setInviteMessage(""); // 🔹 Limpia cartel
+            setBalances([]);
+            setBalancesData({ total: 0, por_persona: 0, balances: [] });
+          }}
+
         >
           🧾 Lista de Gastos
         </button>
