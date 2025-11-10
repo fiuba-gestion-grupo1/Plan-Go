@@ -28,6 +28,8 @@ export default function ExpensesPage({ token }) {
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviteError, setInviteError] = useState("");
+  const [userRole, setUserRole] = useState("user");
+
 
     // --- INVITACIONES ---
   const [invitations, setInvitations] = useState([]);
@@ -63,6 +65,19 @@ export default function ExpensesPage({ token }) {
   useEffect(() => {
     fetchTrips();
   }, []);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const data = await request("/api/auth/me", { token });
+        console.log("👤 Usuario cargado:", data); // para verificar
+        setUserRole(data.role || "user");
+      } catch (error) {
+        console.error("Error al obtener usuario:", error);
+      }
+    }
+    fetchUser();
+  }, [token]);
 
   // --- NUEVO: limpiar mensaje de invitación al cambiar de vista o viaje ---
   useEffect(() => {
@@ -283,7 +298,15 @@ export default function ExpensesPage({ token }) {
 
   // --- NUEVO: función para enviar invitación (usa /api/trips/{trip_id}/invite) ---
   async function sendInvitation() {
+    if (userRole !== "premium") {
+      setInviteError("Para invitar a otros usuarios, suscribite al plan Premium.");
+      setInviteMessage("");
+      setTimeout(() => setInviteError(""), 3000); // 🔹 se borra a los 3 segundos
+      return;
+    }
+
     if (!inviteUsername.trim()) return;
+
     try {
       const res = await request(`/api/trips/${selectedTrip}/invite`, {
         method: "POST",
@@ -291,15 +314,17 @@ export default function ExpensesPage({ token }) {
         body: { username: inviteUsername },
       });
       setInviteMessage(res.message || `Invitación enviada a ${inviteUsername}`);
-      setTimeout(() => setInviteMessage(""), 3000);
+      setTimeout(() => setInviteMessage(""), 3000); // ✅ mensaje verde también desaparece
       setInviteError("");
       setInviteUsername("");
     } catch (error) {
       const msg = error?.detail || error?.message || "Error al enviar invitación";
       setInviteError(msg);
       setInviteMessage("");
+      setTimeout(() => setInviteError(""), 3000); // 🔹 borra el mensaje de error después de 3 seg
     }
   }
+
 
 if (!selectedTrip) {
   return (

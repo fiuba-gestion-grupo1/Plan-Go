@@ -93,6 +93,14 @@ def seed_users(db: Session):
         role="premium",     # usuario premium
     )
 
+    create_or_update_user(
+        db,
+        email="premium3@fi.uba.ar",
+        username="premium3",
+        password="password",
+        role="premium",     # usuario premium
+    )
+
     print("--- Seeding de Usuarios completado ---")
 
 

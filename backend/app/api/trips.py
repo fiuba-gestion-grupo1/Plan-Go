@@ -52,59 +52,101 @@ def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_c
     if not name:
         raise HTTPException(status_code=400, detail="El nombre del viaje es obligatorio")
 
-    # ✅ Convert strings to date objects
+    # ✅ Convertir strings a fechas (si existen)
     start_date = datetime.strptime(start, "%Y-%m-%d").date() if start else None
     end_date = datetime.strptime(end, "%Y-%m-%d").date() if end else None
 
+    # ✅ Crear viaje
     trip = models.Trip(
         user_id=user.id,
         name=name,
         start_date=start_date,
         end_date=end_date,
     )
-
     db.add(trip)
-    db.commit()
-    db.refresh(trip)
+    db.flush()  # 👈 asegura que trip.id exista sin commit todavía
 
+    # ✅ Agregar creador como participante (mismo flush)
     db.add(models.TripParticipant(trip_id=trip.id, user_id=user.id))
-    db.commit()
+    db.commit()  # 👈 commit único, sincronizado
+
+    db.refresh(trip)
 
     return {
         "id": trip.id,
         "name": trip.name,
         "start_date": trip.start_date,
-        "end_date": trip.end_date
+        "end_date": trip.end_date,
     }
 
 
 
 @router.post("/{trip_id}/invite")
-def invite_user_to_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def invite_user_to_trip(
+    trip_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    # ✅ Solo usuarios premium pueden invitar
+    if user.role != "premium":
+        raise HTTPException(status_code=403, detail="Solo los usuarios premium pueden enviar invitaciones.")
+
     username_to_invite = payload.get("username")
     if not username_to_invite:
         raise HTTPException(status_code=400, detail="Debe indicar el nombre de usuario a invitar")
 
-    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    # 🔍 Buscar el viaje
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
-        raise HTTPException(status_code=404, detail="Viaje no encontrado o no autorizado")
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
+    # ✅ El invitador debe ser participante o el creador
+    inviter_participant = db.query(models.TripParticipant).filter_by(
+        trip_id=trip_id, user_id=user.id
+    ).first()
+
+    # 🔹 Si no figura como participante pero es el creador, lo agregamos implícitamente
+    if not inviter_participant and trip.user_id == user.id:
+        inviter_participant = models.TripParticipant(trip_id=trip_id, user_id=user.id)
+        db.add(inviter_participant)
+        db.commit()  # 👈 asegura persistencia inmediata
+
+    if not inviter_participant:
+        raise HTTPException(
+            status_code=403,
+            detail="Solo los participantes del viaje pueden invitar a otros usuarios."
+        )
+
+    # 🔍 Buscar usuario a invitar
     invited_user = db.query(models.User).filter_by(username=username_to_invite).first()
     if not invited_user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+    # 🚫 No puede invitarse a sí mismo
+    if invited_user.id == user.id:
+        raise HTTPException(status_code=400, detail="No podés invitarte a vos mismo")
+
+    # ✅ Solo se pueden invitar usuarios premium
     if invited_user.role != "premium":
         raise HTTPException(status_code=403, detail="Solo se pueden invitar usuarios premium")
 
-    existing = db.query(models.TripInvitation).filter_by(
-        trip_id=trip_id,
-        invited_user_id=invited_user.id,
-        status="pending"
+    # 🚫 Si ya es participante del viaje, no se lo puede invitar de nuevo
+    already_participant = db.query(models.TripParticipant).filter_by(
+        trip_id=trip_id, user_id=invited_user.id
     ).first()
+    if already_participant:
+        raise HTTPException(status_code=400, detail="El usuario ya es participante de este viaje")
 
-    if existing:
-        raise HTTPException(status_code=400, detail="Ya se ha enviado una invitación pendiente a este usuario")
+    # 🚫 Si ya existió una invitación (en cualquier estado), no se lo puede invitar otra vez
+    any_invitation = db.query(models.TripInvitation).filter_by(
+        trip_id=trip_id,
+        invited_user_id=invited_user.id
+    ).first()
+    if any_invitation:
+        raise HTTPException(status_code=400, detail="Ya existe una invitación registrada para este usuario en este viaje")
 
+    # ✅ Crear nueva invitación
     invitation = models.TripInvitation(
         trip_id=trip_id,
         invited_user_id=invited_user.id,
@@ -114,7 +156,9 @@ def invite_user_to_trip(trip_id: int, payload: dict, db: Session = Depends(get_d
 
     db.add(invitation)
     db.commit()
+
     return {"message": f"Invitación enviada a {username_to_invite}"}
+
 
 
 @router.get("/invitations")
@@ -133,26 +177,45 @@ def get_my_invitations(db: Session = Depends(get_db), user=Depends(get_current_u
 
 
 @router.post("/invitations/{invitation_id}/respond")
-def respond_to_invitation(invitation_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def respond_to_invitation(
+    invitation_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
     action = payload.get("action")  # "accept" o "reject"
     if action not in ["accept", "reject"]:
         raise HTTPException(status_code=400, detail="Acción inválida")
 
-    invitation = db.query(models.TripInvitation).filter_by(id=invitation_id, invited_user_id=user.id).first()
+    invitation = db.query(models.TripInvitation).filter_by(
+        id=invitation_id,
+        invited_user_id=user.id
+    ).first()
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitación no encontrada")
 
+    # Si ya fue respondida, no permitir re-responder (y mantenemos la unicidad de intentos)
     if invitation.status != "pending":
-        raise HTTPException(status_code=400, detail="Esta invitación ya fue respondida")
+        raise HTTPException(status_code=400, detail="Esta invitación ya fue respondida previamente")
 
     if action == "accept":
+        # Marcar aceptada
         invitation.status = "accepted"
-        db.add(models.TripParticipant(trip_id=invitation.trip_id, user_id=user.id))
-    else:
-        invitation.status = "rejected"
 
+        # ✅ Agregar participante solo si no existe
+        existing_participant = db.query(models.TripParticipant).filter_by(
+            trip_id=invitation.trip_id, user_id=user.id
+        ).first()
+        if not existing_participant:
+            db.add(models.TripParticipant(trip_id=invitation.trip_id, user_id=user.id))
+
+        db.commit()
+        return {"message": "Invitación aceptada correctamente"}
+
+    # Rechazo
+    invitation.status = "rejected"
     db.commit()
-    return {"message": f"Invitación {action}ed correctamente"}
+    return {"message": "Invitación rechazada correctamente"}
 
 
 # --- Editar un viaje ---
