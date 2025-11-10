@@ -301,6 +301,7 @@ export default function ExpensesPage({ token }) {
     if (userRole !== "premium") {
       setInviteError("Para invitar a otros usuarios, suscribite al plan Premium.");
       setInviteMessage("");
+      setTimeout(() => setInviteError(""), 3000); // 🔹 se borra a los 3 segundos
       return;
     }
 
@@ -313,13 +314,14 @@ export default function ExpensesPage({ token }) {
         body: { username: inviteUsername },
       });
       setInviteMessage(res.message || `Invitación enviada a ${inviteUsername}`);
-      setTimeout(() => setInviteMessage(""), 3000);
+      setTimeout(() => setInviteMessage(""), 3000); // ✅ mensaje verde también desaparece
       setInviteError("");
       setInviteUsername("");
     } catch (error) {
       const msg = error?.detail || error?.message || "Error al enviar invitación";
       setInviteError(msg);
       setInviteMessage("");
+      setTimeout(() => setInviteError(""), 3000); // 🔹 borra el mensaje de error después de 3 seg
     }
   }
 
