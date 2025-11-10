@@ -206,11 +206,28 @@ def delete_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_cu
 # --- Obtener gastos de un viaje ---
 @router.get("/{trip_id}/expenses")
 def get_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    # Buscar el viaje sin filtrar por usuario todavía
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # 🔒 Verificar permisos de acceso:
+    # El creador siempre puede ver los gastos.
+    # Los participantes aceptados también pueden verlos.
+    if trip.user_id != user.id:
+        is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not is_participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
+
+    # Si pasa la validación, devolver los gastos
     return [
-        {"id": e.id, "name": e.name, "category": e.category, "amount": e.amount, "date": e.date}
+        {
+            "id": e.id,
+            "name": e.name,
+            "category": e.category,
+            "amount": e.amount,
+            "date": e.date,
+        }
         for e in trip.expenses
     ]
 
@@ -218,9 +235,16 @@ def get_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(
 # --- Agregar gasto ---
 @router.post("/{trip_id}/expenses")
 def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    trip = db.query(models.Trip).filter_by(id=trip_id, user_id=user.id).first()
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # 🔒 Permisos: el creador o cualquier participante aceptado pueden agregar gastos
+    if trip.user_id != user.id:
+        is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not is_participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
+
 
     try:
         date_obj = datetime.strptime(payload.get("date"), "%Y-%m-%d").date()
@@ -269,22 +293,27 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
         "date": str(exp.date),
     }
 
+# --- Eliminar un gasto ---
 @router.delete("/{trip_id}/expenses/{expense_id}")
 def delete_expense(trip_id: int, expense_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    
-    # Buscamos el gasto asegurándonos que pertenezca al usuario y al viaje
-    expense = db.query(models.Expense).filter(
-        models.Expense.id == expense_id,
-        models.Expense.trip_id == trip_id
-    ).first()
-
+    # Buscar el gasto
+    expense = db.query(models.Expense).filter_by(id=expense_id, trip_id=trip_id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    # Seguridad: Solo el usuario que creó el gasto puede borrarlo
-    if expense.user_id != user.id:
-        raise HTTPException(status_code=403, detail="No autorizado para eliminar este gasto")
+    # Buscar el viaje
+    trip = db.query(models.Trip).filter_by(id=trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
+    # 🔒 Permisos:
+    # El creador o cualquier participante aceptado pueden eliminar cualquier gasto.
+    if trip.user_id != user.id:
+        is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not is_participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
+
+    # Si pasa la validación, eliminar el gasto
     db.delete(expense)
     db.commit()
     return {"message": "Gasto eliminado correctamente"}
@@ -305,8 +334,15 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    if expense.user_id != user.id:
-        raise HTTPException(status_code=403, detail="No autorizado para editar este gasto")
+
+    # 🔒 Permisos:
+    # El creador o cualquier participante aceptado pueden editar cualquier gasto.
+    if trip.user_id != user.id:
+        is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
+        if not is_participant:
+            raise HTTPException(status_code=403, detail="No sos participante de este viaje")
+
+
 
     expense.name = payload.get("name", expense.name)
     expense.category = payload.get("category", expense.category)
