@@ -59,9 +59,15 @@ export default function ExpensesPage({ token }) {
   }
 
 
+  // --- Cargar viajes al iniciar ---
   useEffect(() => {
     fetchTrips();
   }, []);
+
+  // --- NUEVO: limpiar mensaje de invitación al cambiar de vista o viaje ---
+  useEffect(() => {
+    setInviteMessage(""); // 🔹 Limpia el cartel “Invitación enviada a…”
+  }, [selectedTrip, view]);
 
   async function fetchTrips() {
     const data = await request("/api/trips", { token });
@@ -90,10 +96,14 @@ export default function ExpensesPage({ token }) {
   }
 
   async function openTrip(tripId) {
+    setInviteMessage(""); // 🔹 Limpia cartel anterior
+    setBalances([]);
+    setBalancesData({ total: 0, por_persona: 0, balances: [] });
     const data = await request(`/api/trips/${tripId}/expenses`, { token });
     setSelectedTrip(tripId);
     setExpenses(data);
   }
+
 
   async function addExpense() {
     const { name, category, amount, date } = newExpense;
@@ -281,6 +291,7 @@ export default function ExpensesPage({ token }) {
         body: { username: inviteUsername },
       });
       setInviteMessage(res.message || `Invitación enviada a ${inviteUsername}`);
+      setTimeout(() => setInviteMessage(""), 3000);
       setInviteError("");
       setInviteUsername("");
     } catch (error) {
@@ -567,7 +578,15 @@ if (!selectedTrip) {
 
   return (
     <div className="container mt-4">
-      <button className="btn btn-outline-secondary mb-3" onClick={() => setSelectedTrip(null)}>
+      <button
+        className="btn btn-outline-secondary mb-3"
+        onClick={() => {
+          setSelectedTrip(null);
+          setInviteMessage(""); // 🔹 Limpia cartel
+          setBalances([]);
+          setBalancesData({ total: 0, por_persona: 0, balances: [] });
+        }}
+      >
         ← Volver
       </button>
 
@@ -575,9 +594,6 @@ if (!selectedTrip) {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3 className="mb-0">Gastos del viaje</h3>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary" onClick={joinTrip}>
-            Unirse al viaje
-          </button>
           <button className="btn btn-outline-success" onClick={calculateBalances}>
             Calcular saldos
           </button>
@@ -692,7 +708,13 @@ if (!selectedTrip) {
       <div className="mb-3">
         <button 
           className={`btn ${view === 'list' ? 'btn-light' : 'btn-outline-secondary'} me-2`}
-          onClick={() => setView('list')}
+          onClick={() => {
+            setView('list');
+            setInviteMessage(""); // 🔹 Limpia cartel
+            setBalances([]);
+            setBalancesData({ total: 0, por_persona: 0, balances: [] });
+          }}
+
         >
           🧾 Lista de Gastos
         </button>
