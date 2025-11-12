@@ -1061,6 +1061,19 @@ export default function Home({ me, view = "publications" }) {
                     >
                       Ver Itinerario
                     </button>
+
+                    {/* NUEVO: botón Compartir → dispara evento global que escucha App */}
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('open-share-itinerary', {
+                          detail: { id: itinerary.id }
+                        }));
+                      }}
+                    >
+                      📧 Compartir
+                    </button>
+
                     <button
                       className="btn btn-sm btn-outline-danger"
                       onClick={(e) => {

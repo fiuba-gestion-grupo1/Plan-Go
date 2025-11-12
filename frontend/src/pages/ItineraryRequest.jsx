@@ -244,6 +244,13 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
                 Mis Itinerarios
               </button>
               <button
+                className="btn btn-outline-primary"
+                onClick={() => navigate(`/itineraries/${selectedItinerary.id}/share`)}
+                title="Compartir por mail"
+              >
+                ✉️ Compartir por mail
+              </button>
+              <button
                 className="btn btn-outline-danger"
                 onClick={() => handleDeleteItinerary(selectedItinerary.id)}
                 disabled={loading}

@@ -8,6 +8,10 @@ from .auth import get_current_user
 from datetime import datetime
 import google.generativeai as genai
 import re
+from ..utils.mailer import send_email_html
+from pydantic import BaseModel, EmailStr
+import html
+from datetime import datetime, date
 
 router = APIRouter(prefix="/api/itineraries", tags=["itineraries"])
 
@@ -593,3 +597,180 @@ def delete_itinerary(
     db.commit()
     
     return {"message": "Itinerario eliminado exitosamente", "id": itinerary_id}
+
+
+class SharePayload(BaseModel):
+    to: EmailStr
+    note: str | None = None  # opcional, mensaje corto del remitente
+
+def _abs_url(path: str, base: str) -> str:
+    if not path:
+        return ""
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+    base = (base or "").rstrip("/")
+    path = path if path.startswith("/") else f"/{path}"
+    return f"{base}{path}"
+
+def _build_itinerary_email_html(itinerary: models.Itinerary, pubs: list[models.Publication]) -> str:
+    app_url = os.getenv("APP_PUBLIC_URL", "http://localhost:8000")
+    brand = os.getenv("APP_BRAND_NAME", "Plan&Go")
+
+    # Encabezado
+    title = f"Itinerario: {itinerary.destination}"
+    start = _to_date(itinerary.start_date)
+    end = _to_date(itinerary.end_date)
+    date_range = f"{_fmt_date_ymd(itinerary.start_date)} → {_fmt_date_ymd(itinerary.end_date)}"
+    status_pill = itinerary.status.capitalize()
+    budget = f"US$ {itinerary.budget}"
+    persons = f"{itinerary.cant_persons}"
+
+    # Texto IA (lo escapamos y convertimos \n en <br>)
+    gen_html = html.escape(itinerary.generated_itinerary or "").replace("\n", "<br />")
+
+    # Tarjetas de lugares
+    cards_html = ""
+    for p in pubs:
+        photo_url = ""
+        if getattr(p, "photos", None):
+            photo_url = _abs_url(p.photos[0].url, app_url)
+        address = f"{p.address}, {p.city}, {p.province}, {p.country}"
+        rating = f"{getattr(p, 'rating_avg', 0.0):.1f} ⭐ ({getattr(p, 'rating_count', 0)})"
+        cats = ", ".join([c.slug for c in (p.categories or [])])
+
+        cards_html += f"""
+        <tr>
+          <td style="padding:12px 0;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+              {"<tr><td><img src='"+photo_url+"' alt='' style='width:100%;max-height:220px;object-fit:cover;display:block;'/></td></tr>" if photo_url else ""}
+              <tr>
+                <td style="padding:12px 16px;">
+                  <div style="font-weight:600;font-size:16px;margin:0 0 4px 0;">{html.escape(p.place_name)}</div>
+                  <div style="color:#6b7280;font-size:13px;margin:0 0 6px 0;">{html.escape(address)}</div>
+                  <div style="font-size:13px;">
+                    <span>⭐ {rating}</span>
+                    {" — <span style='color:#6b7280;'>" + html.escape(cats) + "</span>" if cats else ""}
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        """
+
+    return f"""
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>{html.escape(title)}</title></head>
+  <body style="font-family: Arial, sans-serif; background:#f6fbff; padding:24px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:760px;margin:0 auto;background:#ffffff;border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,0.06);overflow:hidden;">
+      <tr>
+        <td style="background:linear-gradient(135deg,#0ea5e9,#22d3ee);color:#fff;padding:24px 24px;">
+          <h1 style="margin:0;font-size:22px;">✈️ {html.escape(title)}</h1>
+          <p style="margin:8px 0 0 0;opacity:0.95;">{html.escape(date_range)} • Estado: {html.escape(status_pill)}</p>
+          <p style="margin:6px 0 0 0;opacity:0.95;">Presupuesto: {html.escape(budget)} • Personas: {html.escape(persons)}</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:20px 24px;">
+          <div style="font-weight:600;margin-bottom:8px;">Itinerario generado</div>
+          <div style="border:1px solid #e5e7eb;background:#f9fafb;border-radius:12px;padding:16px;line-height:1.6;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+            {gen_html}
+          </div>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:0 24px 8px 24px;">
+          <div style="font-weight:600;margin:8px 0 10px 0;">Lugares incluidos en este itinerario</div>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            {cards_html or "<tr><td style='color:#6b7280;'>No hay lugares asociados.</td></tr>"}
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:16px 24px; background:#f9fafb; color:#6b7280; font-size:12px;">
+          © {html.escape(brand)} — Compartido desde la app. Link: <a href="{_abs_url(f'/itinerary/{itinerary.id}', app_url)}" style="color:#0ea5e9;">ver en la web</a>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+""".strip()
+
+@router.post("/{itinerary_id}/share-email")
+def share_itinerary_by_email(
+    itinerary_id: int,
+    payload: SharePayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Envía por email el itinerario (HTML) al destinatario indicado.
+    Solo el dueño del itinerario (o admin) puede compartirlo.
+    """
+    it = db.query(models.Itinerary).filter(models.Itinerary.id == itinerary_id).first()
+    if not it:
+        raise HTTPException(status_code=404, detail="Itinerario no encontrado")
+
+    if it.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="No tienes permiso para compartir este itinerario")
+
+    # Publicaciones vinculadas al itinerario (si quedaron guardadas)
+    pubs: list[models.Publication] = []
+    if getattr(it, "publication_ids", None):
+        pubs = db.query(models.Publication).filter(models.Publication.id.in_(it.publication_ids)).all()
+
+    html_body = _build_itinerary_email_html(it, pubs)
+    subject = f"Tu itinerario: {it.destination} ({_fmt_date_ymd(it.start_date)} → {_fmt_date_ymd(it.end_date)})"
+
+    # Nota opcional del remitente
+    if payload.note:
+        note_html = f"<p style='margin:0 0 12px 0'><em>Mensaje de {html.escape(current_user.username)}:</em> {html.escape(payload.note)}</p>"
+        html_body = html_body.replace("<body", "<body").replace(
+            "<table", note_html + "<table", 1
+        )
+
+    send_email_html(payload.to, subject, html_body)
+    return {"ok": True, "message": "Itinerario enviado por email"}
+
+
+
+def _to_date(value):
+    """Acepta datetime/date/str y devuelve date."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        # intenta ISO primero (YYYY-MM-DD[THH:MM:SS])
+        try:
+            return datetime.fromisoformat(value).date()
+        except ValueError:
+            # fallback a solo fecha
+            return datetime.strptime(value, "%Y-%m-%d").date()
+    # último recurso: devolvelo tal cual; str() no romperá
+    return value
+
+
+
+def _fmt_date_ymd(value) -> str:
+    """Devuelve la fecha como 'YYYY-MM-DD' aceptando date/datetime/str ISO."""
+    if isinstance(value, datetime):
+        d = value.date()
+    elif isinstance(value, date):
+        d = value
+    elif isinstance(value, str):
+        # intenta ISO 'YYYY-MM-DD' o 'YYYY-MM-DDTHH:MM:SS'
+        try:
+            d = datetime.fromisoformat(value).date()
+        except ValueError:
+            try:
+                d = datetime.strptime(value, "%Y-%m-%d").date()
+            except ValueError:
+                return str(value)  # último recurso
+    else:
+        return str(value)
+    return d.strftime("%Y-%m-%d")
