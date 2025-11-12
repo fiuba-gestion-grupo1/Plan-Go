@@ -45,3 +45,24 @@
 .btn-celeste.dropdown-toggle::after {
   border-top-color: #3A92B5;
 }
+
+/* Suaviza los bordes de filas en la tabla de viajes */
+.table tbody tr td {
+  border-top: 1px solid #f0f2f5 !important;
+}
+
+.table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  text-align: center;
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+

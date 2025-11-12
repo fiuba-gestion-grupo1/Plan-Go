@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query, Header
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, select
 from typing import List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from .. import models, schemas
 from ..db import get_db
 from .auth import get_current_user
 from pydantic import BaseModel
+from .auth import get_current_user, get_optional_user
 
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
@@ -145,7 +146,7 @@ def list_all_publications(db: Session = Depends(get_db), _: models.User = Depend
                 climate=getattr(p, "climate", None),
                 activities=getattr(p, "activities", None),
                 cost_per_day=getattr(p, "cost_per_day", None),
-                duration_days=getattr(p, "duration_days", None),
+                duration_min=getattr(p, "duration_min", None),
             )
         )
     return out
@@ -181,7 +182,7 @@ def list_publications(db: Session = Depends(get_db), _: models.User = Depends(re
                 climate=getattr(p, "climate", None),
                 activities=getattr(p, "activities", None),
                 cost_per_day=getattr(p, "cost_per_day", None),
-                duration_days=getattr(p, "duration_days", None),
+                duration_min=getattr(p, "duration_min", None),
             )
         )
     return out
@@ -204,7 +205,7 @@ def create_publication(
     climate: Optional[str] = Form(None),         # ej: templado / tropical
     activities: Optional[str] = Form(None),      # CSV: playa,gastronomía
     cost_per_day: Optional[float] = Form(None),  # ej: 80.0
-    duration_days: Optional[int] = Form(None),   # ej: 7
+    duration_min: Optional[int] = Form(None),   # ej: 7
 
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_admin),
@@ -253,8 +254,8 @@ def create_publication(
         pub.activities = activities_list
     if hasattr(pub, "cost_per_day"):
         pub.cost_per_day = cost_per_day
-    if hasattr(pub, "duration_days"):
-        pub.duration_days = duration_days
+    if hasattr(pub, "duration_min"):
+        pub.duration_min = duration_min
 
     # categorías (opc)
     slugs: List[str] = []
@@ -333,7 +334,7 @@ def submit_publication(
     climate: Optional[str] = Form(None),           # ej: templado / tropical
     activities: Optional[str] = Form(None),        # CSV: playa,gastronomía
     cost_per_day: Optional[float] = Form(None),    # ej: 80.0
-    duration_days: Optional[int] = Form(None),     # ej: 7
+    duration_min: Optional[int] = Form(None),     # ej: 7
 
     photos: Optional[List[UploadFile]] = File(None),
 
@@ -378,7 +379,7 @@ def submit_publication(
         climate=climate_norm if hasattr(models.Publication, "climate") else None,
         activities=activities_list if hasattr(models.Publication, "activities") else None,
         cost_per_day=cost_per_day if hasattr(models.Publication, "cost_per_day") else None,
-        duration_days=duration_days if hasattr(models.Publication, "duration_days") else None,
+        duration_min=duration_min if hasattr(models.Publication, "duration_min") else None,
     )
     if hasattr(models.Publication, "number"):
         setattr(pub, "number", number)
@@ -573,33 +574,13 @@ def search_publications(
                 climate=p.climate,
                 activities=p.activities,
                 cost_per_day=p.cost_per_day,
-                duration_days=p.duration_days,
+                duration_min=p.duration_min,
                 is_favorite=p.id in favorite_ids,
             )
         )
     return out
 
-# --- LIST PUBLIC (con auth opcional, con filtro de categorías) ---
-def get_optional_user(
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
-) -> Optional[models.User]:
-    """Obtiene el usuario si está autenticado, sino devuelve None"""
-    if not authorization or not authorization.lower().startswith("bearer "):
-        return None
-    try:
-        from ..security import decode_token
-        token = authorization.split()[1]
-        data = decode_token(token)
-        if not data:
-            return None
-        user_id = data.get("sub")
-        if user_id is None:
-            return None
-        user = db.query(models.User).get(int(user_id))
-        return user
-    except Exception:
-        return None
+
 
 @router.get("/public", response_model=List[schemas.PublicationOut])
 def list_publications_public(
@@ -653,7 +634,7 @@ def list_publications_public(
                 climate=getattr(p, "climate", None),
                 activities=getattr(p, "activities", []),
                 cost_per_day=getattr(p, "cost_per_day", None),
-                duration_days=getattr(p, "duration_days", None),
+                duration_min=getattr(p, "duration_min", None),
             )
         )
     return out
@@ -689,14 +670,16 @@ def list_pending_publications(db: Session = Depends(get_db), _: models.User = De
                 climate=getattr(p, "climate", None),
                 activities=getattr(p, "activities", None),
                 cost_per_day=getattr(p, "cost_per_day", None),
-                duration_days=getattr(p, "duration_days", None),
+                duration_min=getattr(p, "duration_min", None),
             )
         )
     return out
 
 def _update_publication_rating(db: Session, pub_id: int) -> None:
     avg_, count_ = db.query(func.avg(models.Review.rating), func.count(models.Review.id)) \
-        .filter(models.Review.publication_id == pub_id).one()
+        .filter(models.Review.publication_id == pub_id) \
+        .filter(models.Review.status.in_(["approved", "under_review"])) \
+        .one()
     pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
     if hasattr(pub, "rating_avg"):
         pub.rating_avg = round(float(avg_ or 0.0), 1)
@@ -739,30 +722,158 @@ def create_review(
         rating=review.rating,
         comment=review.comment,
         author_username=user.username,
-        created_at=review.created_at.isoformat()[:19],
+        created_at=review.created_at.strftime("%Y-%m-%d %H:%M:%S") if review.created_at else None,
     )
 
 @router.get("/{pub_id}/reviews", response_model=List[schemas.ReviewOut])
-def list_reviews(pub_id: int, db: Session = Depends(get_db)):
+def list_reviews(
+    pub_id: int, 
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_optional_user)
+):
+    user_id = current_user.id if current_user else None
+
+    # Subquery para contar likes totales
+    like_count_sq = (
+        select(func.count(models.ReviewLike.id))
+        .where(models.ReviewLike.review_id == models.Review.id)
+        .scalar_subquery()
+    )
+
+    # Subquery para saber si el usuario actual dio like (0 o 1)
+    is_liked_sq = (
+        select(func.count(models.ReviewLike.id))
+        .where(
+            models.ReviewLike.review_id == models.Review.id,
+            models.ReviewLike.user_id == user_id
+        )
+        .scalar_subquery()
+    )
+
     rows = (
-        db.query(models.Review, models.User.username)
+        db.query(
+            models.Review, 
+            models.User.username,
+            like_count_sq.label("like_count"),
+            is_liked_sq.label("is_liked")
+        )
         .join(models.User, models.User.id == models.Review.author_id)
         .filter(models.Review.publication_id == pub_id)
+        .filter(models.Review.status.in_(["approved", "under_review"]))  # Excluir reseñas ocultas
+        # --- AÑADIR ESTA LÍNEA (options) ---
+        .options(
+            selectinload(models.Review.comments).selectinload(models.ReviewComment.author)
+        )
         .order_by(models.Review.created_at.desc())
         .all()
     )
+    
     out: List[schemas.ReviewOut] = []
-    for r, username in rows:
+    for r, username, like_count, is_liked in rows:
+        
+        # --- AÑADIR ESTE BLOQUE ---
+        comment_list = []
+        if r.comments:
+            for c in r.comments:
+                if c.author: # Solo incluir si el autor del comentario existe
+                    comment_list.append(
+                        schemas.ReviewCommentOut(
+                            id=c.id,
+                            comment=c.comment,
+                            author_username=c.author.username,
+                            created_at=c.created_at.strftime("%Y-%m-%d %H:%M:%S") if c.created_at else None
+                        )
+                    )
+        # --- FIN DEL BLOQUE AÑADIDO ---
+
         out.append(
             schemas.ReviewOut(
                 id=r.id,
                 rating=r.rating,
                 comment=r.comment,
                 author_username=username,
-                created_at=r.created_at.isoformat()[:19],
+                created_at=r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None,
+                status=r.status,
+                like_count=like_count or 0,
+                is_liked_by_me=bool(is_liked),
+                comments=comment_list # <-- AÑADIR ESTO
             )
         )
     return out
+
+
+
+# --- AÑADIR ESTE NUEVO ENDPOINT (antes de /approve) ---
+@router.post("/reviews/{review_id}/like", status_code=status.HTTP_200_OK)
+def toggle_review_like(
+    review_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_premium_or_admin), # <-- Solo premium
+):
+    """
+    Da o quita "me gusta" a una reseña.
+    """
+    review = db.query(models.Review).get(review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+
+    existing_like = db.query(models.ReviewLike).filter(
+        models.ReviewLike.review_id == review_id,
+        models.ReviewLike.user_id == user.id
+    ).first()
+
+    is_liked = False
+    if existing_like:
+        # Ya le dio like, lo quitamos
+        db.delete(existing_like)
+        is_liked = False
+    else:
+        # No le dio like, lo agregamos
+        new_like = models.ReviewLike(review_id=review_id, user_id=user.id)
+        db.add(new_like)
+        is_liked = True
+    
+    db.commit()
+
+    # Devolvemos el nuevo conteo total y el estado
+    new_count = db.query(func.count(models.ReviewLike.id)).filter(
+        models.ReviewLike.review_id == review_id
+    ).scalar()
+
+    return {"is_liked": is_liked, "like_count": new_count or 0}
+
+@router.post("/reviews/{review_id}/comments", response_model=schemas.ReviewCommentOut, status_code=status.HTTP_201_CREATED)
+def create_review_comment(
+    review_id: int,
+    payload: schemas.ReviewCommentCreate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user), # <-- Permite CUALQUIER usuario logueado
+):
+    """
+    Permite a cualquier usuario logueado (normal, premium, admin)
+    publicar un comentario en una reseña.
+    """
+    # Verificar que la reseña exista
+    review = db.query(models.Review).get(review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+
+    new_comment = models.ReviewComment(
+        review_id=review_id,
+        author_id=user.id,
+        comment=payload.comment.strip(),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    return schemas.ReviewCommentOut(
+        id=new_comment.id,
+        comment=new_comment.comment,
+        author_username=user.username, # user ya está disponible desde get_current_user
+        created_at=new_comment.created_at.strftime("%Y-%m-%d %H:%M:%S") if new_comment.created_at else None,
+    )
 
 # --- APPROVE PUBLICATION (solo admin) ---
 @router.put("/{pub_id}/approve", response_model=schemas.PublicationOut)
@@ -794,7 +905,7 @@ def approve_publication(pub_id: int, db: Session = Depends(get_db), _: models.Us
         climate=getattr(pub, "climate", None),
         activities=getattr(pub, "activities", None),
         cost_per_day=getattr(pub, "cost_per_day", None),
-        duration_days=getattr(pub, "duration_days", None),
+        duration_min=getattr(pub, "duration_min", None),
     )
 
 # --- REJECT PUBLICATION (solo admin) - Cambia status a "rejected" ---
@@ -837,7 +948,7 @@ def reject_publication(
         climate=getattr(pub, "climate", None),
         activities=getattr(pub, "activities", None),
         cost_per_day=getattr(pub, "cost_per_day", None),
-        duration_days=getattr(pub, "duration_days", None),
+        duration_min=getattr(pub, "duration_min", None),
     )
 
 # --- TOGGLE FAVORITE ---
@@ -1067,3 +1178,120 @@ def update_favorite_status(
     fav.status = payload.status
     db.commit()
     return {"message": f"Estado actualizado a {payload.status}"}
+
+
+# -------------------------------------------------
+# REVIEW REPORTS ENDPOINTS
+# -------------------------------------------------
+
+@router.post("/{pub_id}/reviews/{review_id}/report", response_model=schemas.ReviewReportOut, status_code=status.HTTP_201_CREATED)
+def report_review(
+    pub_id: int,
+    review_id: int,
+    payload: schemas.ReviewReportCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Reporta una reseña por contenido inapropiado
+    """
+    # Verificar que la reseña existe y pertenece a la publicación
+    review = db.query(models.Review).filter(
+        models.Review.id == review_id,
+        models.Review.publication_id == pub_id
+    ).first()
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    
+    # Verificar que el usuario no esté reportando su propia reseña
+    if review.author_id == current_user.id:
+        raise HTTPException(status_code=400, detail="No puedes reportar tu propia reseña")
+    
+    # Verificar que el usuario no haya reportado ya esta reseña
+    existing_report = db.query(models.ReviewReport).filter(
+        models.ReviewReport.review_id == review_id,
+        models.ReviewReport.reporter_id == current_user.id
+    ).first()
+    
+    if existing_report:
+        raise HTTPException(status_code=400, detail="Ya has reportado esta reseña")
+    
+    # Crear el reporte
+    report = models.ReviewReport(
+        review_id=review_id,
+        reporter_id=current_user.id,
+        reason=payload.reason,
+        comments=payload.comments
+    )
+    
+    db.add(report)
+    
+    # Marcar la reseña como bajo investigación
+    review.status = "under_review"
+    
+    db.commit()
+    db.refresh(report)
+    
+    # Cargar datos para la respuesta
+    report_with_data = db.query(models.ReviewReport).options(
+        selectinload(models.ReviewReport.review).selectinload(models.Review.author),
+        selectinload(models.ReviewReport.review).selectinload(models.Review.publication),
+        selectinload(models.ReviewReport.reporter)
+    ).filter(models.ReviewReport.id == report.id).first()
+    
+    return build_review_report_out(report_with_data)
+
+
+def build_review_report_out(report: models.ReviewReport) -> schemas.ReviewReportOut:
+    """
+    Construye un objeto ReviewReportOut con todos los datos necesarios
+    """
+    review_out = schemas.ReviewOut(
+        id=report.review.id,
+        rating=report.review.rating,
+        comment=report.review.comment,
+        author_username=report.review.author.username,
+        created_at=report.review.created_at.isoformat()[:19],
+        status=report.review.status,
+        like_count=0,
+        is_liked_by_me=False,
+        comments=[]
+    )
+    
+    # Obtener datos básicos de la publicación
+    pub = report.review.publication
+    pub_out = schemas.PublicationOut(
+        id=pub.id,
+        place_name=pub.place_name,
+        country=pub.country,
+        province=pub.province,
+        city=pub.city,
+        address=pub.address,
+        description=pub.description or "",
+        continent=pub.continent,
+        climate=pub.climate,
+        activities=pub.activities or [],
+        cost_per_day=pub.cost_per_day,
+        duration_min=pub.duration_min,
+        rating_avg=pub.rating_avg,
+        rating_count=pub.rating_count,
+        photos=[],
+        categories=[],
+        is_favorite=False,
+        favorite_status="pending",
+        created_at=pub.created_at.isoformat()[:19] if pub.created_at else ""
+    )
+    
+    return schemas.ReviewReportOut(
+        id=report.id,
+        review_id=report.review_id,
+        reporter_username=report.reporter.username,
+        reason=report.reason,
+        comments=report.comments,
+        status=report.status,
+        created_at=report.created_at.isoformat()[:19],
+        resolved_at=report.resolved_at.isoformat()[:19] if report.resolved_at else None,
+        review=review_out,
+        publication=pub_out
+    )

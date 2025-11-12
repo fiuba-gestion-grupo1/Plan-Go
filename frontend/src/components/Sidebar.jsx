@@ -11,6 +11,7 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
     { id: 'all-publications', label: 'Todas las Publicaciones' },
     { id: 'pending-approvals', label: 'Solicitudes de aprobación' },
     { id: 'deletion-requests', label: 'Solicitudes de eliminación' },
+    { id: 'review-reports', label: 'Reportes de reseñas' },
   ] : [
     { id: 'publications', label: '📰 Publicaciones' },
     // Mostrar "Mis publicaciones" solo si el usuario es premium
@@ -18,7 +19,9 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
     { id: 'favorites', label: '❤️ Mis favoritos' },
     { id: 'preferences', label: '⚙️ Configurar preferencias' },
     { id: 'itinerary', label: '🤖🗺️Generar itinerario con IA' },
-    { id: 'my-itineraries', label: '📅 Mis itinerarios' }
+    { id: 'my-itineraries', label: '📅 Mis itinerarios' },
+    { id: 'expenses', label: '💰 Mis gastos' },
+    { id: 'invite-friends', label: '✉️ Invitar amigos' }
   ];
 
   return (

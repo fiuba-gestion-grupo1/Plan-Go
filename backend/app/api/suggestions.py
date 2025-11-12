@@ -16,8 +16,8 @@ def score(dest, pref):
         s += len(set(pref.activities) & set(dest.activities or []))
     if pref.budget_max and getattr(dest, "cost_per_day", None):
         s += 2 if dest.cost_per_day <= pref.budget_max else 0
-    if pref.duration_min_days and pref.duration_max_days and getattr(dest,"duration_days",None):
-        if pref.duration_min_days <= dest.duration_days <= pref.duration_max_days:
+    if pref.duration_min_days and pref.duration_max_days and getattr(dest,"duration_min",None):
+        if pref.duration_min_days <= dest.duration_min <= pref.duration_max_days:
             s += 1
     return s
 
@@ -97,7 +97,7 @@ def get_suggestions(
                 climate=getattr(p, "climate", None),
                 activities=getattr(p, "activities", []),
                 cost_per_day=getattr(p, "cost_per_day", None),
-                duration_days=getattr(p, "duration_days", None),
+                duration_min=getattr(p, "duration_min", None),
                 is_favorite=p.id in favorite_ids,
                 has_pending_deletion=p.id in pending_deletion_ids,
             )

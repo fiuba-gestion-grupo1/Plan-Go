@@ -3,45 +3,12 @@ import CreatePublicationForm from "../components/CreatePublicationForm";
 import ItineraryRequestForm from "../components/ItineraryRequestForm";
 import "../styles/buttons.css";
 import ItineraryRequest from "../pages/ItineraryRequest";
+import PublicationDetailModal from "../components/PublicationDetailModal";
+import { Stars, RatingBadge } from "../components/shared/UIComponents";
+import { request } from '../utils/api';
+import ExpensesPage from "../pages/ExpensesPage";
 
-/* Helper fetch */
-async function request(path, { method = "GET", token, body, isForm = false } = {}) {
-  const headers = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  if (!isForm) headers["Content-Type"] = "application/json";
-  const res = await fetch(path, { method, headers, body: isForm ? body : body ? JSON.stringify(body) : undefined });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    console.error("Error del servidor:", err);
-    // Si es un error de validación de FastAPI
-    if (err.detail && Array.isArray(err.detail)) {
-      const messages = err.detail.map(e => `${e.loc?.join('.')} - ${e.msg}`).join(', ');
-      throw new Error(messages);
-    }
-    throw new Error(err.detail || err.message || `HTTP ${res.status}`);
-  }
-  return res.json().catch(() => ({}));
-}
 
-/* --- UI helpers --- */
-function Stars({ value = 0 }) {
-  const pct = Math.max(0, Math.min(100, (Number(value) / 5) * 100));
-  return (
-    <span className="position-relative" aria-label={`Rating ${value}/5`}>
-      <span className="text-muted" style={{ letterSpacing: 1 }}>★★★★★</span>
-      <span className="position-absolute top-0 start-0 overflow-hidden" style={{ width: `${pct}%` }}>
-        <span className="text-warning" style={{ letterSpacing: 1 }}>★★★★★</span>
-      </span>
-    </span>
-  );
-}
-function RatingBadge({ avg = 0, count = 0 }) {
-  return (
-    <span className="badge bg-light text-dark border">
-      <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
-    </span>
-  );
-}
 
 /* --- Dropdown multiselect --- */
 function useOnClickOutside(ref, handler) {
@@ -173,8 +140,15 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
           <ul className="list-unstyled mb-0">
             {list.map((r) => (
               <li key={r.id} className="border rounded-3 p-3 mb-2">
-                <div className="d-flex justify-content-between">
-                  <Stars value={r.rating} />
+                <div className="d-flex justify-content-between align-items-start">
+                  <div className="d-flex align-items-center gap-2">
+                    <Stars value={r.rating} />
+                    {r.status === "under_review" && (
+                      <span className="badge bg-warning text-dark">
+                        🔍 Bajo investigación
+                      </span>
+                    )}
+                  </div>
                   <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
                 </div>
                 {r.comment && <div className="mt-1">{r.comment}</div>}
@@ -329,6 +303,11 @@ export default function Home({ me, view = "publications" }) {
   const [myItineraries, setMyItineraries] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Estados para modal de confirmación de eliminación de itinerarios
+  const [deleteItineraryModal, setDeleteItineraryModal] = useState(false);
+  const [itineraryToDelete, setItineraryToDelete] = useState(null);
+  
   const token = useMemo(() => localStorage.getItem("token") || "", []);
   // leer ?pub=ID una sola vez
   const [paramPubId] = useState(() => {
@@ -553,23 +532,27 @@ export default function Home({ me, view = "publications" }) {
   }
 
   async function handleDeleteItinerary(itineraryId) {
-    if (!window.confirm("¿Estás seguro de que deseas eliminar este itinerario? Esta acción no se puede deshacer.")) {
-      return;
-    }
+    // Mostrar modal de confirmación en lugar de window.confirm
+    setItineraryToDelete(itineraryId);
+    setDeleteItineraryModal(true);
+  }
+
+  async function confirmDeleteItinerary() {
+    if (!itineraryToDelete) return;
 
     setLoading(true);
     setError("");
     setSuccessMsg("");
 
     try {
-      await request(`/api/itineraries/${itineraryId}`, {
+      await request(`/api/itineraries/${itineraryToDelete}`, {
         method: "DELETE",
         token
       });
 
       setSuccessMsg("Itinerario eliminado exitosamente");
 
-      if (selectedItinerary && selectedItinerary.id === itineraryId) {
+      if (selectedItinerary && selectedItinerary.id === itineraryToDelete) {
         setSelectedItinerary(null);
       }
 
@@ -579,6 +562,9 @@ export default function Home({ me, view = "publications" }) {
       setError(e.message || "Error al eliminar el itinerario");
     } finally {
       setLoading(false);
+      // Cerrar modal y limpiar estado
+      setDeleteItineraryModal(false);
+      setItineraryToDelete(null);
     }
   }
 
@@ -596,7 +582,7 @@ export default function Home({ me, view = "publications" }) {
 
     // Convertir campos numéricos de string a number
     const costPerDay = fd.get('cost_per_day');
-    const durationDays = fd.get('duration_days');
+    const durationMin = fd.get('duration_min');
 
     if (costPerDay && costPerDay.trim() !== '') {
       fd.set('cost_per_day', parseFloat(costPerDay));
@@ -604,10 +590,10 @@ export default function Home({ me, view = "publications" }) {
       fd.delete('cost_per_day');
     }
 
-    if (durationDays && durationDays.trim() !== '') {
-      fd.set('duration_days', parseInt(durationDays, 10));
+    if (durationMin && durationMin.trim() !== '') {
+      fd.set('duration_min', parseInt(durationMin, 10));
     } else {
-      fd.delete('duration_days');
+      fd.delete('duration_min');
     }
 
     // Debug: mostrar qué se está enviando
@@ -749,6 +735,10 @@ export default function Home({ me, view = "publications" }) {
   // Vista de Configurar Preferencias
   if (view === 'preferences') {
     return <PreferencesBox token={token} />;
+  }
+
+  if (view === 'expenses') {
+    return <ExpensesPage me={me} token={token} />;
   }
 
   // Vista del formulario de itinerario o del itinerario seleccionado
@@ -944,6 +934,32 @@ export default function Home({ me, view = "publications" }) {
           <div className="alert alert-info mt-4">
             <strong>💡 Tip:</strong> Usa el botón "📋 Copiar" para copiar todo el itinerario y pegarlo donde necesites.
           </div>
+
+          {/* Modal de confirmación de eliminación de itinerario */}
+          {deleteItineraryModal && (
+            <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+              <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+                <div className="p-4 text-center">
+                  <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+                  <div className="d-flex gap-2 justify-content-center">
+                    <button
+                      className="btn btn-outline-secondary"
+                      onClick={() => setDeleteItineraryModal(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={confirmDeleteItinerary}
+                    >
+                      Aceptar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -1045,9 +1061,25 @@ export default function Home({ me, view = "publications" }) {
                     >
                       Ver Itinerario
                     </button>
+
+                    {/* NUEVO: botón Compartir → dispara evento global que escucha App */}
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('open-share-itinerary', {
+                          detail: { id: itinerary.id }
+                        }));
+                      }}
+                    >
+                      📧 Compartir
+                    </button>
+
                     <button
                       className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleDeleteItinerary(itinerary.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteItinerary(itinerary.id);
+                      }}
                       title="Eliminar itinerario"
                       disabled={loading}
                     >
@@ -1067,6 +1099,32 @@ export default function Home({ me, view = "publications" }) {
         {!loading && myItineraries.length === 0 && (
           <div className="alert alert-secondary">
             No tienes itinerarios generados aún. ¡Crea tu primer itinerario con IA!
+          </div>
+        )}
+
+        {/* Modal de confirmación de eliminación de itinerario */}
+        {deleteItineraryModal && (
+          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+              <div className="p-4 text-center">
+                <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+                <div className="d-flex gap-2 justify-content-center">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setDeleteItineraryModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={confirmDeleteItinerary}
+                  >
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1279,6 +1337,44 @@ export default function Home({ me, view = "publications" }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de confirmación de eliminación de itinerario */}
+      {console.log("🎯 EVALUATING MODAL CONDITION:", deleteItineraryModal, typeof deleteItineraryModal)}
+      {deleteItineraryModal ? (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+          {console.log("🎯 MODAL IS RENDERING!")}
+          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+            <div className="p-4 text-center">
+              <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+              <div className="d-flex gap-2 justify-content-center">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => {
+                    console.log("🎯 CANCEL CLICKED");
+                    setDeleteItineraryModal(false);
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => {
+                    console.log("🎯 CONFIRM CLICKED");
+                    confirmDeleteItinerary();
+                  }}
+                >
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {console.log("🎯 MODAL NOT RENDERING - value is:", deleteItineraryModal)}
+        </>
       )}
     </div>
   );
@@ -1698,230 +1794,6 @@ function FavoritesView({
         onClose={() => setOpenDetailModal(false)}
         onToggleFavorite={() => { }}
       />
-    </div>
-  );
-}
-
-//reemplazamos el ReviewsModal por uno más completo con toda la info de las publicaciones.
-
-function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, token }) {
-  if (!open || !pub) return null;
-
-  const [isFav, setIsFav] = useState(pub.is_favorite || false);
-  useEffect(() => { setIsFav(pub.is_favorite || false); }, [pub?.id, pub?.is_favorite]);
-
-  // --- logica de reseñas---
-  const [list, setList] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-
-  const isPremium = me?.role === "premium" || me?.username === "admin";
-
-  // Efecto para cargar reseñas cuando se abre el modal o cambia la publicación
-  useEffect(() => {
-    if (!open || !pub?.id) {
-      setList([]); // Limpiar lista si se cierra
-      setErr("");
-      return;
-    }
-    let cancel = false;
-    (async () => {
-      setLoading(true);
-      setErr("");
-      try {
-        const rows = await request(`/api/publications/${pub.id}/reviews`);
-        if (!cancel) setList(rows);
-      } catch (e) {
-        if (!cancel) setErr(e.message);
-      } finally {
-        if (!cancel) setLoading(false);
-      }
-    })();
-    return () => { cancel = true; };
-  }, [open, pub?.id]); // Depende de 'open' y 'pub.id'
-
-  // Función para enviar reseña
-  async function submitReview(e) {
-    e.preventDefault();
-    if (!isPremium) { return; }
-    if (!token) { alert("Iniciá sesión para publicar una reseña."); return; }
-    try {
-      await request(`/api/publications/${pub.id}/reviews`, {
-        method: "POST",
-        token,
-        body: { rating: Number(rating), comment: comment || undefined }
-      });
-      setComment(""); setRating(5);
-      // Recargar la lista de reseñas
-      const rows = await request(`/api/publications/${pub.id}/reviews`);
-      setList(rows);
-      // Nota: El rating_avg/count de 'pub' (prop) no se actualizará
-      // hasta que se cierre y reabra el modal.
-    } catch (e) {
-      alert(`Error creando reseña: ${e.message}`);
-    }
-  }
-
-  async function handleToggleFavorite(e) {
-    if (e && e.stopPropagation) e.stopPropagation();
-    const prev = isFav;
-    setIsFav(!prev); // update optimista
-    try {
-      if (onToggleFavorite) await onToggleFavorite(pub.id);
-    } catch (err) {
-      setIsFav(prev); // rollback
-      alert('Error actualizando favoritos: ' + (err?.message || err));
-    }
-  }
-
-  return (
-    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-      style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
-      <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 600, maxHeight: "90vh", width: "90%" }}>
-
-        {/* Header con botón cerrar */}
-        <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">{pub.place_name}</h5>
-          <button className="btn-close" onClick={onClose}></button>
-        </div>
-
-        {/* Contenido scrolleable */}
-        <div className="p-3" style={{ overflowY: "auto", maxHeight: "calc(90vh - 70px)" }}>
-
-          {/* Carrusel de imágenes */}
-          <div className="mb-3">
-            {pub.photos?.length > 0 ? ( // <--- CAMBIADO
-              <div id={`carousel-${pub.id}`} className="carousel slide" data-bs-ride="carousel">
-                <div className="carousel-inner">
-                  {pub.photos.map((img, i) => ( // <--- CAMBIADO
-                    <div key={i} className={`carousel-item ${i === 0 ? 'active' : ''}`}>
-                      <img src={img} className="d-block w-100 rounded" alt={`Imagen ${i + 1}`}
-                        style={{ height: "300px", objectFit: "cover" }} />
-                    </div>
-                  ))}
-                </div>
-                {pub.photos.length > 1 && ( // <--- CAMBIADO
-                  <>
-                    <button className="carousel-control-prev" type="button"
-                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="prev">
-                      <span className="carousel-control-prev-icon"></span>
-                    </button>
-                    <button className="carousel-control-next" type="button"
-                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="next">
-                      <span className="carousel-control-next-icon"></span>
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="text-muted text-center p-4">Sin imágenes disponibles</div>
-            )}
-          </div>
-
-          {/* Información principal */}
-          <div className="mb-3">
-
-            {/* Renglón 1: Reseñas y Favorito */}
-            <div className="d-flex justify-content-between align-items-start mb-2">
-              <div>
-                <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
-              </div>
-              <button
-                className={`btn ${isFav ? 'btn-danger' : 'btn-outline-danger'}`}
-                onClick={handleToggleFavorite}
-                title={isFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-              >
-                {isFav ? '❤️ Favorito' : '🤍 Agregar a favoritos'}
-              </button>
-            </div>
-
-            {/* --- BLOQUE AÑADIDO/MODIFICADO --- */}
-            {pub.description && (
-              <>
-                <h6 className="mt-3 mb-2">Descripción</h6>
-                <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
-              </>
-            )}
-            {/* --- FIN BLOQUE AÑADIDO/MODIFICADO --- */}
-
-            {/* Renglón 2: Categorías (MOVIDO HACIA ARRIBA) */}
-            <h6 className="mt-3 mb-2">Categorías</h6>
-            <div className="d-flex flex-wrap gap-1 mb-3">
-              {pub.categories?.map(cat => (
-                <span key={cat} className="badge bg-secondary-subtle text-secondary border text-capitalize">
-                  {cat}
-                </span>
-              ))}
-            </div>
-
-            {/* Renglón 3: Ubicación (ANTES ESTABA EN MEDIO) */}
-            <h6 className="mt-3 mb-2">Ubicación</h6>
-            <p className="mb-2">
-              📍 {pub.address}, {pub.city}, {pub.province}
-            </p>
-
-            {/* Renglón 4: Precio */}
-            <h6 className="mt-3 mb-2">Precio</h6>
-            <p className="mb-2">
-              ${pub.cost_per_day} por día
-            </p>
-
-            {/* --- INICIO SECCIÓN DE RESEÑAS AÑADIDA --- */}
-            <hr />
-            <h6 className="mt-3 mb-2">Reseñas</h6>
-
-            {/* Lista de reseñas */}
-            <div style={{ maxHeight: 250, overflow: "auto" }}>
-              {loading && <div className="text-muted">Cargando…</div>}
-              {err && <div className="alert alert-danger">{err}</div>}
-              {!loading && !err && list.length === 0 && <div className="text-muted">Sin reseñas todavía.</div>}
-              <ul className="list-unstyled mb-0">
-                {list.map((r) => (
-                  <li key={r.id} className="border rounded-3 p-3 mb-2">
-                    <div className="d-flex justify-content-between">
-                      <Stars value={r.rating} />
-                      <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
-                    </div>
-                    {r.comment && <div className="mt-1">{r.comment}</div>}
-                    <small className="text-muted d-block mt-1">por {r.author_username}</small>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Formulario para nueva reseña */}
-            {isPremium ? (
-              <form className="p-3 border-top" onSubmit={submitReview}>
-                <div className="row g-2">
-                  <div className="col-12 col-md-2">
-                    <label className="form-label mb-1">Rating</label>
-                    <select className="form-select" value={rating} onChange={(e) => setRating(e.target.value)}>
-                      {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                  </div>
-                  <div className="col-12 col-md-8">
-                    <label className="form-label mb-1">Comentario (opcional)</label>
-                    <input className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Contanos tu experiencia" />
-                  </div>
-                  <div className="col-12 col-md-2 d-flex align-items-end">
-                    <button className="btn btn-celeste w-100" type="submit">Publicar</button>
-                  </div>
-                </div>
-              </form>
-            ) : (
-              <div className="p-3 border-top">
-                <div className="alert alert-secondary mb-0">
-                  Solo los <strong>usuarios premium</strong> pueden publicar reseñas.
-                </div>
-              </div>
-            )}
-            {/* --- FIN SECCIÓN DE RESEÑAS AÑADIDA --- */}
-
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

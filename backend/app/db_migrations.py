@@ -17,7 +17,7 @@ PUBLICATIONS_COLUMNS = [
     ("climate", "TEXT"),
     ("activities", "TEXT"),
     ("cost_per_day", "REAL"),
-    ("duration_days", "INTEGER"),
+    ("duration_min", "INTEGER"),
     # Campos de workflow/autoría
     ("status", "TEXT"),
     ("rejection_reason", "TEXT"),

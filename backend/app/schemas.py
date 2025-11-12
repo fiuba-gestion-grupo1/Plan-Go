@@ -132,7 +132,7 @@ class PublicationOut(BaseModel):
     climate: Optional[str] = None
     activities: Optional[List[str]] = None
     cost_per_day: Optional[float] = None
-    duration_days: Optional[int] = None
+    duration_min: Optional[int] = None
 
     favorite_status: Optional[str] = "pending"
 
@@ -150,6 +150,21 @@ class PublicationOut(BaseModel):
 # -------------------------------------------------
 # Reviews
 # -------------------------------------------------
+class ReviewCommentCreate(BaseModel):
+    comment: str = Field(..., min_length=1, max_length=1000)
+
+class ReviewCommentOut(BaseModel):
+    id: int
+    comment: str
+    author_username: str
+    created_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
 class ReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = None
@@ -161,12 +176,52 @@ class ReviewOut(BaseModel):
     comment: Optional[str] = None
     author_username: str
     created_at: str
+    status: str = "approved"
+
+    like_count: int = 0
+    is_liked_by_me: bool = False
+
+    comments: List[ReviewCommentOut] = []
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
         class Config:
             orm_mode = True
+
+
+# -------------------------------------------------
+# Review Reports
+# -------------------------------------------------
+class ReviewReportCreate(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=100)
+    comments: Optional[str] = Field(None, max_length=500)
+
+
+class ReviewReportOut(BaseModel):
+    id: int
+    review_id: int
+    reporter_username: str
+    reason: str
+    comments: Optional[str] = None
+    status: str
+    created_at: str
+    resolved_at: Optional[str] = None
+    
+    # Información de la reseña reportada
+    review: ReviewOut
+    # Información de la publicación
+    publication: "PublicationOut"
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class ReviewReportReject(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 # -------------------------------------------------
@@ -247,3 +302,28 @@ class ItineraryOut(BaseModel):
     else:
         class Config:
             orm_mode = True
+
+
+class ExpenseIn(BaseModel):
+    trip_name: str
+    name: str
+    category: str
+    amount: float
+    date: date
+
+class ExpenseOut(ExpenseIn):
+    id: int
+    class Config:
+        from_attributes = True
+
+class TripOut(BaseModel):
+    id: int
+    name: str
+    start_date: date | None = None
+    end_date: date | None = None
+    created_at: datetime
+    participants_count: int = 0
+
+    class Config:
+        from_attributes = True
+

@@ -6,9 +6,11 @@ from pathlib import Path
 
 from backend.app.api import suggestions
 from .db import Base, engine, log_db_info
-from .api import auth, health, users, publications, debug, categories, preferences, itineraries
+from .api import auth, health, users, publications, debug, categories, preferences, itineraries, expenses, trips, reviews
 from .db_migrations import ensure_min_schema
 
+# 👇 NUEVO
+from .api import invitations
 
 app = FastAPI(title="Plan&Go API")
 
@@ -31,16 +33,21 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(publications.router)
+app.include_router(reviews.router)
 app.include_router(categories.router)
 app.include_router(preferences.router)
 app.include_router(suggestions.router)
-app.include_router(itineraries.router) 
+app.include_router(itineraries.router)
+app.include_router(invitations.router)
+app.include_router(expenses.router)
+app.include_router(trips.router)
+
 if os.getenv("ENV", "dev") == "dev":
-    try:
-        from .api import debug as debug_router  # backend/app/api/debug.py
-        app.include_router(debug_router.router)
-    except Exception as e:
-        print(f"[DEBUG] router no cargado: {e}")
+  try:
+      from .api import debug as debug_router  # backend/app/api/debug.py
+      app.include_router(debug_router.router)
+  except Exception as e:
+      print(f"[DEBUG] router no cargado: {e}")
 
 # Servir frontend compilado
 frontend_build = Path(__file__).resolve().parents[2] / "frontend" / "dist"

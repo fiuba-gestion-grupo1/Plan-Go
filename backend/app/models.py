@@ -76,7 +76,7 @@ class Publication(Base):
     climate       = Column(String, nullable=True)   # ej: "templado", "tropical"
     activities    = Column(JSON, nullable=True)     # ej: ["playa", "gastronomía"]
     cost_per_day  = Column(Float, nullable=True)
-    duration_days = Column(Integer, nullable=True)
+    duration_min = Column(Integer, nullable=True)
 
     # Ratings (US-5.1)
     rating_avg   = Column(Float,  nullable=False, server_default="0")
@@ -101,6 +101,37 @@ class PublicationPhoto(Base):
     index_order = Column(Integer, nullable=False, server_default="0", default=0)
     publication = relationship("Publication", back_populates="photos")
 
+# Review Comments
+# ---------------------------
+class ReviewComment(Base):
+    __tablename__ = "review_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_id = Column(Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    author_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    comment = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    review = relationship("Review", back_populates="comments")
+    author = relationship("User")
+
+# ---------------------------
+# Review Likes (N-N)
+# ---------------------------
+class ReviewLike(Base):
+    __tablename__ = "review_likes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_id = Column(Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    review = relationship("Review", back_populates="likes")
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("review_id", "user_id", name="uq_review_like"),
+    )
 
 # ---------------------------
 # Reviews
@@ -112,10 +143,38 @@ class Review(Base):
     author_id      = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     rating   = Column(Integer, nullable=False)  # 1..5
     comment  = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)  # approved|under_review|hidden
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     publication = relationship("Publication", backref="reviews")
     author      = relationship("User")
+
+    likes = relationship("ReviewLike", back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
+    comments = relationship("ReviewComment", back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
+
+
+# ---------------------------
+# Review Reports
+# ---------------------------
+class ReviewReport(Base):
+    __tablename__ = "review_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    review_id = Column(Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)
+    reporter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    reason = Column(String(100), nullable=False)  # spam, inappropriate, fake, etc.
+    comments = Column(Text, nullable=True)  # Comentarios adicionales del usuario que reporta
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|approved|rejected
+    rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    review = relationship("Review")
+    reporter = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("review_id", "reporter_id", name="uq_review_report"),
+    )
 
 
 # ---------------------------
@@ -199,3 +258,54 @@ class Itinerary(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="itineraries")
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    date = Column(Date, nullable=False)
+
+    user = relationship("User", backref="expenses")
+    trip = relationship("Trip", back_populates="expenses")
+
+class Trip(Base):
+    __tablename__ = "trips"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="trips")
+    expenses = relationship("Expense", back_populates="trip", cascade="all, delete-orphan")
+    participants = relationship("TripParticipant", backref="trip", cascade="all, delete-orphan")
+
+class TripParticipant(Base):
+    __tablename__ = "trip_participants"
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+
+
+class TripInvitation(Base):
+    __tablename__ = "trip_invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    invited_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), nullable=False, server_default="pending", default="pending")  # pending|accepted|rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    invited_user = relationship("User", foreign_keys=[invited_user_id])
+    invited_by_user = relationship("User", foreign_keys=[invited_by_user_id])
+    trip = relationship("Trip", backref="invitations")

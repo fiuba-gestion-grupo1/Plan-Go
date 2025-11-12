@@ -40,6 +40,7 @@ export default function Backoffice({ me, view = "publications" }) {
   const [allPubs, setAllPubs] = useState([]);
   const [pendingPubs, setPendingPubs] = useState([]);
   const [deletionRequests, setDeletionRequests] = useState([]);
+  const [reviewReports, setReviewReports] = useState([]);
   const [error, setError] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,6 +58,10 @@ export default function Backoffice({ me, view = "publications" }) {
   const [reasonDeletionRequestId, setReasonDeletionRequestId] = useState(null);
   const [reasonText, setReasonText] = useState("");
   const [onReasonConfirm, setOnReasonConfirm] = useState(null);
+
+  // Estados para modal de confirmación de aprobación de eliminación
+  const [approveDeleteModal, setApproveDeleteModal] = useState(false);
+  const [deletionRequestToApprove, setDeletionRequestToApprove] = useState(null);
 
   function openPublicationDetail(p) {
     setCurrentPub(p);
@@ -98,6 +103,19 @@ export default function Backoffice({ me, view = "publications" }) {
       setDeletionRequests(deletions);
     } catch (e) {
       console.error("Error recargando estadísticas:", e);
+    }
+  }
+
+  async function fetchReviewReports() {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await request("/api/reviews/reports/pending", { token });
+      setReviewReports(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -173,6 +191,8 @@ export default function Backoffice({ me, view = "publications" }) {
       fetchPendingPublications();
     } else if (view === "deletion-requests" && !subView) {
       fetchDeletionRequests();
+    } else if (view === "review-reports" && !subView) {
+      fetchReviewReports();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, token]);
@@ -280,20 +300,30 @@ export default function Backoffice({ me, view = "publications" }) {
   }
 
   async function handleApproveDeletion(requestId) {
-    if (!window.confirm("¿Aprobar esta solicitud de eliminación? La publicación será eliminada permanentemente.")) return;
+    // Mostrar modal de confirmación
+    setDeletionRequestToApprove(requestId);
+    setApproveDeleteModal(true);
+  }
+
+  async function confirmApproveDeletion() {
+    if (!deletionRequestToApprove) return;
+
     setLoading(true);
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/deletion-requests/${requestId}/approve`, { method: "PUT", token });
+      await request(`/api/publications/deletion-requests/${deletionRequestToApprove}/approve`, { method: "PUT", token });
       setOkMsg("Solicitud aprobada. Publicación eliminada.");
-      setDeletionRequests((prev) => prev.filter((r) => r.id !== requestId));
+      setDeletionRequests((prev) => prev.filter((r) => r.id !== deletionRequestToApprove));
       // Recargar estadísticas después de aprobar eliminación
       await reloadStats();
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
+      // Cerrar modal
+      setApproveDeleteModal(false);
+      setDeletionRequestToApprove(null);
     }
   }
 
@@ -319,6 +349,47 @@ export default function Backoffice({ me, view = "publications" }) {
       }
     });
     openReasonModal("reject-deletion", null, requestId);
+  }
+
+  async function handleApproveReviewReport(reportId) {
+    setLoading(true);
+    setError("");
+    setOkMsg("");
+    try {
+      await request(`/api/reviews/reports/${reportId}/approve`, { method: "PUT", token });
+      setOkMsg("Reporte aprobado. Reseña eliminada.");
+      setReviewReports((prev) => prev.filter((r) => r.id !== reportId));
+      // Recargar estadísticas si es necesario
+      await reloadStats();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRejectReviewReport(reportId) {
+    setOnReasonConfirm(() => async (reason) => {
+      setLoading(true);
+      setError("");
+      setOkMsg("");
+      try {
+        await request(`/api/reviews/reports/${reportId}/reject`, {
+          method: "PUT",
+          token,
+          body: { reason: reason || undefined }
+        });
+        setOkMsg("Reporte rechazado.");
+        setReviewReports((prev) => prev.filter((r) => r.id !== reportId));
+        // Recargar estadísticas si es necesario
+        await reloadStats();
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    openReasonModal("reject-review-report", null, reportId);
   }
 
   // Mostrar formulario de crear publicación
@@ -353,6 +424,7 @@ export default function Backoffice({ me, view = "publications" }) {
                 {reasonType === "delete-publication" && "Eliminar Publicación"}
                 {reasonType === "reject-publication" && "Rechazar Publicación"}
                 {reasonType === "reject-deletion" && "Rechazar Solicitud de Eliminación"}
+                {reasonType === "reject-review-report" && "Rechazar Reporte de Reseña"}
               </h5>
               <button className="btn-close" onClick={() => setReasonModal(false)}></button>
             </div>
@@ -361,6 +433,7 @@ export default function Backoffice({ me, view = "publications" }) {
                 {reasonType === "delete-publication" && "Por favor, explica por qué eliminas esta publicación. El usuario verá este mensaje."}
                 {reasonType === "reject-publication" && "Por favor, explica por qué rechazas esta publicación. El usuario verá este mensaje."}
                 {reasonType === "reject-deletion" && "Por favor, explica por qué rechazas esta solicitud de eliminación. El usuario verá este mensaje."}
+                {reasonType === "reject-review-report" && "Por favor, explica por qué rechazas este reporte de reseña. El usuario que reportó verá este mensaje."}
               </p>
               <form onSubmit={(e) => { e.preventDefault(); submitReasonModal(); }}>
                 <div className="mb-3">
@@ -393,9 +466,37 @@ export default function Backoffice({ me, view = "publications" }) {
                     {reasonType === "delete-publication" && "Eliminar"}
                     {reasonType === "reject-publication" && "Rechazar"}
                     {reasonType === "reject-deletion" && "Rechazar"}
+                    {reasonType === "reject-review-report" && "Rechazar"}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para aprobar eliminación */}
+      {approveDeleteModal && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+            <div className="p-4 text-center">
+              <h5 className="mb-3">¿Aprobar esta solicitud de eliminación?</h5>
+              <p className="text-muted mb-3">La publicación será eliminada permanentemente.</p>
+              <div className="d-flex gap-2 justify-content-center">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => setApproveDeleteModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={confirmApproveDeletion}
+                >
+                  Aprobar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -456,6 +557,20 @@ export default function Backoffice({ me, view = "publications" }) {
         okMsg={okMsg}
         onApprove={handleApproveDeletion}
         onReject={handleRejectDeletion}
+      />
+    );
+  }
+
+  // Vista de reportes de reseñas
+  if (view === "review-reports") {
+    return renderViewWithStats(
+      <ReviewReportsView
+        reports={reviewReports}
+        loading={loading}
+        error={error}
+        okMsg={okMsg}
+        onApprove={handleApproveReviewReport}
+        onReject={handleRejectReviewReport}
       />
     );
   }
@@ -787,9 +902,9 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
           </div>
 
           <div className="col-md-6">
-            <label className="form-label">Duración (días)</label>
+            <label className="form-label">Duración (minutos)</label>
             <input
-              name="duration_days"
+              name="duration_min"
               type="number"
               className="form-control"
               min="1"
@@ -1514,8 +1629,15 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
               <ul className="list-unstyled mb-0">
                 {list.map((r) => (
                   <li key={r.id} className="border rounded-3 p-3 mb-2">
-                    <div className="d-flex justify-content-between">
-                      <Stars value={r.rating} />
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="d-flex align-items-center gap-2">
+                        <Stars value={r.rating} />
+                        {r.status === "under_review" && (
+                          <span className="badge bg-warning text-dark">
+                            🔍 Bajo investigación
+                          </span>
+                        )}
+                      </div>
                       <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
                     </div>
                     {r.comment && <div className="mt-1">{r.comment}</div>}
@@ -1556,6 +1678,168 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject }) {
+  const [openDetailModal, setOpenDetailModal] = React.useState(false);
+  const [currentPub, setCurrentPub] = React.useState(null);
+
+  function openPublicationDetail(p) {
+    setCurrentPub(p);
+    setOpenDetailModal(true);
+  }
+
+  function RatingBadge({ avg = 0, count = 0 }) {
+    return (
+      <span className="badge bg-light text-dark border">
+        <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
+      </span>
+    );
+  }
+
+  return (
+    <div>
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <h3 className="mb-0">Reportes de Reseñas Pendientes</h3>
+      </div>
+
+      {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
+      {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
+      {okMsg && <div className="alert alert-success mt-3 mb-0">{okMsg}</div>}
+
+      <div className="row row-cols-1 g-4 mt-2">
+        {reports.map((report) => {
+          const p = report.publication;
+          const review = report.review;
+          return (
+            <div className="col" key={report.id}>
+              <div className="card shadow-sm h-100">
+                {/* Tarjeta de publicación */}
+                <div className="card-body">
+                  <div 
+                    className="border rounded p-3 mb-3"
+                    onClick={() => openPublicationDetail(p)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="row">
+                      <div className="col-md-8">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div className="flex-grow-1">
+                            <h5 className="card-title mb-1">{p.place_name}</h5>
+                            <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+
+                            <div className="mt-2">
+                              {/* Renglón 1: Reseñas */}
+                              <div className="mb-2">
+                                <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                              </div>
+
+                              {/* Renglón 2: Categorías */}
+                              <div className="d-flex flex-wrap gap-1">
+                                {(p.categories || []).map((c) => (
+                                  <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                                ))}
+                              </div>
+                            </div>
+
+                            <p className="card-text mt-2 mb-0">
+                              <span className="text-success fw-bold">
+                                ${p.cost_per_day || 0}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        {p.photos?.length > 0 ? (
+                          <img
+                            src={p.photos[0]}
+                            className="img-fluid rounded"
+                            alt={p.place_name}
+                            style={{ height: 120, width: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div className="text-muted text-center p-4 border rounded">Sin fotos</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Información de la reseña reportada */}
+                  <div className="border rounded p-3 mb-3 bg-light">
+                    <h6 className="mb-2">
+                      <span className="badge bg-warning text-dark">🚨 Reseña Reportada</span>
+                    </h6>
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <div>
+                        <Stars value={review.rating} />
+                        <small className="text-muted ms-2">por {review.author_username}</small>
+                      </div>
+                      <small className="text-muted">{new Date(review.created_at).toLocaleString()}</small>
+                    </div>
+                    {review.comment && (
+                      <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{review.comment}</p>
+                    )}
+                  </div>
+
+                  {/* Información del reporte */}
+                  <div className="border rounded p-3 mb-3">
+                    <h6 className="mb-2">Detalles del Reporte</h6>
+                    <div className="mb-2">
+                      <strong>Reportado por:</strong> {report.reporter_username}
+                    </div>
+                    <div className="mb-2">
+                      <strong>Fecha del reporte:</strong> {new Date(report.created_at).toLocaleString()}
+                    </div>
+                    <div className="mb-2">
+                      <strong>Motivo:</strong> <span className="badge bg-danger">{report.reason}</span>
+                    </div>
+                    {report.comments && (
+                      <div>
+                        <strong>Comentarios adicionales:</strong>
+                        <p className="mt-1 mb-0" style={{ whiteSpace: "pre-wrap" }}>{report.comments}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-success flex-fill"
+                      onClick={() => onApprove(report.id)}
+                    >
+                      ✓ Aprobar Reporte (Eliminar Reseña)
+                    </button>
+                    <button
+                      className="btn btn-secondary flex-fill"
+                      onClick={() => onReject(report.id)}
+                    >
+                      ✗ Rechazar Reporte
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!loading && reports.length === 0 && (
+        <div className="alert alert-secondary mt-3">
+          No hay reportes de reseñas pendientes.
+        </div>
+      )}
+
+      {/* Modal de detalles de publicación */}
+      <PublicationDetailModal
+        open={openDetailModal}
+        pub={currentPub}
+        me={{}}
+        onClose={() => setOpenDetailModal(false)}
+        onToggleFavorite={() => {}}
+      />
     </div>
   );
 }

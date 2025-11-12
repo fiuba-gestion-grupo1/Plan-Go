@@ -91,8 +91,8 @@ export default function CreatePublicationForm({ onSubmit, onCancel, loading, err
                 <input name="cost_per_day" type="number" step="any" className="form-control" />
               </div>
               <div className="col-md-6">
-                <label className="form-label">Duración (días)</label>
-                <input name="duration_days" type="number" className="form-control" />
+                <label className="form-label">Duración (minutos)</label>
+                <input name="duration_min" type="number" className="form-control" />
               </div>
 
               <div className="col-md-12">
