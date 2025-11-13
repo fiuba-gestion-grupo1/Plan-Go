@@ -16,7 +16,7 @@ import Suggestions from "./pages/Suggestions";
 import ShareItineraryPage from "./pages/ShareItineraryPage";
 import "./styles/buttons.css";
 
-// 👇 NUEVO
+// Premium only
 import InviteFriend from "./pages/InviteFriend";
 
 // ----- Shell con Router -----
@@ -29,12 +29,16 @@ export default function App() {
 }
 
 function AppWithRouter() {
-  const [view, setView] = useState('login') // login | register | forgot-password (solo para la vista pública)
-  const [token, setToken] = useState(localStorage.getItem('token') || '')
-  const [me, setMe] = useState(null)
-  const [authView, setAuthView] = useState('publications') // Nueva navegación por sidebar
+  const [view, setView] = useState('login'); // login | register | forgot-password
+  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [me, setMe] = useState(null);
+  const [authView, setAuthView] = useState('publications'); // navegación por sidebar
 
   const navigate = useNavigate();
+
+  // Derivados de rol
+  const isAdmin = me?.role === 'admin' || me?.username === 'admin';
+  const isPremium = me?.role === 'premium';
 
   useEffect(() => {
     if (token) {
@@ -43,11 +47,9 @@ function AppWithRouter() {
         try {
           const meResp = await api('/api/auth/me', { token });
           setMe(meResp);
-
-          // Si es admin => approved-publications por defecto, si no => publications
           const isAdminUser = meResp?.role === 'admin' || meResp?.username === 'admin';
           setAuthView(isAdminUser ? 'approved-publications' : 'publications');
-        } catch (e) {
+        } catch {
           localStorage.removeItem('token');
           setToken('');
           setMe(null);
@@ -64,27 +66,22 @@ function AppWithRouter() {
     setAuthView('publications');
   }
 
-  // 🔹 Escucha el evento global que dispara Home: abre la ruta /share-itinerary/:id
-  useEffect(() => {
-    const openShare = (e) => {
-      const id = e?.detail?.id;
-      if (!id) return;
-      navigate(`/share-itinerary/${id}`);
-    };
-    window.addEventListener('open-share-itinerary', openShare);
-    return () => window.removeEventListener('open-share-itinerary', openShare);
-  }, [navigate]);
+  
 
-  // Navegación interna protegida (sidebar)
+  // Navegación interna (sidebar)
   function handleNavigate(nextView) {
-    const isAdmin = me?.role === 'admin' || me?.username === 'admin';
-    // Evita que usuarios normales accedan a vistas de admin
+    // Bloquea vistas de admin a no-admin
     if (['pending-approvals', 'deletion-requests', 'approved-publications', 'all-publications'].includes(nextView) && !isAdmin) {
       return setAuthView('publications');
     }
-    // Evita que admins accedan a vistas de usuarios (agrego invite-friends)
+    // Bloquea vistas de usuario a admin
     if (['my-publications', 'favorites', 'preferences', 'invite-friends', 'suggestions'].includes(nextView) && isAdmin) {
       return setAuthView('approved-publications');
+    }
+    // ▶︎ Premium only: invitar amigos (la de compartir es por ruta)
+    if (nextView === 'invite-friends' && !isPremium) {
+         alert('Función disponible sólo para usuarios premium.');
+         return; // quedarse en la vista actual
     }
     setAuthView(nextView);
   }
@@ -93,11 +90,9 @@ function AppWithRouter() {
   let mainElement = null;
 
   if (token && me) {
-    const isAdmin = me?.role === 'admin' || me?.username === 'admin';
-
     mainElement = (
       <div className="d-flex" style={{ minHeight: '100vh' }}>
-        {/* Sidebar fijo a la izquierda */}
+        {/* Sidebar */}
         <Sidebar
           me={me}
           onLogout={handleLogout}
@@ -105,7 +100,7 @@ function AppWithRouter() {
           activeView={authView}
         />
 
-        {/* Contenido principal con margen para el sidebar */}
+        {/* Contenido principal */}
         <div
           className="flex-grow-1"
           style={{
@@ -120,26 +115,34 @@ function AppWithRouter() {
           }}
         >
           <div className="container-fluid p-4">
-            {/* Vista de Publicaciones (común para todos) */}
+            {/* Publicaciones */}
             {authView === 'publications' && (
-              isAdmin ? <Backoffice me={me} view="publications" /> : (
+              isAdmin ? (
+                <Backoffice me={me} view="publications" />
+              ) : (
                 <Home
                   key="publications"
                   me={me}
                   view="publications"
-                  // (opcional) si luego querés llamar callback en lugar de evento:
-                  onOpenShareItinerary={(id) => navigate(`/share-itinerary/${id}`)}
+                  onOpenShareItinerary={(id) => {
+                    // Guard de premium también acá por si llamás callback directo
+                    if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
+                    navigate(`/share-itinerary/${id}`);
+                  }}
                 />
               )
             )}
-            
-            {/* Vistas de Usuario */}
+
+            {/* Usuario */}
             {authView === 'my-publications' && !isAdmin && (
               <Home
                 key="my-publications"
                 me={me}
                 view="my-publications"
-                onOpenShareItinerary={(id) => navigate(`/share-itinerary/${id}`)}
+                onOpenShareItinerary={(id) => {
+                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
+                  navigate(`/share-itinerary/${id}`);
+                }}
               />
             )}
             {authView === 'favorites' && !isAdmin && (
@@ -147,7 +150,10 @@ function AppWithRouter() {
                 key="favorites"
                 me={me}
                 view="favorites"
-                onOpenShareItinerary={(id) => navigate(`/share-itinerary/${id}`)}
+                onOpenShareItinerary={(id) => {
+                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
+                  navigate(`/share-itinerary/${id}`);
+                }}
               />
             )}
             {authView === 'preferences' && !isAdmin && (
@@ -158,7 +164,10 @@ function AppWithRouter() {
                 key="itinerary"
                 me={me}
                 view="itinerary"
-                onOpenShareItinerary={(id) => navigate(`/share-itinerary/${id}`)}
+                onOpenShareItinerary={(id) => {
+                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
+                  navigate(`/share-itinerary/${id}`);
+                }}
               />
             )}
             {authView === 'my-itineraries' && (
@@ -166,7 +175,10 @@ function AppWithRouter() {
                 key="my-itineraries"
                 me={me}
                 view="my-itineraries"
-                onOpenShareItinerary={(id) => navigate(`/share-itinerary/${id}`)}
+                onOpenShareItinerary={(id) => {
+                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
+                  navigate(`/share-itinerary/${id}`);
+                }}
               />
             )}
 
@@ -174,27 +186,27 @@ function AppWithRouter() {
               <Home key="expenses" me={me} view="expenses" />
             )}
 
-            {/* 👇 NUEVO: vista Invitar amigos */}
-            {authView === 'invite-friends' && !isAdmin && <InviteFriend token={token} />}
+            {/* ▶︎ Premium only: Invitar amigos */}
+            {authView === 'invite-friends' && !isAdmin && isPremium && (
+              <InviteFriend token={token} />
+            )}
 
-            {/* Vistas de Admin */}
+            {/* Admin */}
             {authView === 'approved-publications' && isAdmin && <Backoffice me={me} view="publications" />}
             {authView === 'all-publications' && isAdmin && <Backoffice me={me} view="all-publications" />}
             {authView === 'pending-approvals' && isAdmin && <Backoffice me={me} view="pending" />}
             {authView === 'deletion-requests' && isAdmin && <Backoffice me={me} view="deletion-requests" />}
             {authView === 'review-reports' && isAdmin && <Backoffice me={me} view="review-reports" />}
 
-            {/* Vistas comunes */}
-            {authView === 'profile' && (
-              <Profile me={me} token={token} setMe={setMe} />
-            )}
+            {/* Comunes */}
+            {authView === 'profile' && <Profile me={me} token={token} setMe={setMe} />}
             {authView === 'suggestions' && !isAdmin && <Suggestions me={me} token={token} />}
           </div>
         </div>
       </div>
     );
   } else {
-    //---- Vista de autenticación (Login/Register/ForgotPassword) ----
+    // ---- Auth (Login/Register/ForgotPassword) ----
     mainElement = (
       <div
         className="d-flex flex-column align-items-center min-vh-100 py-5"
@@ -235,17 +247,18 @@ function AppWithRouter() {
     );
   }
 
-  // --------- Definición de rutas (incluye la página de compartir) ----------
+  // --------- Rutas (incluye compartir con guard premium) ----------
   return (
     <Routes>
-      {/* Tu app tradicional (estado por authView) vive en "/" */}
       <Route path="/" element={mainElement} />
-      {/* Nueva ruta con react-router para ShareItineraryPage */}
       <Route
         path="/share-itinerary/:id"
-        element={token ? <ShareItineraryPage /> : <Navigate to="/" replace />}
+        element={
+          token && isPremium
+            ? <ShareItineraryPage />
+            : <Navigate to="/" replace />
+        }
       />
-      {/* Catch-all: redirige a home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

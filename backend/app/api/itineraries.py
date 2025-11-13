@@ -709,13 +709,21 @@ def share_itinerary_by_email(
 ):
     """
     Envía por email el itinerario (HTML) al destinatario indicado.
-    Solo el dueño del itinerario (o admin) puede compartirlo.
+    Solo el dueño del itinerario puede compartirlo.
+    Solo disponible para usuarios PREMIUM.
     """
+    # 🔒 Solo premium
+    if current_user.role != "premium":
+        raise HTTPException(
+            status_code=403,
+            detail="Función disponible solo para usuarios premium."
+        )
+
     it = db.query(models.Itinerary).filter(models.Itinerary.id == itinerary_id).first()
     if not it:
         raise HTTPException(status_code=404, detail="Itinerario no encontrado")
 
-    if it.user_id != current_user.id and current_user.role != "admin":
+    if it.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para compartir este itinerario")
 
     # Publicaciones vinculadas al itinerario (si quedaron guardadas)
@@ -729,13 +737,10 @@ def share_itinerary_by_email(
     # Nota opcional del remitente
     if payload.note:
         note_html = f"<p style='margin:0 0 12px 0'><em>Mensaje de {html.escape(current_user.username)}:</em> {html.escape(payload.note)}</p>"
-        html_body = html_body.replace("<body", "<body").replace(
-            "<table", note_html + "<table", 1
-        )
+        html_body = html_body.replace("<table", note_html + "<table", 1)
 
     send_email_html(payload.to, subject, html_body)
     return {"ok": True, "message": "Itinerario enviado por email"}
-
 
 
 def _to_date(value):

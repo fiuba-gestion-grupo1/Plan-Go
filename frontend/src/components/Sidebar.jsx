@@ -21,7 +21,7 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
     { id: 'itinerary', label: '🤖🗺️Generar itinerario con IA' },
     { id: 'my-itineraries', label: '📅 Mis itinerarios' },
     { id: 'expenses', label: '💰 Mis gastos' },
-    { id: 'invite-friends', label: '✉️ Invitar amigos' }
+    { id: 'invite-friends', label: '✉️ Invitar amigos (Solo Usuarios Premium)' }
   ];
 
   return (

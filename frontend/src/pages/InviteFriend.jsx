@@ -19,7 +19,7 @@ export default function InviteFriend({ token }) {
 
     try {
       setSending(true);
-      const res = await fetch("/api/invitations/send", {
+        const res = await fetch("/api/invitations/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -27,8 +27,11 @@ export default function InviteFriend({ token }) {
         },
         body: JSON.stringify({ email: trimmed }),
       });
-
+      
       if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Función disponible solo para usuarios premium.");
+        }
         const data = await res.json().catch(() => null);
         throw new Error(data?.detail || `Error ${res.status}`);
       }

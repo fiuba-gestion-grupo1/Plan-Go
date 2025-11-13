@@ -1,12 +1,17 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 import os
 from ..utils.mailer import send_email_html
+from .. import models
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
 class InvitationPayload(BaseModel):
     email: EmailStr
+
+
+
 
 def _build_email_html(invitee_email: str, inviter_name: str | None, app_url: str) -> str:
     inviter = inviter_name or "un amigo"
@@ -45,10 +50,26 @@ def _build_email_html(invitee_email: str, inviter_name: str | None, app_url: str
 </html>
 """.strip()
 
+
+
 @router.post("/send")
-def send_invitation(payload: InvitationPayload):
+def send_invitation(
+    payload: InvitationPayload,
+    current_user: models.User = Depends(get_current_user),
+):
+    # 🔒 Solo premium
+    if current_user.role != "premium":
+        raise HTTPException(
+            status_code=403,
+            detail="Función disponible solo para usuarios premium."
+        )
+
     app_url = os.getenv("APP_PUBLIC_URL", "http://localhost:8000")
     subject = f"Te invitaron a {os.getenv('APP_BRAND_NAME', 'Plan&Go')} ✈️"
-    html = _build_email_html(payload.email, inviter_name=None, app_url=app_url)
+    html = _build_email_html(
+        invitee_email=payload.email,
+        inviter_name=current_user.username,
+        app_url=app_url
+    )
     send_email_html(payload.email, subject, html)
     return {"ok": True, "message": "Invitación enviada"}

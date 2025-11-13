@@ -292,7 +292,8 @@ function PreferencesBox({ token }) {
 }
 
 /* --- MAIN HOME --- */
-export default function Home({ me, view = "publications" }) {
+export default function Home({ me, view = "publications", onOpenShareItinerary }) {
+  const isPremium = me?.role === "premium";
   const [pubs, setPubs] = useState([]);
   const [myPubs, setMyPubs] = useState([]);
   const [favPubs, setFavPubs] = useState([]);
@@ -996,28 +997,17 @@ export default function Home({ me, view = "publications" }) {
         day: 'numeric'
       });
     };
-
-    // Agregar aquí la nueva condición para 'itinerary'
-    if (view === 'itinerary') {
-      return (
-        <ItineraryRequest
-          initialView="form"
-          me={me}
-          token={token}
-        />
-      );
-    }
-
-    return (
+  
+  return (
       <div className="container mt-4">
         <div className="d-flex align-items-center justify-content-between mb-4">
           <h3 className="mb-0"> Mis Itinerarios</h3>
         </div>
-
+  
         {loading && <div className="alert alert-info">Cargando...</div>}
         {error && <div className="alert alert-danger">{error}</div>}
         {successMsg && <div className="alert alert-success">{successMsg}</div>}
-
+  
         <div className="row g-4">
           {myItineraries.map((itinerary) => (
             <div className="col-md-6 col-lg-4" key={itinerary.id}>
@@ -1035,45 +1025,53 @@ export default function Home({ me, view = "publications" }) {
                       <span className="badge bg-danger">Error</span>
                     )}
                   </div>
-
+  
                   <p className="text-muted small mb-2">
                     {formatDate(itinerary.start_date)} - {formatDate(itinerary.end_date)}
                   </p>
-
+  
                   <p className="mb-2">
                     <strong>Tipo:</strong> {itinerary.trip_type}
                   </p>
-
+  
                   <p className="mb-2">
                     <strong>Presupuesto:</strong> US${itinerary.budget}
                   </p>
-
+  
                   <p className="mb-3">
                     <strong>Personas:</strong> {itinerary.cant_persons}
                   </p>
-
+  
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-sm btn-outline-custom flex-grow-1"
                       onClick={() => {
                         setSelectedItinerary(itinerary);
                       }}
+                      title="Ver detalle del itinerario"
                     >
                       Ver Itinerario
                     </button>
-
-                    {/* NUEVO: botón Compartir → dispara evento global que escucha App */}
+  
+                    {/* Compartir por email — solo Premium */}
                     <button
-                      className="btn btn-sm btn-outline-primary"
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent('open-share-itinerary', {
-                          detail: { id: itinerary.id }
-                        }));
-                      }}
-                    >
-                      📧 Compartir
+                       className={`btn btn-sm ${isPremium ? 'btn-outline-primary' : 'btn-outline-secondary'}`}
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         if (!isPremium) {
+                           alert('Función premium: solo los usuarios premium pueden invitar por email.');
+                           return;
+                         }
+                         // Usar el callback que pasa App:
+                         onOpenShareItinerary?.(itinerary.id);
+                       }}
+                       title={isPremium ? 'Compartir por email' : 'Solo usuarios premium'}
+                       aria-label="Compartir itinerario por email"
+                     >
+                       📧 Compartir(Solo Usuarios Premium)
                     </button>
 
+  
                     <button
                       className="btn btn-sm btn-outline-danger"
                       onClick={(e) => {
@@ -1087,7 +1085,7 @@ export default function Home({ me, view = "publications" }) {
                     </button>
                   </div>
                 </div>
-
+  
                 <div className="card-footer text-muted small">
                   Creado: {new Date(itinerary.created_at).toLocaleString('es-ES')}
                 </div>
@@ -1095,13 +1093,13 @@ export default function Home({ me, view = "publications" }) {
             </div>
           ))}
         </div>
-
+  
         {!loading && myItineraries.length === 0 && (
           <div className="alert alert-secondary">
             No tienes itinerarios generados aún. ¡Crea tu primer itinerario con IA!
           </div>
         )}
-
+  
         {/* Modal de confirmación de eliminación de itinerario */}
         {deleteItineraryModal && (
           <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
