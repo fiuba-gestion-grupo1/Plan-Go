@@ -21,11 +21,17 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
     { id: 'publications', label: '📰 Publicaciones' },
     // Mostrar "Mis publicaciones" solo si el usuario es premium
     ...(isPremium ? [{ id: 'my-publications', label: '✏️ Mis publicaciones' }] : []),
-    { id: 'favorites', label: '❤️ Mis favoritos' },
+    
+    // --- NUEVO HUB DE EXPERIENCIA VIAJERA ---
+    // Este nuevo item reemplaza a 'favorites', 'my-itineraries' y 'expenses'
+    { id: 'traveler-experience-hub', label: '🗺️ Experiencia Viajera' },
+
+    // { id: 'favorites', label: '❤️ Mis favoritos' }, <-- ELIMINADO/MOVIDO
     { id: 'suggestions', label: '💡 Sugerencias' },
-    { id: 'itinerary', label: '🤖🗺️ Generar itinerario con IA' },
-    { id: 'my-itineraries', label: '📅 Mis itinerarios' },
-    { id: 'expenses', label: '💰 Mis gastos' },
+    { id: 'itinerary', label: '🤖 Generar itinerario con IA' },
+    // { id: 'my-itineraries', label: '📅 Mis itinerarios' }, <-- ELIMINADO/MOVIDO
+    // { id: 'expenses', label: '💰 Mis gastos' }, <-- ELIMINADO/MOVIDO
+    
     // Mostrar "Beneficios" solo si el usuario es premium
     ...(isPremium ? [{ id: 'benefits', label: '🎁 Beneficios' }] : []),
     // Mostrar "Invitar amigos" solo si el usuario es premium
@@ -130,8 +136,9 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
               padding: '10px 16px'
             }}
           >
-            <span className="me-2">{item.icon}</span>
-            {item.label}
+            <span className="me-2">{item.label.split(' ')[0]}</span> 
+            {/* Aquí se asume que el primer elemento es el emoji */}
+            <span>{item.label.substring(item.label.split(' ')[0].length).trim()}</span>
           </button>
         ))}
       </nav>

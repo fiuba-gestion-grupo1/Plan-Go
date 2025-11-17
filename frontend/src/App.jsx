@@ -14,6 +14,8 @@ import ForgotPassword from './pages/ForgotPassword'
 import Backoffice from "./pages/Backoffice";
 import Suggestions from "./pages/Suggestions";
 import ShareItineraryPage from "./pages/ShareItineraryPage";
+import TravelerExperience from './pages/TravelerExperience'; 
+import SearchUsers from './pages/SearchUsers';
 import "./styles/buttons.css";
 
 // Premium only
@@ -75,19 +77,23 @@ function AppWithRouter() {
     if (['pending-approvals', 'deletion-requests', 'approved-publications', 'all-publications'].includes(nextView) && !isAdmin) {
       return setAuthView('publications');
     }
+    
     // Bloquea vistas de usuario a admin
-    if (['my-publications', 'favorites', 'preferences', 'invite-friends', 'suggestions', 'benefits'].includes(nextView) && isAdmin) {
+    // NOTA: 'favorites', 'my-itineraries', 'expenses' YA NO ESTÁN EN EL SIDEBAR, pero deben ser accesibles desde el HUB. 
+    // Mantenemos el guard para 'my-publications', 'preferences', etc.
+    if (['my-publications', 'preferences', 'invite-friends', 'suggestions', 'benefits'].includes(nextView) && isAdmin) {
       return setAuthView('approved-publications');
     }
+
     // ▶︎ Premium only: invitar amigos (la de compartir es por ruta)
     if (nextView === 'invite-friends' && !isPremium) {
-         alert('Función disponible sólo para usuarios premium.');
-         return; // quedarse en la vista actual
+          alert('Función disponible sólo para usuarios premium.');
+          return; // quedarse en la vista actual
     }
     // ▶︎ Premium only: beneficios
     if (nextView === 'benefits' && !isPremium) {
-         alert('Función disponible sólo para usuarios premium.');
-         return; // quedarse en la vista actual
+          alert('Función disponible sólo para usuarios premium.');
+          return; // quedarse en la vista actual
     }
     setAuthView(nextView);
   }
@@ -121,6 +127,50 @@ function AppWithRouter() {
           }}
         >
           <div className="container-fluid p-4">
+            
+            {/* --- 1. NUEVO HUB CENTRAL --- */}
+            {authView === 'traveler-experience-hub' && (
+              <TravelerExperience onNavigate={handleNavigate} me={me} />
+            )}
+            {/* --- FIN NUEVO HUB CENTRAL --- */}
+            
+            {/* --------------------------- VISTAS ANIDADAS EN EL HUB --------------------------- */}
+
+            {/* Favoritos (Ahora accedido desde el Hub) */}
+            {authView === 'favorites' && !isAdmin && (
+              <Home
+                key="favorites"
+                me={me}
+                view="favorites"
+                onOpenShareItinerary={(id) => {
+                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
+                  navigate(`/share-itinerary/${id}`);
+                }}
+              />
+            )}
+            {/* Mis Itinerarios (Ahora accedido desde el Hub) */}
+            {authView === 'my-itineraries' && (
+              <Home
+                key="my-itineraries"
+                me={me}
+                view="my-itineraries"
+                onOpenShareItinerary={(id) => {
+                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
+                  navigate(`/share-itinerary/${id}`);
+                }}
+              />
+            )}
+            {/* Mis Gastos (Ahora accedido desde el Hub) */}
+            {authView === 'expenses' && !isAdmin && (
+              <Home key="expenses" me={me} view="expenses" />
+            )}
+            {/* Buscar Otros Viajeros (Nueva vista accedida desde el Hub) */}
+            {authView === "search-travelers" && !isAdmin && (
+              <SearchUsers me={me} token={token} />
+            )}
+            {/* --------------------------- FIN VISTAS ANIDADAS EN EL HUB --------------------------- */}
+
+
             {/* Publicaciones */}
             {authView === 'publications' && (
               isAdmin ? (
@@ -151,17 +201,7 @@ function AppWithRouter() {
                 }}
               />
             )}
-            {authView === 'favorites' && !isAdmin && (
-              <Home
-                key="favorites"
-                me={me}
-                view="favorites"
-                onOpenShareItinerary={(id) => {
-                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
-                  navigate(`/share-itinerary/${id}`);
-                }}
-              />
-            )}
+            
             {authView === 'preferences' && !isAdmin && (
               <Home key="preferences" me={me} view="preferences" />
             )}
@@ -176,22 +216,7 @@ function AppWithRouter() {
                 }}
               />
             )}
-            {authView === 'my-itineraries' && (
-              <Home
-                key="my-itineraries"
-                me={me}
-                view="my-itineraries"
-                onOpenShareItinerary={(id) => {
-                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
-                  navigate(`/share-itinerary/${id}`);
-                }}
-              />
-            )}
-
-            {authView === 'expenses' && !isAdmin && (
-              <Home key="expenses" me={me} view="expenses" />
-            )}
-
+            
             {/* ▶︎ Premium only: Invitar amigos */}
             {authView === 'invite-friends' && !isAdmin && isPremium && (
               <InviteFriend token={token} />
