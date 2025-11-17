@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { request } from "../utils/api";
 import { RatingBadge } from "../components/shared/UIComponents";
+// ⭐ Importamos el mismo modal de detalles que usás en Home.jsx
+import PublicationDetailModal from "../components/PublicationDetailModal";
 
 export default function TravelerProfile({ me }) {
   // Nombre “bonito”
@@ -22,6 +24,16 @@ export default function TravelerProfile({ me }) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // ⭐ Estado para el modal de detalle de publicación
+  const [openDetailModal, setOpenDetailModal] = useState(false);
+  const [currentPub, setCurrentPub] = useState(null);
+
+  // ⭐ Función para abrir el detalle
+  function openPublicationDetail(p) {
+    setCurrentPub(p);
+    setOpenDetailModal(true);
+  }
 
   // Cargar itinerarios y favoritos
   useEffect(() => {
@@ -130,7 +142,7 @@ export default function TravelerProfile({ me }) {
         style={{
           background: "rgba(255,255,255,0.60)",
           backdropFilter: "blur(5px)",
-          border: "1px solid rgba(255,255,255,0.4)"
+          border: "1px solid rgba(255,255,255,0.4)",
         }}
       >
         <div className="card-header bg-light border-0 rounded-top-4">
@@ -217,7 +229,7 @@ export default function TravelerProfile({ me }) {
             style={{
               background: "rgba(255,255,255,0.60)",
               backdropFilter: "blur(5px)",
-              border: "1px solid rgba(255,255,255,0.4)"
+              border: "1px solid rgba(255,255,255,0.4)",
             }}
           >
             <div className="card-header bg-light border-0 rounded-top-4">
@@ -240,7 +252,12 @@ export default function TravelerProfile({ me }) {
                 <div className="row row-cols-1 row-cols-md-2 g-3">
                   {favoritesToVisit.map((p) => (
                     <div className="col" key={p.id}>
-                      <div className="card shadow-sm h-100 border-0 rounded-4">
+                      {/* ⭐ Card clickeable para abrir el detalle */}
+                      <div
+                        className="card shadow-sm h-100 border-0 rounded-4"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => openPublicationDetail(p)}
+                      >
                         <div className="card-body pb-0">
                           <div className="d-flex justify-content-between align-items-start">
                             <div className="flex-grow-1">
@@ -278,7 +295,7 @@ export default function TravelerProfile({ me }) {
                         {p.photos?.length ? (
                           <div
                             id={`profile-visit-${p.id}`}
-                            className="carousel slide"
+                            className="carousel slide mt-2" // ⭐ espacio entre texto y fotos
                             data-bs-ride="false"
                           >
                             <div className="carousel-inner">
@@ -307,6 +324,7 @@ export default function TravelerProfile({ me }) {
                                   type="button"
                                   data-bs-target={`#profile-visit-${p.id}`}
                                   data-bs-slide="prev"
+                                  onClick={(e) => e.stopPropagation()} // ⭐ no romper el click de la card
                                 >
                                   <span
                                     className="carousel-control-prev-icon"
@@ -321,6 +339,7 @@ export default function TravelerProfile({ me }) {
                                   type="button"
                                   data-bs-target={`#profile-visit-${p.id}`}
                                   data-bs-slide="next"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <span
                                     className="carousel-control-next-icon"
@@ -363,7 +382,7 @@ export default function TravelerProfile({ me }) {
             style={{
               background: "rgba(255,255,255,0.60)",
               backdropFilter: "blur(5px)",
-              border: "1px solid rgba(255,255,255,0.4)"
+              border: "1px solid rgba(255,255,255,0.4)",
             }}
           >
             <div className="card-header bg-light border-0 rounded-top-4">
@@ -385,7 +404,12 @@ export default function TravelerProfile({ me }) {
                 <div className="row row-cols-1 row-cols-md-2 g-3">
                   {favoritesVisited.map((p) => (
                     <div className="col" key={p.id}>
-                      <div className="card shadow-sm h-100 border-0 rounded-4">
+                      {/* ⭐ Card clickeable también */}
+                      <div
+                        className="card shadow-sm h-100 border-0 rounded-4"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => openPublicationDetail(p)}
+                      >
                         <div className="card-body pb-0">
                           <div className="d-flex justify-content-between align-items-start">
                             <div className="flex-grow-1">
@@ -423,7 +447,7 @@ export default function TravelerProfile({ me }) {
                         {p.photos?.length ? (
                           <div
                             id={`profile-done-${p.id}`}
-                            className="carousel slide"
+                            className="carousel slide mt-2" // ⭐ espacio extra
                             data-bs-ride="false"
                           >
                             <div className="carousel-inner">
@@ -452,6 +476,7 @@ export default function TravelerProfile({ me }) {
                                   type="button"
                                   data-bs-target={`#profile-done-${p.id}`}
                                   data-bs-slide="prev"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <span
                                     className="carousel-control-prev-icon"
@@ -466,6 +491,7 @@ export default function TravelerProfile({ me }) {
                                   type="button"
                                   data-bs-target={`#profile-done-${p.id}`}
                                   data-bs-slide="next"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <span
                                     className="carousel-control-next-icon"
@@ -501,6 +527,16 @@ export default function TravelerProfile({ me }) {
           </div>
         </div>
       </div>
+
+      {/* ⭐ Modal de detalles de publicación (igual que en Home.jsx) */}
+      <PublicationDetailModal
+        open={openDetailModal}
+        pub={currentPub}
+        token={token}
+        me={me}
+        onClose={() => setOpenDetailModal(false)}
+        onToggleFavorite={() => { }} // desde el perfil no tocamos estado de favoritos
+      />
     </div>
   );
 }
