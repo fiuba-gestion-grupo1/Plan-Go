@@ -14,8 +14,10 @@ import ForgotPassword from './pages/ForgotPassword'
 import Backoffice from "./pages/Backoffice";
 import Suggestions from "./pages/Suggestions";
 import ShareItineraryPage from "./pages/ShareItineraryPage";
-import TravelerExperience from './pages/TravelerExperience'; 
+import TravelerExperience from './pages/TravelerExperience';
 import SearchUsers from './pages/SearchUsers';
+import TravelerProfile from "./pages/TravelerProfile";
+
 import "./styles/buttons.css";
 
 // Premium only
@@ -69,15 +71,13 @@ function AppWithRouter() {
     setAuthView('publications');
   }
 
-  
-
   // Navegación interna (sidebar)
   function handleNavigate(nextView) {
     // Bloquea vistas de admin a no-admin
     if (['pending-approvals', 'deletion-requests', 'approved-publications', 'all-publications'].includes(nextView) && !isAdmin) {
       return setAuthView('publications');
     }
-    
+
     // Bloquea vistas de usuario a admin
     // NOTA: 'favorites', 'my-itineraries', 'expenses' YA NO ESTÁN EN EL SIDEBAR, pero deben ser accesibles desde el HUB. 
     // Mantenemos el guard para 'my-publications', 'preferences', etc.
@@ -87,13 +87,13 @@ function AppWithRouter() {
 
     // ▶︎ Premium only: invitar amigos (la de compartir es por ruta)
     if (nextView === 'invite-friends' && !isPremium) {
-          alert('Función disponible sólo para usuarios premium.');
-          return; // quedarse en la vista actual
+      alert('Función disponible sólo para usuarios premium.');
+      return; // quedarse en la vista actual
     }
     // ▶︎ Premium only: beneficios
     if (nextView === 'benefits' && !isPremium) {
-          alert('Función disponible sólo para usuarios premium.');
-          return; // quedarse en la vista actual
+      alert('Función disponible sólo para usuarios premium.');
+      return; // quedarse en la vista actual
     }
     setAuthView(nextView);
   }
@@ -127,13 +127,13 @@ function AppWithRouter() {
           }}
         >
           <div className="container-fluid p-4">
-            
+
             {/* --- 1. NUEVO HUB CENTRAL --- */}
             {authView === 'traveler-experience-hub' && (
               <TravelerExperience onNavigate={handleNavigate} me={me} />
             )}
             {/* --- FIN NUEVO HUB CENTRAL --- */}
-            
+
             {/* --------------------------- VISTAS ANIDADAS EN EL HUB --------------------------- */}
 
             {/* Favoritos (Ahora accedido desde el Hub) */}
@@ -164,10 +164,16 @@ function AppWithRouter() {
             {authView === 'expenses' && !isAdmin && (
               <Home key="expenses" me={me} view="expenses" />
             )}
-            {/* Buscar Otros Viajeros (Nueva vista accedida desde el Hub) */}
             {authView === "search-travelers" && !isAdmin && (
-              <SearchUsers me={me} token={token} />
+              <SearchUsers
+                me={me}
+                onOpenMyProfile={() => handleNavigate("my-traveler-profile")}
+              />
             )}
+            {authView === "my-traveler-profile" && !isAdmin && (
+              <TravelerProfile me={me} />
+            )}
+
             {/* --------------------------- FIN VISTAS ANIDADAS EN EL HUB --------------------------- */}
 
 
@@ -201,7 +207,7 @@ function AppWithRouter() {
                 }}
               />
             )}
-            
+
             {authView === 'preferences' && !isAdmin && (
               <Home key="preferences" me={me} view="preferences" />
             )}
@@ -216,7 +222,7 @@ function AppWithRouter() {
                 }}
               />
             )}
-            
+
             {/* ▶︎ Premium only: Invitar amigos */}
             {authView === 'invite-friends' && !isAdmin && isPremium && (
               <InviteFriend token={token} />
