@@ -304,11 +304,11 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
   const [myItineraries, setMyItineraries] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Estados para modal de confirmación de eliminación de itinerarios
   const [deleteItineraryModal, setDeleteItineraryModal] = useState(false);
   const [itineraryToDelete, setItineraryToDelete] = useState(null);
-  
+
   const token = useMemo(() => localStorage.getItem("token") || "", []);
   // leer ?pub=ID una sola vez
   const [paramPubId] = useState(() => {
@@ -997,17 +997,17 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         day: 'numeric'
       });
     };
-  
-  return (
+
+    return (
       <div className="container mt-4">
         <div className="d-flex align-items-center justify-content-between mb-4">
           <h3 className="mb-0"> Mis Itinerarios</h3>
         </div>
-  
+
         {loading && <div className="alert alert-info">Cargando...</div>}
         {error && <div className="alert alert-danger">{error}</div>}
         {successMsg && <div className="alert alert-success">{successMsg}</div>}
-  
+
         <div className="row g-4">
           {myItineraries.map((itinerary) => (
             <div className="col-md-6 col-lg-4" key={itinerary.id}>
@@ -1025,23 +1025,23 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                       <span className="badge bg-danger">Error</span>
                     )}
                   </div>
-  
+
                   <p className="text-muted small mb-2">
                     {formatDate(itinerary.start_date)} - {formatDate(itinerary.end_date)}
                   </p>
-  
+
                   <p className="mb-2">
                     <strong>Tipo:</strong> {itinerary.trip_type}
                   </p>
-  
+
                   <p className="mb-2">
                     <strong>Presupuesto:</strong> US${itinerary.budget}
                   </p>
-  
+
                   <p className="mb-3">
                     <strong>Personas:</strong> {itinerary.cant_persons}
                   </p>
-  
+
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-sm btn-outline-custom flex-grow-1"
@@ -1052,24 +1052,24 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                     >
                       Ver Itinerario
                     </button>
-  
+
                     {/* Compartir por email — solo Premium */}
                     {isPremium && (
                       <button
-                         className="btn btn-sm btn-outline-primary"
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           // Usar el callback que pasa App:
-                           onOpenShareItinerary?.(itinerary.id);
-                         }}
-                         title="Compartir por mail"
-                         aria-label="Compartir itinerario por mail"
-                       >
-                         📧 Compartir por mail
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Usar el callback que pasa App:
+                          onOpenShareItinerary?.(itinerary.id);
+                        }}
+                        title="Compartir por mail"
+                        aria-label="Compartir itinerario por mail"
+                      >
+                        📧 Compartir por mail
                       </button>
                     )}
 
-  
+
                     <button
                       className="btn btn-sm btn-outline-danger"
                       onClick={(e) => {
@@ -1083,7 +1083,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                     </button>
                   </div>
                 </div>
-  
+
                 <div className="card-footer text-muted small">
                   Creado: {new Date(itinerary.created_at).toLocaleString('es-ES')}
                 </div>
@@ -1091,13 +1091,13 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
             </div>
           ))}
         </div>
-  
+
         {!loading && myItineraries.length === 0 && (
           <div className="alert alert-secondary">
             No tienes itinerarios generados aún. ¡Crea tu primer itinerario con IA!
           </div>
         )}
-  
+
         {/* Modal de confirmación de eliminación de itinerario */}
         {deleteItineraryModal && (
           <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -1139,7 +1139,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       {/* Hero */}
       <div className="p-3 mb-3 bg-light rounded-3">
         <div className="container-fluid py-2">
-          <h4 className="fw-bold mb-1">¡Bienvenido a Plan&Go, {me.username}!</h4>
+          <h4 className="fw-bold mb-1">¡Bienvenido a Plan&Go, {me.first_name || me.username}!</h4>
           <p className="small mb-0 text-muted">Usá los filtros para encontrar actividades/lugares y mirá las reseñas antes de decidir.</p>
         </div>
       </div>
