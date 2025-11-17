@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { request } from "../utils/api";
 
-export default function ExpensesPage({ token }) {
+export default function ExpensesPage({ token, me }) {
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -19,6 +19,9 @@ export default function ExpensesPage({ token }) {
   const [editTripError, setEditTripError] = useState(""); // Error para ese modal
 
   // Estados para modales de confirmación
+  
+  // Determinar si el usuario es premium
+  const isPremium = me?.role === "premium";
   const [deleteExpenseModal, setDeleteExpenseModal] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [deleteTripModal, setDeleteTripModal] = useState(false);
@@ -333,21 +336,23 @@ if (!selectedTrip) {
       {/* --- Pestañas --- */}
       <div className="d-flex mb-4 border-bottom">
         <button
-          className={`btn me-3 pb-2 ${view === "trips" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
+          className={`btn pb-2 ${view === "trips" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
           onClick={() => { setView("trips"); fetchTrips(); }}
         >
           💼 Mis viajes
         </button>
-        <button
-          className={`btn pb-2 ${view === "invitations" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
-          onClick={() => { setView("invitations"); fetchInvitations(); }}
-        >
-          ✉️ Mis invitaciones
-        </button>
+        {isPremium && (
+          <button
+            className={`btn pb-2 ${view === "invitations" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
+            onClick={() => { setView("invitations"); fetchInvitations(); }}
+          >
+            ✉️ Mis invitaciones
+          </button>
+        )}
       </div>
 
       {/* --- Vista de Invitaciones Pendientes --- */}
-      {view === "invitations" && (
+      {view === "invitations" && isPremium && (
         <div className="card shadow-sm mb-4">
           <div className="card-body">
             <h5 className="fw-semibold mb-3">Invitaciones recibidas</h5>
@@ -619,9 +624,11 @@ if (!selectedTrip) {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3 className="mb-0">Gastos del viaje</h3>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-success" onClick={calculateBalances}>
-            Calcular saldos
-          </button>
+          {isPremium && (
+            <button className="btn btn-outline-success" onClick={calculateBalances}>
+              Calcular saldos
+            </button>
+          )}
           <button className="btn btn-outline-primary" onClick={exportToPDF}>
             📄 Exportar PDF
           </button>
@@ -638,37 +645,39 @@ if (!selectedTrip) {
         </div>
       </div>
 
-      {/* --- NUEVO: Invitar usuario premium al viaje --- */}
-      <div className="card p-3 mb-4 shadow-sm">
-        <h5 className="mb-3 fw-semibold">Invitar usuario premium al viaje</h5>
-        <div className="row g-2 align-items-center">
-          <div className="col-md-6">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Nombre de usuario"
-              value={inviteUsername}
-              onChange={(e) => setInviteUsername(e.target.value)}
-            />
+      {/* --- NUEVO: Invitar usuario premium al viaje (solo para usuarios premium) --- */}
+      {isPremium && (
+        <div className="card p-3 mb-4 shadow-sm">
+          <h5 className="mb-3 fw-semibold">Invitar usuario premium al viaje</h5>
+          <div className="row g-2 align-items-center">
+            <div className="col-md-6">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Nombre de usuario"
+                value={inviteUsername}
+                onChange={(e) => setInviteUsername(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3 d-grid">
+              <button className="btn btn-outline-primary" onClick={sendInvitation}>
+                Enviar invitación
+              </button>
+            </div>
           </div>
-          <div className="col-md-3 d-grid">
-            <button className="btn btn-outline-primary" onClick={sendInvitation}>
-              Enviar invitación
-            </button>
-          </div>
-        </div>
 
-        {inviteMessage && (
-          <div className="alert alert-success mt-3 mb-0 py-2">
-            ✅ {inviteMessage}
-          </div>
-        )}
-        {inviteError && (
-          <div className="alert alert-danger mt-3 mb-0 py-2">
-            ⚠️ {inviteError}
-          </div>
-        )}
-      </div>
+          {inviteMessage && (
+            <div className="alert alert-success mt-3 mb-0 py-2">
+              ✅ {inviteMessage}
+            </div>
+          )}
+          {inviteError && (
+            <div className="alert alert-danger mt-3 mb-0 py-2">
+              ⚠️ {inviteError}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* --- Formulario de nuevo gasto (sin cambios) --- */}
       <div className="card p-3 mb-4 shadow-sm">

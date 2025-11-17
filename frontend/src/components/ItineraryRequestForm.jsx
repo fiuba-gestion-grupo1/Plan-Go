@@ -9,6 +9,7 @@ export default function ItineraryRequestForm({ onSubmit, isLoading = false }) {
     const [tripType, setTripType] = useState('');
     const [arrivalTime, setArrivalTime] = useState('');
     const [departureTime, setDepartureTime] = useState('');
+    const [comments, setComments] = useState('');
     const [error, setError] = useState('');
 
     const tripTypes = [
@@ -51,15 +52,23 @@ export default function ItineraryRequestForm({ onSubmit, isLoading = false }) {
 
 
         try {
+            // Asegurar que las fechas estén en formato correcto (YYYY-MM-DD) sin problemas de zona horaria
+            const formatDate = (dateStr) => {
+                if (!dateStr) return null;
+                const date = new Date(dateStr + 'T00:00:00'); // Forzar medianoche local
+                return date.toISOString().split('T')[0];
+            };
+
             const payload = {
                 destination,
-                start_date: startDate,
-                end_date: endDate,
+                start_date: formatDate(startDate),
+                end_date: formatDate(endDate),
                 budget: parseInt(budget),
                 cant_persons: parseInt(cantPersons),
                 trip_type: tripType,
                 arrival_time: arrivalTime || null,
-                departure_time: departureTime || null
+                departure_time: departureTime || null,
+                comments: comments.trim() || null
             };
 
             await onSubmit(payload);
@@ -210,6 +219,25 @@ export default function ItineraryRequestForm({ onSubmit, isLoading = false }) {
                         disabled={isLoading}
                     />
                 </div>
+            </div>
+
+            <div className="mb-3">
+                <label htmlFor="comments" className="form-label">
+                    Comentarios (opcional)
+                </label>
+                <textarea
+                    id="comments"
+                    className="form-control"
+                    placeholder="Ej: No quiero ir a lugares muy concurridos, prefiero actividades al aire libre, etc."
+                    value={comments}
+                    onChange={(e) => setComments(e.target.value)}
+                    rows="3"
+                    maxLength="500"
+                    disabled={isLoading}
+                />
+                <small className="form-text text-muted">
+                    Agrega cualquier comentario o preferencia especial para personalizar tu itinerario (máximo 500 caracteres)
+                </small>
             </div>
 
             <div className="alert alert-info" role="alert">

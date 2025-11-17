@@ -18,6 +18,7 @@ import "./styles/buttons.css";
 
 // Premium only
 import InviteFriend from "./pages/InviteFriend";
+import Benefits from "./pages/Benefits";
 
 // ----- Shell con Router -----
 export default function App() {
@@ -75,11 +76,16 @@ function AppWithRouter() {
       return setAuthView('publications');
     }
     // Bloquea vistas de usuario a admin
-    if (['my-publications', 'favorites', 'preferences', 'invite-friends', 'suggestions'].includes(nextView) && isAdmin) {
+    if (['my-publications', 'favorites', 'preferences', 'invite-friends', 'suggestions', 'benefits'].includes(nextView) && isAdmin) {
       return setAuthView('approved-publications');
     }
     // ▶︎ Premium only: invitar amigos (la de compartir es por ruta)
     if (nextView === 'invite-friends' && !isPremium) {
+         alert('Función disponible sólo para usuarios premium.');
+         return; // quedarse en la vista actual
+    }
+    // ▶︎ Premium only: beneficios
+    if (nextView === 'benefits' && !isPremium) {
          alert('Función disponible sólo para usuarios premium.');
          return; // quedarse en la vista actual
     }
@@ -189,6 +195,11 @@ function AppWithRouter() {
             {/* ▶︎ Premium only: Invitar amigos */}
             {authView === 'invite-friends' && !isAdmin && isPremium && (
               <InviteFriend token={token} />
+            )}
+
+            {/* ▶︎ Premium only: Beneficios */}
+            {authView === 'benefits' && !isAdmin && isPremium && (
+              <Benefits token={token} me={me} />
             )}
 
             {/* Admin */}

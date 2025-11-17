@@ -10,6 +10,7 @@ from ..db import get_db
 from .auth import get_current_user
 from pydantic import BaseModel
 from .auth import get_current_user, get_optional_user
+from .points import award_points_for_review
 
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
@@ -716,6 +717,12 @@ def create_review(
 
     db.commit()
     db.refresh(review)
+
+    # 🏆 Otorgar puntos por escribir reseña (solo usuarios premium)
+    try:
+        award_points_for_review(db, user.id, review.id)
+    except Exception as e:
+        print(f"Error al otorgar puntos por reseña: {e}")
 
     return schemas.ReviewOut(
         id=review.id,

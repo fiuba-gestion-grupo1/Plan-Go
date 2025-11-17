@@ -119,6 +119,12 @@ def ensure_min_schema(engine):
                 conn.exec_driver_sql(
                     "ALTER TABLE itineraries ADD COLUMN cant_persons INTEGER DEFAULT 1"
                 )
+                
+            # Agregar comments si no existe
+            if "comments" not in existing_itinerary:
+                conn.exec_driver_sql(
+                    "ALTER TABLE itineraries ADD COLUMN comments TEXT"
+                )
 
         # --- Agregar rejection_reason a deletion_requests ---
         pragma_deletion = conn.exec_driver_sql("PRAGMA table_info(deletion_requests)").fetchall()
@@ -132,4 +138,48 @@ def ensure_min_schema(engine):
         if "reason" not in existing_deletion:
             conn.exec_driver_sql(
                 "ALTER TABLE deletion_requests ADD COLUMN reason TEXT"
+            )
+
+        # --- Tablas de sistema de puntos ---
+        # Tabla user_points
+        user_points_check = conn.exec_driver_sql(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='user_points'"
+        ).fetchone()
+        
+        if not user_points_check:
+            conn.exec_driver_sql("""
+                CREATE TABLE user_points (
+                    user_id INTEGER PRIMARY KEY,
+                    total_points INTEGER NOT NULL DEFAULT 0,
+                    updated_at TIMESTAMP DEFAULT (datetime('now')),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            conn.exec_driver_sql(
+                "CREATE INDEX IF NOT EXISTS idx_user_points_user_id ON user_points(user_id)"
+            )
+
+        # Tabla points_transactions
+        points_transactions_check = conn.exec_driver_sql(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='points_transactions'"
+        ).fetchone()
+        
+        if not points_transactions_check:
+            conn.exec_driver_sql("""
+                CREATE TABLE points_transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    points INTEGER NOT NULL,
+                    transaction_type TEXT NOT NULL,
+                    description TEXT,
+                    reference_id INTEGER,
+                    created_at TIMESTAMP DEFAULT (datetime('now')),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            conn.exec_driver_sql(
+                "CREATE INDEX IF NOT EXISTS idx_points_transactions_user_id ON points_transactions(user_id)"
+            )
+            conn.exec_driver_sql(
+                "CREATE INDEX IF NOT EXISTS idx_points_transactions_created_at ON points_transactions(created_at)"
             )

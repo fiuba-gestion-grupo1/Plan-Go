@@ -252,6 +252,7 @@ class Itinerary(Base):
     trip_type = Column(String, nullable=False)
     arrival_time = Column(String, nullable=True)
     departure_time = Column(String, nullable=True)
+    comments = Column(Text, nullable=True)
     generated_itinerary = Column(Text, nullable=True)
     publication_ids = Column(JSON, nullable=True)  # Lista de IDs de publicaciones utilizadas
     status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|completed|failed
@@ -309,3 +310,32 @@ class TripInvitation(Base):
     invited_user = relationship("User", foreign_keys=[invited_user_id])
     invited_by_user = relationship("User", foreign_keys=[invited_by_user_id])
     trip = relationship("Trip", backref="invitations")
+
+
+# ---------------------------
+# Points System
+# ---------------------------
+class UserPoints(Base):
+    """Tabla para el balance actual de puntos de cada usuario"""
+    __tablename__ = "user_points"
+    
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    total_points = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    user = relationship("User", backref="points_balance")
+
+
+class PointsTransaction(Base):
+    """Tabla para el historial de movimientos de puntos"""
+    __tablename__ = "points_transactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    points = Column(Integer, nullable=False)  # Positivo para ganar, negativo para gastar
+    transaction_type = Column(String, nullable=False)  # 'review_earned', 'rating_earned', 'bonus', 'redeemed'
+    description = Column(String, nullable=True)  # Descripción del movimiento
+    reference_id = Column(Integer, nullable=True)  # ID de referencia (ej: review_id, publication_id)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", backref="points_transactions")

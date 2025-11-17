@@ -1054,22 +1054,20 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                     </button>
   
                     {/* Compartir por email — solo Premium */}
-                    <button
-                       className={`btn btn-sm ${isPremium ? 'btn-outline-primary' : 'btn-outline-secondary'}`}
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         if (!isPremium) {
-                           alert('Función premium: solo los usuarios premium pueden invitar por email.');
-                           return;
-                         }
-                         // Usar el callback que pasa App:
-                         onOpenShareItinerary?.(itinerary.id);
-                       }}
-                       title={isPremium ? 'Compartir por email' : 'Solo usuarios premium'}
-                       aria-label="Compartir itinerario por email"
-                     >
-                       📧 Compartir(Solo Usuarios Premium)
-                    </button>
+                    {isPremium && (
+                      <button
+                         className="btn btn-sm btn-outline-primary"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           // Usar el callback que pasa App:
+                           onOpenShareItinerary?.(itinerary.id);
+                         }}
+                         title="Compartir por mail"
+                         aria-label="Compartir itinerario por mail"
+                       >
+                         📧 Compartir por mail
+                      </button>
+                    )}
 
   
                     <button

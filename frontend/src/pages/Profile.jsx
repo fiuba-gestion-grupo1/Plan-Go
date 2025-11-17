@@ -393,8 +393,14 @@ export default function Profile({ me, token, setMe }) {
                                         <li className="mb-2">
                                             ⭐ <strong>Calificá tus actividades:</strong> puntuá lo que hiciste y acumulá más puntos.
                                         </li>
-                                        <li>
+                                        <li className="mb-2">
                                             🎁 <strong>Accedé a recompensas:</strong> disfrutá beneficios y descuentos increíbles.
+                                        </li>
+                                        <li className="mb-2">
+                                            💰 <strong>Dividí gastos de viajes:</strong> invitá amigos a tus viajes y compartí los gastos automáticamente.
+                                        </li>
+                                        <li className="mb-2">
+                                            💰 <strong>Compartí itinerarios:</strong> compartí itinerarios a amigos vía mail.
                                         </li>
                                     </ul>
 

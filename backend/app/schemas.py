@@ -279,6 +279,7 @@ class ItineraryRequest(BaseModel):
     trip_type: str = Field(..., min_length=2, max_length=100)
     arrival_time: Optional[str] = None
     departure_time: Optional[str] = None
+    comments: Optional[str] = Field(None, max_length=500)
 
 
 class ItineraryOut(BaseModel):
@@ -292,6 +293,7 @@ class ItineraryOut(BaseModel):
     trip_type: str
     arrival_time: Optional[str] = None
     departure_time: Optional[str] = None
+    comments: Optional[str] = None
     generated_itinerary: Optional[str] = None
     status: str
     created_at: str
@@ -326,4 +328,43 @@ class TripOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# -------------------------------------------------
+# Points System
+# -------------------------------------------------
+class UserPointsOut(BaseModel):
+    user_id: int
+    points: int
+    updated_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class PointsTransactionOut(BaseModel):
+    id: int
+    user_id: int
+    points: int
+    transaction_type: str
+    description: Optional[str] = None
+    reference_id: Optional[int] = None
+    created_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class AddPointsRequest(BaseModel):
+    user_id: int
+    points: int
+    transaction_type: str = Field(..., pattern='^(review_earned|bonus|redeemed)$')
+    description: Optional[str] = None
+    reference_id: Optional[int] = None
 
