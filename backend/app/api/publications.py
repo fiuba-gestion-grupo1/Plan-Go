@@ -11,7 +11,11 @@ from .auth import get_current_user
 from pydantic import BaseModel
 from .auth import get_current_user, get_optional_user
 from .points import award_points_for_review
+from fastapi import Query
 
+import logging
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
 # Schema para rechazar o eliminar con motivo
@@ -1248,6 +1252,79 @@ def report_review(
     ).filter(models.ReviewReport.id == report.id).first()
     
     return build_review_report_out(report_with_data)
+
+
+@router.get("/favorites", response_model=list[schemas.PublicationOut])
+def list_favorites(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    user_id: int | None = Query(default=None),
+):
+    """
+    Devuelve las publicaciones favoritas.
+
+    - Si NO viene user_id -> favoritos del usuario logueado (current_user).
+    - Si viene user_id -> favoritos de ese usuario (perfil que estás viendo).
+    """
+    # si no mandan user_id, uso el user logueado
+    target_user_id = user_id if user_id is not None else current_user.id
+
+    logger.debug(
+        f"[favorites] current_user={current_user.id}, "
+        f"user_id_param={user_id}, target_user_id={target_user_id}"
+    )
+
+    favorites = (
+        db.query(models.Publication)
+        .join(
+            models.FavoritePublication,
+            models.FavoritePublication.publication_id == models.Publication.id,
+        )
+        .filter(models.FavoritePublication.user_id == target_user_id)
+        .all()
+    )
+
+    logger.debug(
+        f"[favorites] target_user_id={target_user_id}, count={len(favorites)}"
+    )
+
+    return favorites
+
+
+@router.get("/visited", response_model=list[schemas.PublicationOut])
+def list_visited(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    user_id: int | None = Query(default=None),
+):
+    """
+    Devuelve las publicaciones marcadas como 'realizadas' / 'visitadas'.
+
+    - Si NO viene user_id: visitadas del usuario logueado.
+    - Si viene user_id: visitadas del usuario cuyo perfil se está viendo.
+    """
+    target_user_id = user_id if user_id is not None else current_user.id
+    logger.debug(
+        f"[visited] current_user={current_user.id}, user_id_param={user_id}, "
+        f"target_user_id={target_user_id}"
+    )
+
+    visited = (
+        db.query(models.Publication)
+        .join(
+            models.VisitedPublication,
+            models.VisitedPublication.publication_id == models.Publication.id,
+        )
+        .filter(models.VisitedPublication.user_id == target_user_id)
+        .all()
+    )
+
+    logger.debug(
+        f"[visited] target_user_id={target_user_id}, count={len(visited)}"
+    )
+
+    return visited
+
 
 
 def build_review_report_out(report: models.ReviewReport) -> schemas.ReviewReportOut:

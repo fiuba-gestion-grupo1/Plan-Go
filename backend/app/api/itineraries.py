@@ -794,6 +794,66 @@ def share_itinerary_by_email(
     send_email_html(payload.to, subject, html_body)
     return {"ok": True, "message": "Itinerario enviado por email"}
 
+@router.get("/by-user/{user_id}", response_model=list[schemas.ItineraryOut])
+def get_itineraries_by_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Itinerarios generados por un usuario concreto (para ver su perfil viajero).
+    """
+    itineraries = (
+        db.query(models.Itinerary)
+        .filter(models.Itinerary.user_id == user_id)
+        .order_by(models.Itinerary.created_at.desc())
+        .all()
+    )
+    return itineraries
+
+
+@router.get("/by-user/{user_id}")
+def get_itineraries_by_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Itinerarios visibles del usuario indicado.
+    Por ahora dejamos que cualquier usuario autenticado pueda ver los itinerarios
+    publicados de otros.
+    """
+    its = (
+        db.query(models.Itinerary)
+        .filter(models.Itinerary.user_id == user_id)
+        .order_by(models.Itinerary.created_at.desc())
+        .all()
+    )
+
+    # devolvemos dicts serializables
+    result = []
+    for it in its:
+        result.append(
+            {
+                "id": it.id,
+                "destination": it.destination,
+                "start_date": it.start_date,
+                "end_date": it.end_date,
+                "trip_type": getattr(it, "trip_type", None),
+                "budget": getattr(it, "budget", None),
+                "cant_persons": getattr(it, "cant_persons", None),
+                "status": it.status,
+                "arrival_time": getattr(it, "arrival_time", None),
+                "departure_time": getattr(it, "departure_time", None),
+                "generated_itinerary": getattr(it, "generated_itinerary", None),
+                "created_at": (
+                    it.created_at.isoformat()
+                    if getattr(it, "created_at", None)
+                    else None
+                ),
+            }
+        )
+    return result
 
 def _to_date(value):
     """Acepta datetime/date/str y devuelve date."""

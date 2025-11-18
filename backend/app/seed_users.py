@@ -1,4 +1,5 @@
 # backend/app/seed_users.py
+import json
 from sqlalchemy.orm import Session
 
 try:
@@ -9,21 +10,57 @@ except ImportError:
     print("Ejemplo: python -m backend.app.seed_users")
     raise
 
-def create_or_update_user(db: Session, *, email: str, username: str, password: str, role: str):
+
+def create_or_update_user(
+    db: Session,
+    *,
+    email: str,
+    username: str,
+    password: str,
+    role: str,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    travel_profile: dict | None = None,
+):
     """
-    Crea el usuario si no existe. Si existe, actualiza password/role si difieren.
+    Crea el usuario si no existe. Si existe, actualiza password/role y perfil de viaje si difieren.
+    El perfil de viaje se guarda en el campo `travel_preferences` como JSON.
     """
+    # Serializamos el perfil de viaje (si viene)
+    travel_preferences_str = None
+    if travel_profile is not None:
+        # Usamos ensure_ascii=False para que se guarden bien las tildes
+        travel_preferences_str = json.dumps(travel_profile, ensure_ascii=False)
+
     user = db.query(models.User).filter(models.User.email == email).first()
+
     if user:
         changed = False
-        # Forzamos role deseado
+
+        # Role
         if user.role != role:
             user.role = role
             changed = True
 
-        # Re-hasheamos siempre la password por idempotencia simple (opcionalmente podrías verificar)
-        user.hashed_password = security.hash_password(password)
-        changed = True
+        # Nombre / apellido
+        if first_name is not None and user.first_name != first_name:
+            user.first_name = first_name
+            changed = True
+
+        if last_name is not None and user.last_name != last_name:
+            user.last_name = last_name
+            changed = True
+
+        # Password
+        new_hashed = security.hash_password(password)
+        if user.hashed_password != new_hashed:
+            user.hashed_password = new_hashed
+            changed = True
+
+        # Perfil de viaje (travel_preferences)
+        if travel_preferences_str is not None and user.travel_preferences != travel_preferences_str:
+            user.travel_preferences = travel_preferences_str
+            changed = True
 
         if changed:
             db.add(user)
@@ -40,11 +77,10 @@ def create_or_update_user(db: Session, *, email: str, username: str, password: s
         username=username,
         hashed_password=security.hash_password(password),
         role=role,
-        # Campos opcionales (pueden quedar en None):
-        first_name=None,
-        last_name=None,
+        first_name=first_name,
+        last_name=last_name,
         birth_date=None,
-        travel_preferences=None,
+        travel_preferences=travel_preferences_str,
         security_question_1=None,
         hashed_answer_1=None,
         security_question_2=None,
@@ -61,12 +97,14 @@ def create_or_update_user(db: Session, *, email: str, username: str, password: s
 def seed_users(db: Session):
     print("--- Iniciando Seeding de Usuarios ---")
 
+    # Admin y usuario "normal" para pruebas genéricas
     create_or_update_user(
         db,
         email="admin@fi.uba.ar",
         username="admin",
         password="password",
         role="admin",
+        first_name="Admin",
     )
 
     create_or_update_user(
@@ -74,31 +112,107 @@ def seed_users(db: Session):
         email="normal@fi.uba.ar",
         username="normal",
         password="password",
-        role="user",        # usuario normal
+        role="user",
+        first_name="Usuario",
+        last_name="Normal",
     )
 
+    # --- VIAJEROS QUE APARECEN EN LA PANTALLA DE BÚSQUEDA ---
+
+    # 1) Agustina (@agus.viajes)
     create_or_update_user(
         db,
-        email="premium@fi.uba.ar",
-        username="premium",
+        email="agus.viajes@fi.uba.ar",
+        username="agus.viajes",
         password="password",
-        role="premium",     # usuario premium
+        role="user",
+        first_name="Agustina",
+        travel_profile={
+            "city": "Buenos Aires, Argentina",
+            "destinations": ["Europa", "París", "Roma"],
+            "style": "Low cost & cultural",
+            "budget": "$$",
+            "about": "Me encantan las ciudades con historia, los museos y los cafés lindos.",
+            "tags": ["Museos", "Café", "Caminatas", "Hostels"],
+            # Campo opcional para mockear la coincidencia con el usuario actual
+            "match_percentage": 92,
+        },
     )
 
+    # 2) Nicolás (@viajero.nomade)
     create_or_update_user(
         db,
-        email="premium2@fi.uba.ar",
-        username="premium2",
+        email="viajero.nomade@fi.uba.ar",
+        username="viajero.nomade",
         password="password",
-        role="premium",     # usuario premium
+        role="user",
+        first_name="Nicolás",
+        travel_profile={
+            "city": "Córdoba, Argentina",
+            "destinations": ["Sudeste Asiático", "Tailandia"],
+            "style": "Mochilero",
+            "budget": "$",
+            "about": "Busco gente para viajes largos, poca planificación y mucha aventura.",
+            "tags": ["Backpacking", "Playas", "Street food"],
+            "match_percentage": 78,
+        },
     )
 
+    # 3) Valen (@city.breaks)
     create_or_update_user(
         db,
-        email="premium3@fi.uba.ar",
-        username="premium3",
+        email="city.breaks@fi.uba.ar",
+        username="city.breaks",
         password="password",
-        role="premium",     # usuario premium
+        role="user",
+        first_name="Valen",
+        travel_profile={
+            "city": "Montevideo, Uruguay",
+            "destinations": ["Europa", "Madrid", "Londres"],
+            "style": "City break",
+            "budget": "$$$",
+            "about": "Amo las escapadas cortas, los buenos restaurantes y los barrios con encanto.",
+            "tags": ["Restaurantes", "Airbnb", "Mercados"],
+            "match_percentage": 84,
+        },
+    )
+
+    # 4) Mariana (@familia.onboard)
+    create_or_update_user(
+        db,
+        email="familia.onboard@fi.uba.ar",
+        username="familia.onboard",
+        password="password",
+        role="user",
+        first_name="Mariana",
+        travel_profile={
+            "city": "Rosario, Argentina",
+            "destinations": ["Brasil", "Caribe"],
+            "style": "En familia",
+            "budget": "$$",
+            "about": "Viajo con niños, busco planes tranquilos y alojamientos cómodos.",
+            "tags": ["Niños", "All inclusive", "Playa"],
+            "match_percentage": 66,
+        },
+    )
+
+    # 5) Sofi (@solo.traveler)
+    create_or_update_user(
+        db,
+        email="solo.traveler@fi.uba.ar",
+        username="solo.traveler",
+        password="password",
+        role="user",
+        first_name="Sofi",
+        travel_profile={
+            "city": "Santiago, Chile",
+            "destinations": ["Europa", "Lisboa", "Barcelona"],
+            "style": "Solo traveler",
+            "budget": "$$",
+            "about": "Me gusta viajar sola pero compartir algunos planes con otras personas.",
+            "tags": ["Co-working", "Cafés", "Tours a pie"],
+            "match_percentage": 81,
+        },
     )
 
     print("--- Seeding de Usuarios completado ---")

@@ -1,16 +1,27 @@
 // src/pages/TravelerProfile.jsx
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { request } from "../utils/api";
 import { RatingBadge } from "../components/shared/UIComponents";
-// ⭐ Importamos el mismo modal de detalles que usás en Home.jsx
 import PublicationDetailModal from "../components/PublicationDetailModal";
 
 export default function TravelerProfile({ me }) {
-  // Nombre “bonito”
-  const displayName = me?.first_name || me?.username || "Viajero";
-  const username = me?.username || "usuario";
+  const { userId } = useParams(); // undefined cuando es "mi perfil" dentro del hub
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
+
+  const isMyProfile =
+    !userId || (me && String(me.id) === String(userId || ""));
+
+  // --- usuario cuyo perfil se está viendo ---
+  const [profileUser, setProfileUser] = useState(me || null);
+
+  // datos de cabecera
+  const displayName =
+    profileUser?.first_name || profileUser?.username || "Viajero";
+  const username = profileUser?.username || "usuario";
   const bio =
-    me?.bio ||
+    profileUser?.bio ||
     "Contale a la comunidad qué te gusta cuando viajás: destinos favoritos, estilos de viaje, si preferís low cost, all inclusive, naturaleza, ciudades, etc.";
 
   const initials = displayName
@@ -21,10 +32,7 @@ export default function TravelerProfile({ me }) {
     .slice(0, 1)
     .toUpperCase();
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
-
-  // Estados para datos reales
+  // estados datos reales
   const [publishedItineraries, setPublishedItineraries] = useState([]);
   const [favoritesToVisit, setFavoritesToVisit] = useState([]); // pending
   const [favoritesVisited, setFavoritesVisited] = useState([]); // done
@@ -32,22 +40,64 @@ export default function TravelerProfile({ me }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ⭐ Estado para el modal de detalle de publicación
+  // modal publicación
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
 
+  // modal itinerario
   const [selectedItineraryDetail, setSelectedItineraryDetail] = useState(null);
   const [openItineraryDetail, setOpenItineraryDetail] = useState(false);
 
-  // ⭐ Función para abrir el detalle
   function openPublicationDetail(p) {
     setCurrentPub(p);
     setOpenDetailModal(true);
   }
 
-  // Cargar itinerarios y favoritos
+  // 1) cargar datos del usuario cuyo perfil se ve
+  useEffect(() => {
+    if (!token) return;
+
+    // si es mi propio perfil, usamos "me"
+    if (isMyProfile) {
+      setProfileUser(me || null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadUser() {
+      try {
+        setError("");
+        const data = await request(`/api/users/${userId}`, { token });
+        if (!cancelled) {
+          setProfileUser(data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error("Error cargando usuario", e);
+          setError(
+            e.message || "Error cargando el perfil de este viajero."
+          );
+        }
+      }
+    }
+
+    loadUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, token, isMyProfile, me]);
+
+  // 2) cargar itinerarios + favoritos del usuario cuyo perfil se ve
   useEffect(() => {
     if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    const targetUserId = isMyProfile ? me?.id : userId;
+    if (!targetUserId) {
       setLoading(false);
       return;
     }
@@ -59,12 +109,21 @@ export default function TravelerProfile({ me }) {
       setError("");
 
       try {
-        // 1) Itinerarios del usuario
-        const its = await request("/api/itineraries/my-itineraries", { token });
+        // itinerarios
+        const itsEndpoint = isMyProfile
+          ? "/api/itineraries/my-itineraries"
+          : `/api/itineraries/by-user/${targetUserId}`;
+
+        const its = await request(itsEndpoint, { token });
         const visibleIts = Array.isArray(its) ? its : [];
 
-        // 2) Favoritos del usuario
-        const favs = await request("/api/publications/favorites", { token });
+        // favoritos (por visitar / visitados)
+        // para otros usuarios usamos query param user_id
+        const favsEndpoint = isMyProfile
+          ? "/api/publications/favorites"
+          : `/api/publications/favorites?user_id=${targetUserId}`;
+
+        const favs = await request(favsEndpoint, { token });
         const favArray = Array.isArray(favs) ? favs : [];
 
         const toVisit = favArray.filter(
@@ -81,7 +140,8 @@ export default function TravelerProfile({ me }) {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e.message || "Error cargando tu perfil viajero.");
+          console.error("Error cargando datos de perfil", e);
+          setError(e.message || "Error cargando datos del viajero.");
         }
       } finally {
         if (!cancelled) {
@@ -91,14 +151,15 @@ export default function TravelerProfile({ me }) {
     }
 
     loadData();
+
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, isMyProfile, userId, me?.id]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    const dateOnly = dateStr.split("T")[0];
+    const dateOnly = String(dateStr).split("T")[0];
     const [y, m, d] = dateOnly.split("-");
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString("es-ES", {
@@ -107,6 +168,8 @@ export default function TravelerProfile({ me }) {
       day: "numeric",
     });
   };
+
+  const isOther = !isMyProfile;
 
   return (
     <div className="container-fluid py-4">
@@ -122,14 +185,15 @@ export default function TravelerProfile({ me }) {
               borderRadius: "50%",
               overflow: "hidden",
               flexShrink: 0,
-              // CAMBIO: Fondo gris/azul (#6c757d) si no hay foto
-              backgroundColor: me?.profile_picture_url ? "transparent" : "#6c757d",
-              color: me?.profile_picture_url ? "inherit" : "#FFFFFF", // Letras blancas
+              backgroundColor: profileUser?.profile_picture_url
+                ? "transparent"
+                : "#6c757d",
+              color: profileUser?.profile_picture_url ? "inherit" : "#FFFFFF",
             }}
           >
-            {me?.profile_picture_url ? (
+            {profileUser?.profile_picture_url ? (
               <img
-                src={me.profile_picture_url}
+                src={profileUser.profile_picture_url}
                 alt={displayName}
                 style={{
                   width: "100%",
@@ -139,7 +203,6 @@ export default function TravelerProfile({ me }) {
                 }}
               />
             ) : (
-              // Contenedor de iniciales centrado
               <span className="fw-bold" style={{ fontSize: "1.4rem" }}>
                 {initials}
               </span>
@@ -156,11 +219,11 @@ export default function TravelerProfile({ me }) {
       </div>
 
       {loading && (
-        <div className="alert alert-info">Cargando tu perfil viajero…</div>
+        <div className="alert alert-info">Cargando perfil viajero…</div>
       )}
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* Itinerarios publicados (por ahora: todos tus itinerarios) */}
+      {/* Itinerarios publicados */}
       <div
         className="card shadow-sm rounded-4 mb-4"
         style={{
@@ -182,10 +245,9 @@ export default function TravelerProfile({ me }) {
         <div className="card-body">
           {!loading && publishedItineraries.length === 0 ? (
             <div className="alert alert-light border mb-0">
-              Todavía no tenés itinerarios generados.
-              <br />
-              Cuando crees itinerarios con IA, más adelante vas a poder elegir
-              cuáles mostrar en tu perfil público.
+              {isOther
+                ? "Este viajero todavía no tiene itinerarios publicados."
+                : "Todavía no tenés itinerarios generados. Cuando crees itinerarios con IA, más adelante vas a poder elegir cuáles mostrar en tu perfil público."}
             </div>
           ) : (
             <div className="row g-3">
@@ -195,7 +257,9 @@ export default function TravelerProfile({ me }) {
                     <div className="card-body d-flex flex-column">
                       <div className="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                          <div className="fw-semibold">{it.destination}</div>
+                          <div className="fw-semibold">
+                            {it.destination || it.city || "Itinerario"}
+                          </div>
                           <div className="small text-muted">
                             {formatDate(it.start_date)} –{" "}
                             {formatDate(it.end_date)}
@@ -207,9 +271,17 @@ export default function TravelerProfile({ me }) {
                       </div>
 
                       <div className="small text-muted mb-2">
-                        💰 Presupuesto estimado: US${it.budget} · 👥{" "}
-                        {it.cant_persons} persona
-                        {it.cant_persons > 1 ? "s" : ""}
+                        {it.budget && (
+                          <>
+                            💰 Presupuesto estimado: US${it.budget} ·{" "}
+                          </>
+                        )}
+                        {it.cant_persons && (
+                          <>
+                            👥 {it.cant_persons} persona
+                            {it.cant_persons > 1 ? "s" : ""}
+                          </>
+                        )}
                       </div>
 
                       <div className="mt-auto d-flex justify-content-between align-items-center">
@@ -264,22 +336,26 @@ export default function TravelerProfile({ me }) {
                 Lugares por visitar
               </h2>
               <small className="text-muted">
-                Lugares que marcaste como pendientes de visitar.
+                Lugares que {isOther ? "este viajero marcó" : "marcaste"} como
+                pendientes de visitar.
               </small>
             </div>
             <div className="card-body">
               {!loading && favoritesToVisit.length === 0 ? (
                 <div className="alert alert-light border mb-0 small">
-                  Aún no agregaste lugares a <strong>Por visitar</strong>.
-                  <br />
-                  Desde la sección de favoritos podés marcar los lugares que
-                  querés guardar para más adelante.
+                  {isOther
+                    ? "Este viajero todavía no tiene lugares marcados como 'Por visitar'."
+                    : <>
+                        Aún no agregaste lugares a <strong>Por visitar</strong>.
+                        <br />
+                        Desde la sección de favoritos podés marcar los lugares
+                        que querés guardar para más adelante.
+                      </>}
                 </div>
               ) : (
                 <div className="row row-cols-1 row-cols-md-2 g-3">
                   {favoritesToVisit.map((p) => (
                     <div className="col" key={p.id}>
-                      {/* ⭐ Card clickeable para abrir el detalle */}
                       <div
                         className="card shadow-sm h-100 border-0 rounded-4"
                         style={{ cursor: "pointer" }}
@@ -322,14 +398,15 @@ export default function TravelerProfile({ me }) {
                         {p.photos?.length ? (
                           <div
                             id={`profile-visit-${p.id}`}
-                            className="carousel slide mt-2" // ⭐ espacio entre texto y fotos
+                            className="carousel slide mt-2"
                             data-bs-ride="false"
                           >
                             <div className="carousel-inner">
                               {p.photos.map((url, idx) => (
                                 <div
-                                  className={`carousel-item ${idx === 0 ? "active" : ""
-                                    }`}
+                                  className={`carousel-item ${
+                                    idx === 0 ? "active" : ""
+                                  }`}
                                   key={url}
                                 >
                                   <img
@@ -351,7 +428,7 @@ export default function TravelerProfile({ me }) {
                                   type="button"
                                   data-bs-target={`#profile-visit-${p.id}`}
                                   data-bs-slide="prev"
-                                  onClick={(e) => e.stopPropagation()} // ⭐ no romper el click de la card
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <span
                                     className="carousel-control-prev-icon"
@@ -386,12 +463,14 @@ export default function TravelerProfile({ me }) {
                         )}
 
                         <div className="card-footer bg-white border-0 d-flex justify-content-between align-items-center">
-                          <small className="text-muted">
-                            Desde{" "}
-                            <span className="text-success fw-semibold">
-                              US${p.cost_per_day}
-                            </span>
-                          </small>
+                          {p.cost_per_day && (
+                            <small className="text-muted">
+                              Desde{" "}
+                              <span className="text-success fw-semibold">
+                                US${p.cost_per_day}
+                              </span>
+                            </small>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -417,21 +496,26 @@ export default function TravelerProfile({ me }) {
                 Lugares visitados
               </h2>
               <small className="text-muted">
-                Lugares que ya visitaste y recomendás a otros viajeros.
+                Lugares que {isOther ? "este viajero visitó" : "ya visitaste"} y
+                recomendás a otros viajeros.
               </small>
             </div>
             <div className="card-body">
               {!loading && favoritesVisited.length === 0 ? (
                 <div className="alert alert-light border mb-0 small">
-                  Aún no agregaste lugares a <strong>Visitados</strong>.
-                  <br />
-                  Cuando marques favoritos como realizados, van a aparecer acá.
+                  {isOther
+                    ? "Este viajero todavía no tiene lugares marcados como 'Visitados'."
+                    : <>
+                        Aún no agregaste lugares a <strong>Visitados</strong>.
+                        <br />
+                        Cuando marques favoritos como realizados, van a
+                        aparecer acá.
+                      </>}
                 </div>
               ) : (
                 <div className="row row-cols-1 row-cols-md-2 g-3">
                   {favoritesVisited.map((p) => (
                     <div className="col" key={p.id}>
-                      {/* ⭐ Card clickeable también */}
                       <div
                         className="card shadow-sm h-100 border-0 rounded-4"
                         style={{ cursor: "pointer" }}
@@ -474,14 +558,15 @@ export default function TravelerProfile({ me }) {
                         {p.photos?.length ? (
                           <div
                             id={`profile-done-${p.id}`}
-                            className="carousel slide mt-2" // ⭐ espacio extra
+                            className="carousel slide mt-2"
                             data-bs-ride="false"
                           >
                             <div className="carousel-inner">
                               {p.photos.map((url, idx) => (
                                 <div
-                                  className={`carousel-item ${idx === 0 ? "active" : ""
-                                    }`}
+                                  className={`carousel-item ${
+                                    idx === 0 ? "active" : ""
+                                  }`}
                                   key={url}
                                 >
                                   <img
@@ -538,12 +623,14 @@ export default function TravelerProfile({ me }) {
                         )}
 
                         <div className="card-footer bg-white border-0 d-flex justify-content-between align-items-center">
-                          <small className="text-muted">
-                            Desde{" "}
-                            <span className="text-success fw-semibold">
-                              US${p.cost_per_day}
-                            </span>
-                          </small>
+                          {p.cost_per_day && (
+                            <small className="text-muted">
+                              Desde{" "}
+                              <span className="text-success fw-semibold">
+                                US${p.cost_per_day}
+                              </span>
+                            </small>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -555,7 +642,7 @@ export default function TravelerProfile({ me }) {
         </div>
       </div>
 
-      {/* Modal de detalle de itinerario */}
+      {/* Modal detalle itinerario */}
       {openItineraryDetail && selectedItineraryDetail && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -565,10 +652,9 @@ export default function TravelerProfile({ me }) {
             className="bg-white rounded-3 shadow-lg border w-100"
             style={{ maxWidth: 900, maxHeight: "90vh", overflow: "auto" }}
           >
-            {/* Header */}
             <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
               <h5 className="mb-0">
-                Itinerario: {selectedItineraryDetail.destination}
+                Itinerario: {selectedItineraryDetail.destination || "Viaje"}
               </h5>
               <button
                 className="btn btn-sm btn-outline-secondary"
@@ -581,7 +667,7 @@ export default function TravelerProfile({ me }) {
               </button>
             </div>
 
-            {/* Info básica del itinerario */}
+            {/* info básica */}
             <div className="p-3">
               <div className="card shadow-sm mb-4">
                 <div className="card-body">
@@ -592,18 +678,24 @@ export default function TravelerProfile({ me }) {
                         {formatDate(selectedItineraryDetail.start_date)} –{" "}
                         {formatDate(selectedItineraryDetail.end_date)}
                       </p>
-                      <p>
-                        <strong>🎯 Tipo de viaje:</strong>{" "}
-                        {selectedItineraryDetail.trip_type}
-                      </p>
-                      <p>
-                        <strong>💰 Presupuesto:</strong>{" "}
-                        US${selectedItineraryDetail.budget}
-                      </p>
-                      <p>
-                        <strong>👥 Personas:</strong>{" "}
-                        {selectedItineraryDetail.cant_persons}
-                      </p>
+                      {selectedItineraryDetail.trip_type && (
+                        <p>
+                          <strong>🎯 Tipo de viaje:</strong>{" "}
+                          {selectedItineraryDetail.trip_type}
+                        </p>
+                      )}
+                      {selectedItineraryDetail.budget && (
+                        <p>
+                          <strong>💰 Presupuesto:</strong>{" "}
+                          US${selectedItineraryDetail.budget}
+                        </p>
+                      )}
+                      {selectedItineraryDetail.cant_persons && (
+                        <p>
+                          <strong>👥 Personas:</strong>{" "}
+                          {selectedItineraryDetail.cant_persons}
+                        </p>
+                      )}
                     </div>
                     <div className="col-md-6">
                       {selectedItineraryDetail.arrival_time && (
@@ -637,23 +729,23 @@ export default function TravelerProfile({ me }) {
                 </div>
               </div>
 
-              {/* Itinerario generado por IA */}
-              <div className="card shadow-sm mb-4">
-                <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                  <h5 className="mb-0">Itinerario generado por IA</h5>
-                  <button
-                    className="btn btn-sm btn-light"
-                    onClick={() =>
-                      navigator.clipboard.writeText(
-                        selectedItineraryDetail.generated_itinerary || ""
-                      )
-                    }
-                  >
-                    📋 Copiar
-                  </button>
-                </div>
-                <div className="card-body">
-                  {selectedItineraryDetail.status === "completed" ? (
+              {/* itinerario generado por IA, si existe */}
+              {selectedItineraryDetail.generated_itinerary && (
+                <div className="card shadow-sm mb-4">
+                  <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">Itinerario generado por IA</h5>
+                    <button
+                      className="btn btn-sm btn-light"
+                      onClick={() =>
+                        navigator.clipboard.writeText(
+                          selectedItineraryDetail.generated_itinerary || ""
+                        )
+                      }
+                    >
+                      📋 Copiar
+                    </button>
+                  </div>
+                  <div className="card-body">
                     <div
                       style={{
                         whiteSpace: "pre-wrap",
@@ -663,165 +755,22 @@ export default function TravelerProfile({ me }) {
                     >
                       {selectedItineraryDetail.generated_itinerary}
                     </div>
-                  ) : (
-                    <div className="alert alert-warning">
-                      {selectedItineraryDetail.generated_itinerary ||
-                        "No se pudo generar el itinerario"}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Publicaciones usadas en el itinerario */}
-              {selectedItineraryDetail.publications &&
-                selectedItineraryDetail.publications.length > 0 && (
-                  <div className="mb-3">
-                    <h5 className="mb-3">
-                      📍 Lugares incluidos en este itinerario
-                    </h5>
-                    <p className="text-muted mb-3">
-                      Estos son los lugares de nuestra plataforma que la IA
-                      utilizó para crear este itinerario:
-                    </p>
-
-                    <div className="row row-cols-1 row-cols-md-2 g-4">
-                      {selectedItineraryDetail.publications.map((p) => (
-                        <div className="col" key={p.id}>
-                          <div
-                            className="card shadow-sm h-100"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => openPublicationDetail(p)}
-                          >
-                            <div className="card-body pb-0">
-                              <div className="d-flex justify-content-between align-items-start">
-                                <div className="flex-grow-1">
-                                  <h6 className="mb-1">{p.place_name}</h6>
-                                  <small className="text-muted">
-                                    {p.address && `${p.address}, `}
-                                    {p.city}, {p.province}
-                                    {p.country ? `, ${p.country}` : ""}
-                                  </small>
-                                  <div className="mt-2 d-flex flex-wrap gap-2">
-                                    <RatingBadge
-                                      avg={p.rating_avg}
-                                      count={p.rating_count}
-                                    />
-                                    {(p.categories || []).map((c) => (
-                                      <span
-                                        key={c}
-                                        className="badge bg-secondary-subtle text-secondary border text-capitalize"
-                                      >
-                                        {c}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {p.photos?.length ? (
-                              <div
-                                id={`profile-itin-${p.id}`}
-                                className="carousel slide mt-2"
-                                data-bs-ride="false"
-                              >
-                                <div className="carousel-inner">
-                                  {p.photos.map((url, idx) => (
-                                    <div
-                                      className={`carousel-item ${idx === 0 ? "active" : ""
-                                        }`}
-                                      key={url}
-                                    >
-                                      <img
-                                        src={url}
-                                        className="d-block w-100"
-                                        alt={`Foto ${idx + 1}`}
-                                        style={{
-                                          height: 220,
-                                          objectFit: "cover",
-                                        }}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                                {p.photos.length > 1 && (
-                                  <>
-                                    <button
-                                      className="carousel-control-prev"
-                                      type="button"
-                                      data-bs-target={`#profile-itin-${p.id}`}
-                                      data-bs-slide="prev"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <span
-                                        className="carousel-control-prev-icon"
-                                        aria-hidden="true"
-                                      />
-                                      <span className="visually-hidden">
-                                        Anterior
-                                      </span>
-                                    </button>
-                                    <button
-                                      className="carousel-control-next"
-                                      type="button"
-                                      data-bs-target={`#profile-itin-${p.id}`}
-                                      data-bs-slide="next"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <span
-                                        className="carousel-control-next-icon"
-                                        aria-hidden="true"
-                                      />
-                                      <span className="visually-hidden">
-                                        Siguiente
-                                      </span>
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="p-3 text-center text-muted">
-                                Sin fotos
-                              </div>
-                            )}
-
-                            <div className="card-footer bg-white border-0 d-flex justify-content-between align-items-center">
-                              <small className="text-muted">
-                                Desde{" "}
-                                <span className="text-success fw-semibold">
-                                  US${p.cost_per_day}
-                                </span>
-                              </small>
-                              <button
-                                className="btn btn-sm btn-celeste"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openPublicationDetail(p);
-                                }}
-                              >
-                                Ver detalles
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                )}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-
-      {/* ⭐ Modal de detalles de publicación (igual que en Home.jsx) */}
+      {/* Modal de detalles de publicación */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
         token={token}
         me={me}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => { }} // desde el perfil no tocamos estado de favoritos
+        onToggleFavorite={() => {}}
       />
     </div>
   );

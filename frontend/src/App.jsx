@@ -1,30 +1,38 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom'
+import React, { useState, useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useNavigate,
+  Navigate,
+} from "react-router-dom";
 
-import Login from './pages/Login'
-import Register from './pages/Register'
-import { api } from './api'
-import logo from './assets/images/logo.png'
-import backgroundImage from './assets/images/background.png'
-import Sidebar from './components/Sidebar'
-import Home from './pages/Home'
-import Profile from './pages/Profile'
-import ForgotPassword from './pages/ForgotPassword'
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+
+import TravelerExperience from "./pages/TravelerExperience";
+import SearchUsers from "./pages/SearchUsers";
+import TravelerProfile from "./pages/TravelerProfile";
+
+import Home from "./pages/Home";
+import Profile from "./pages/Profile";
 import Backoffice from "./pages/Backoffice";
 import Suggestions from "./pages/Suggestions";
 import ShareItineraryPage from "./pages/ShareItineraryPage";
-import TravelerExperience from './pages/TravelerExperience';
-import SearchUsers from './pages/SearchUsers';
-import TravelerProfile from "./pages/TravelerProfile";
 
-import "./styles/buttons.css";
-
-// Premium only
 import InviteFriend from "./pages/InviteFriend";
 import Benefits from "./pages/Benefits";
 
-// ----- Shell con Router -----
+import { api } from "./api";
+import Sidebar from "./components/Sidebar";
+
+import logo from "./assets/images/logo.png";
+import backgroundImage from "./assets/images/background.png";
+
+import "./styles/buttons.css";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -34,251 +42,330 @@ export default function App() {
 }
 
 function AppWithRouter() {
-  const [view, setView] = useState('login'); // login | register | forgot-password
-  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [view, setView] = useState("login"); // login | register | forgot-password
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [me, setMe] = useState(null);
-  const [authView, setAuthView] = useState('publications'); // navegación por sidebar
+  const [authView, setAuthView] = useState("publications"); // navegación por sidebar
 
   const navigate = useNavigate();
 
-  // Derivados de rol
-  const isAdmin = me?.role === 'admin' || me?.username === 'admin';
-  const isPremium = me?.role === 'premium';
+  const isAdmin = me?.role === "admin" || me?.username === "admin";
+  const isPremium = me?.role === "premium";
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem('token', token);
+      localStorage.setItem("token", token);
       (async () => {
         try {
-          const meResp = await api('/api/auth/me', { token });
+          const meResp = await api("/api/auth/me", { token });
           setMe(meResp);
-          const isAdminUser = meResp?.role === 'admin' || meResp?.username === 'admin';
-          setAuthView(isAdminUser ? 'approved-publications' : 'publications');
+          const isAdminUser =
+            meResp?.role === "admin" || meResp?.username === "admin";
+          setAuthView(isAdminUser ? "approved-publications" : "publications");
         } catch {
-          localStorage.removeItem('token');
-          setToken('');
+          localStorage.removeItem("token");
+          setToken("");
           setMe(null);
-          setAuthView('publications');
+          setAuthView("publications");
         }
       })();
     }
   }, [token]);
 
   function handleLogout() {
-    localStorage.removeItem('token');
-    setToken('');
+    localStorage.removeItem("token");
+    setToken("");
     setMe(null);
-    setAuthView('publications');
+    setAuthView("publications");
+    navigate("/");
   }
 
-  // Navegación interna (sidebar)
   function handleNavigate(nextView) {
-    // Bloquea vistas de admin a no-admin
-    if (['pending-approvals', 'deletion-requests', 'approved-publications', 'all-publications'].includes(nextView) && !isAdmin) {
-      return setAuthView('publications');
+    // bloque vistas admin a no-admin
+    if (
+      [
+        "pending-approvals",
+        "deletion-requests",
+        "approved-publications",
+        "all-publications",
+      ].includes(nextView) &&
+      !isAdmin
+    ) {
+      setAuthView("publications");
+      navigate("/");
+      return;
     }
 
-    // Bloquea vistas de usuario a admin
-    // NOTA: 'favorites', 'my-itineraries', 'expenses' YA NO ESTÁN EN EL SIDEBAR, pero deben ser accesibles desde el HUB. 
-    // Mantenemos el guard para 'my-publications', 'preferences', etc.
-    if (['my-publications', 'preferences', 'invite-friends', 'suggestions', 'benefits'].includes(nextView) && isAdmin) {
-      return setAuthView('approved-publications');
+    // bloque vistas usuario a admin
+    if (
+      [
+        "my-publications",
+        "preferences",
+        "invite-friends",
+        "suggestions",
+        "benefits",
+      ].includes(nextView) &&
+      isAdmin
+    ) {
+      setAuthView("approved-publications");
+      navigate("/");
+      return;
     }
 
-    // ▶︎ Premium only: invitar amigos (la de compartir es por ruta)
-    if (nextView === 'invite-friends' && !isPremium) {
-      alert('Función disponible sólo para usuarios premium.');
-      return; // quedarse en la vista actual
+    // premium only
+    if (nextView === "invite-friends" && !isPremium) {
+      alert("Función disponible sólo para usuarios premium.");
+      return;
     }
-    // ▶︎ Premium only: beneficios
-    if (nextView === 'benefits' && !isPremium) {
-      alert('Función disponible sólo para usuarios premium.');
-      return; // quedarse en la vista actual
+    if (nextView === "benefits" && !isPremium) {
+      alert("Función disponible sólo para usuarios premium.");
+      return;
     }
+
+    // rutas especiales
+    if (nextView === "search-travelers") {
+      setAuthView("search-travelers");
+      navigate("/viajeros");
+      return;
+    }
+
+    if (nextView === "my-traveler-profile") {
+      setAuthView("my-traveler-profile");
+      navigate("/perfil");
+      return;
+    }
+
+    // por defecto: vistas del hub principal en "/"
     setAuthView(nextView);
+    navigate("/");
   }
 
-  // --------- Elemento principal (con o sin auth) ----------
-  let mainElement = null;
+  const backgroundStyle = {
+    marginLeft: "280px",
+    backgroundImage: `url(${backgroundImage})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    backgroundAttachment: "fixed",
+    minHeight: "100vh",
+    overflowY: "auto",
+  };
 
-  if (token && me) {
-    mainElement = (
-      <div className="d-flex" style={{ minHeight: '100vh' }}>
-        {/* Sidebar */}
+  function renderShell(children) {
+    return (
+      <div className="d-flex" style={{ minHeight: "100vh" }}>
         <Sidebar
           me={me}
           onLogout={handleLogout}
           onNavigate={handleNavigate}
           activeView={authView}
         />
-
-        {/* Contenido principal */}
-        <div
-          className="flex-grow-1"
-          style={{
-            marginLeft: '280px',
-            backgroundImage: `url(${backgroundImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            backgroundAttachment: 'fixed',
-            minHeight: '100vh',
-            overflowY: 'auto'
-          }}
-        >
-          <div className="container-fluid p-4">
-
-            {/* --- 1. NUEVO HUB CENTRAL --- */}
-            {authView === 'traveler-experience-hub' && (
-              <TravelerExperience onNavigate={handleNavigate} me={me} />
-            )}
-            {/* --- FIN NUEVO HUB CENTRAL --- */}
-
-            {/* --------------------------- VISTAS ANIDADAS EN EL HUB --------------------------- */}
-
-            {/* Favoritos (Ahora accedido desde el Hub) */}
-            {authView === 'favorites' && !isAdmin && (
-              <Home
-                key="favorites"
-                me={me}
-                view="favorites"
-                onOpenShareItinerary={(id) => {
-                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
-                  navigate(`/share-itinerary/${id}`);
-                }}
-              />
-            )}
-            {/* Mis Itinerarios (Ahora accedido desde el Hub) */}
-            {authView === 'my-itineraries' && (
-              <Home
-                key="my-itineraries"
-                me={me}
-                view="my-itineraries"
-                onOpenShareItinerary={(id) => {
-                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
-                  navigate(`/share-itinerary/${id}`);
-                }}
-              />
-            )}
-            {/* Mis Gastos (Ahora accedido desde el Hub) */}
-            {authView === 'expenses' && !isAdmin && (
-              <Home key="expenses" me={me} view="expenses" />
-            )}
-            {authView === "search-travelers" && !isAdmin && (
-              <SearchUsers
-                me={me}
-                onOpenMyProfile={() => handleNavigate("my-traveler-profile")}
-              />
-            )}
-            {authView === "my-traveler-profile" && !isAdmin && (
-              <TravelerProfile me={me} />
-            )}
-
-            {/* --------------------------- FIN VISTAS ANIDADAS EN EL HUB --------------------------- */}
-
-
-            {/* Publicaciones */}
-            {authView === 'publications' && (
-              isAdmin ? (
-                <Backoffice me={me} view="publications" />
-              ) : (
-                <Home
-                  key="publications"
-                  me={me}
-                  view="publications"
-                  onOpenShareItinerary={(id) => {
-                    // Guard de premium también acá por si llamás callback directo
-                    if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
-                    navigate(`/share-itinerary/${id}`);
-                  }}
-                />
-              )
-            )}
-
-            {/* Usuario */}
-            {authView === 'my-publications' && !isAdmin && (
-              <Home
-                key="my-publications"
-                me={me}
-                view="my-publications"
-                onOpenShareItinerary={(id) => {
-                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
-                  navigate(`/share-itinerary/${id}`);
-                }}
-              />
-            )}
-
-            {authView === 'preferences' && !isAdmin && (
-              <Home key="preferences" me={me} view="preferences" />
-            )}
-            {authView === 'itinerary' && (
-              <Home
-                key="itinerary"
-                me={me}
-                view="itinerary"
-                onOpenShareItinerary={(id) => {
-                  if (!isPremium) { alert('Función disponible sólo para usuarios premium.'); return; }
-                  navigate(`/share-itinerary/${id}`);
-                }}
-              />
-            )}
-
-            {/* ▶︎ Premium only: Invitar amigos */}
-            {authView === 'invite-friends' && !isAdmin && isPremium && (
-              <InviteFriend token={token} />
-            )}
-
-            {/* ▶︎ Premium only: Beneficios */}
-            {authView === 'benefits' && !isAdmin && isPremium && (
-              <Benefits token={token} me={me} />
-            )}
-
-            {/* Admin */}
-            {authView === 'approved-publications' && isAdmin && <Backoffice me={me} view="publications" />}
-            {authView === 'all-publications' && isAdmin && <Backoffice me={me} view="all-publications" />}
-            {authView === 'pending-approvals' && isAdmin && <Backoffice me={me} view="pending" />}
-            {authView === 'deletion-requests' && isAdmin && <Backoffice me={me} view="deletion-requests" />}
-            {authView === 'review-reports' && isAdmin && <Backoffice me={me} view="review-reports" />}
-
-            {/* Comunes */}
-            {authView === 'profile' && <Profile me={me} token={token} setMe={setMe} />}
-            {authView === 'suggestions' && !isAdmin && <Suggestions me={me} token={token} />}
-          </div>
+        <div className="flex-grow-1" style={backgroundStyle}>
+          <div className="container-fluid p-4">{children}</div>
         </div>
       </div>
     );
+  }
+
+  // -------- mainElement para ruta "/" --------
+  let mainElement = null;
+
+  if (token && me) {
+    const hubContent = (
+      <>
+        {/* HUB central */}
+        {authView === "traveler-experience-hub" && (
+          <TravelerExperience onNavigate={handleNavigate} me={me} />
+        )}
+
+        {/* vistas anidadas del hub */}
+        {authView === "favorites" && !isAdmin && (
+          <Home
+            key="favorites"
+            me={me}
+            view="favorites"
+            onOpenShareItinerary={(id) => {
+              if (!isPremium) {
+                alert("Función disponible sólo para usuarios premium.");
+                return;
+              }
+              navigate(`/share-itinerary/${id}`);
+            }}
+          />
+        )}
+        {authView === "my-itineraries" && (
+          <Home
+            key="my-itineraries"
+            me={me}
+            view="my-itineraries"
+            onOpenShareItinerary={(id) => {
+              if (!isPremium) {
+                alert("Función disponible sólo para usuarios premium.");
+                return;
+              }
+              navigate(`/share-itinerary/${id}`);
+            }}
+          />
+        )}
+        {authView === "expenses" && !isAdmin && (
+          <Home key="expenses" me={me} view="expenses" />
+        )}
+
+        {authView === "search-travelers" && !isAdmin && (
+          <SearchUsers
+            me={me}
+            onOpenMyProfile={() => handleNavigate("my-traveler-profile")}
+          />
+        )}
+
+        {authView === "my-traveler-profile" && !isAdmin && (
+          <TravelerProfile me={me} />
+        )}
+
+        {/* publicaciones / home principal */}
+        {authView === "publications" &&
+          (isAdmin ? (
+            <Backoffice me={me} view="publications" />
+          ) : (
+            <Home
+              key="publications"
+              me={me}
+              view="publications"
+              onOpenShareItinerary={(id) => {
+                if (!isPremium) {
+                  alert("Función disponible sólo para usuarios premium.");
+                  return;
+                }
+                navigate(`/share-itinerary/${id}`);
+              }}
+            />
+          ))}
+
+        {/* usuario */}
+        {authView === "my-publications" && !isAdmin && (
+          <Home
+            key="my-publications"
+            me={me}
+            view="my-publiclications"
+            onOpenShareItinerary={(id) => {
+              if (!isPremium) {
+                alert("Función disponible sólo para usuarios premium.");
+                return;
+              }
+              navigate(`/share-itinerary/${id}`);
+            }}
+          />
+        )}
+
+        {authView === "preferences" && !isAdmin && (
+          <Home key="preferences" me={me} view="preferences" />
+        )}
+
+        {authView === "itinerary" && (
+          <Home
+            key="itinerary"
+            me={me}
+            view="itinerary"
+            onOpenShareItinerary={(id) => {
+              if (!isPremium) {
+                alert("Función disponible sólo para usuarios premium.");
+                return;
+              }
+              navigate(`/share-itinerary/${id}`);
+            }}
+          />
+        )}
+
+        {/* premium only */}
+        {authView === "invite-friends" && !isAdmin && isPremium && (
+          <InviteFriend token={token} />
+        )}
+
+        {authView === "benefits" && !isAdmin && isPremium && (
+          <Benefits token={token} me={me} />
+        )}
+
+        {/* admin */}
+        {authView === "approved-publications" && isAdmin && (
+          <Backoffice me={me} view="publications" />
+        )}
+        {authView === "all-publications" && isAdmin && (
+          <Backoffice me={me} view="all-publications" />
+        )}
+        {authView === "pending-approvals" && isAdmin && (
+          <Backoffice me={me} view="pending" />
+        )}
+        {authView === "deletion-requests" && isAdmin && (
+          <Backoffice me={me} view="deletion-requests" />
+        )}
+        {authView === "review-reports" && isAdmin && (
+          <Backoffice me={me} view="review-reports" />
+        )}
+
+        {/* comunes */}
+        {authView === "profile" && (
+          <Profile me={me} token={token} setMe={setMe} />
+        )}
+        {authView === "suggestions" && !isAdmin && (
+          <Suggestions me={me} token={token} />
+        )}
+      </>
+    );
+
+    mainElement = renderShell(hubContent);
   } else {
-    // ---- Auth (Login/Register/ForgotPassword) ----
+    // pantalla de login / registro
     mainElement = (
       <div
         className="d-flex flex-column align-items-center min-vh-100 py-5"
         style={{
           backgroundImage: `url(${backgroundImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed'
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundAttachment: "fixed",
         }}
       >
-        <div className="text-center" style={{ maxWidth: '480px', width: '100%' }}>
+        <div
+          className="text-center"
+          style={{ maxWidth: "480px", width: "100%" }}
+        >
           <div className="mb-4">
-            <img src={logo} alt="Plan&Go Logo" style={{ width: '200px', height: 'auto' }} />
+            <img
+              src={logo}
+              alt="Plan&Go Logo"
+              style={{ width: "200px", height: "auto" }}
+            />
           </div>
 
           <div className="card p-4 shadow-sm">
-            {view === 'login' && <Login setToken={setToken} setView={setView} />}
-            {view === 'register' && <Register setView={setView} />}
-            {view === 'forgot-password' && <ForgotPassword setView={setView} />}
+            {view === "login" && (
+              <Login setToken={setToken} setView={setView} />
+            )}
+            {view === "register" && <Register setView={setView} />}
+            {view === "forgot-password" && (
+              <ForgotPassword setView={setView} />
+            )}
           </div>
 
           <div className="text-center mt-3">
-            <button onClick={() => setView(view === 'login' ? 'register' : 'login')} className="btn btn-link text-blue fw-bold">
-              {view === 'login' ? '¿No tenes cuenta? Registrate Acá!' : 'Ya tengo una cuenta'}
+            <button
+              onClick={() =>
+                setView(view === "login" ? "register" : "login")
+              }
+              className="btn btn-link text-blue fw-bold"
+            >
+              {view === "login"
+                ? "¿No tenes cuenta? Registrate Acá!"
+                : "Ya tengo una cuenta"}
             </button>
 
-            {view === 'login' && (
+            {view === "login" && (
               <div className="mt-2">
-                <button onClick={() => setView('forgot-password')} className="btn btn-link btn-sm">
+                <button
+                  onClick={() => setView("forgot-password")}
+                  className="btn btn-link btn-sm"
+                >
                   ¿Has olvidado tu contraseña?
                 </button>
               </div>
@@ -289,18 +376,60 @@ function AppWithRouter() {
     );
   }
 
-  // --------- Rutas (incluye compartir con guard premium) ----------
+  // --------- rutas ---------
   return (
     <Routes>
+      {/* app principal */}
       <Route path="/" element={mainElement} />
+
+      {/* compartir itinerario (premium) */}
       <Route
         path="/share-itinerary/:id"
         element={
-          token && isPremium
-            ? <ShareItineraryPage />
+          token && isPremium ? (
+            <ShareItineraryPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* tu perfil viajero como página independiente */}
+      <Route
+        path="/perfil"
+        element={
+          token && me
+            ? renderShell(<TravelerProfile me={me} />)
             : <Navigate to="/" replace />
         }
       />
+
+      {/* buscador de viajeros */}
+      <Route
+        path="/viajeros"
+        element={
+          token && me
+            ? renderShell(
+                <SearchUsers
+                  me={me}
+                  onOpenMyProfile={() => handleNavigate("my-traveler-profile")}
+                />
+              )
+            : <Navigate to="/" replace />
+        }
+      />
+
+      {/* perfil de otro viajero */}
+      <Route
+        path="/viajeros/:userId"
+        element={
+          token && me
+            ? renderShell(<TravelerProfile me={me} />)
+            : <Navigate to="/" replace />
+        }
+      />
+
+      {/* fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
