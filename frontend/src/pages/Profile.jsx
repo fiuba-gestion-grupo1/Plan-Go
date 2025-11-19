@@ -259,6 +259,47 @@ export default function Profile({ me, token, setMe }) {
 
     // --- VISTAS RENDERIZADAS ---
 
+    function formatTravelPreferencesDisplay(rawPrefs) {
+        if (!rawPrefs) return 'No especificadas';
+    
+        // Si ya es un objeto, lo uso directo; si es string intento parsear
+        let obj = rawPrefs;
+        try {
+            if (typeof rawPrefs === 'string') {
+                obj = JSON.parse(rawPrefs);
+            }
+        } catch {
+            // No es JSON válido → devuelvo el texto tal cual
+            return rawPrefs;
+        }
+    
+        if (!obj || typeof obj !== 'object') {
+            return rawPrefs;
+        }
+    
+        const parts = [];
+    
+        if (obj.city) {
+            parts.push(obj.city);
+        }
+        if (Array.isArray(obj.destinations) && obj.destinations.length) {
+            parts.push(`Destinos favoritos: ${obj.destinations.join(', ')}`);
+        }
+        if (obj.style) {
+            parts.push(`Estilo de viaje: ${obj.style}`);
+        }
+        if (obj.budget) {
+            parts.push(`Presupuesto: ${obj.budget}`);
+        }
+        if (obj.about) {
+            parts.push(obj.about);
+        }
+    
+        // Si pude armar algo lindo, lo devuelvo; si no, el texto original
+        return parts.length ? parts.join(' · ') : rawPrefs;
+    }
+    
+
     // Vista para editar el perfil
     if (viewMode === 'edit') {
         return (
@@ -372,7 +413,7 @@ export default function Profile({ me, token, setMe }) {
                         <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Nombre:</strong> {me.first_name || 'No especificado'}</li>
                         <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Apellido:</strong> {me.last_name || 'No especificado'}</li>
                         <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Nacimiento:</strong> {formatDisplayDate(me.birth_date)}</li>
-                        <li className="list-group-item"><strong>Preferencias:</strong> <p className="text-muted mb-0">{me.travel_preferences || 'No especificadas'}</p></li>
+                        <li className="list-group-item"><strong>Preferencias:</strong><p className="text-muted mb-0">{formatTravelPreferencesDisplay(me.travel_preferences)}</p></li>
                     </ul>
 
                     {/* Sección de suscripción */}
@@ -393,8 +434,14 @@ export default function Profile({ me, token, setMe }) {
                                         <li className="mb-2">
                                             ⭐ <strong>Calificá tus actividades:</strong> puntuá lo que hiciste y acumulá más puntos.
                                         </li>
-                                        <li>
+                                        <li className="mb-2">
                                             🎁 <strong>Accedé a recompensas:</strong> disfrutá beneficios y descuentos increíbles.
+                                        </li>
+                                        <li className="mb-2">
+                                            💰 <strong>Dividí gastos de viajes:</strong> invitá amigos a tus viajes y compartí los gastos automáticamente.
+                                        </li>
+                                        <li className="mb-2">
+                                            💰 <strong>Compartí itinerarios:</strong> compartí itinerarios a amigos vía mail.
                                         </li>
                                     </ul>
 

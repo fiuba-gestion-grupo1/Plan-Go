@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ItineraryRequestForm from '../components/ItineraryRequestForm';
 import { request } from "../utils/api"; // Importamos el helper de requests
 import PublicationDetailModal from "../components/PublicationDetailModal"; // Componente del modal de detalles
 import { RatingBadge, Stars } from "../components/shared/UIComponents"; // Componente de badge de rating
 
 export default function ItineraryRequest({ initialView = 'form', me }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -20,6 +22,9 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   //Estado para el modal de publicación ---
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
+
+  // Determinar si el usuario es premium
+  const isPremium = me?.role === "premium";
 
   useEffect(() => {
     if (initialView === 'list') {
@@ -120,7 +125,15 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   }
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
+    if (!dateStr) return '';
+    
+    // Si la fecha ya es solo YYYY-MM-DD, usarla directamente
+    const dateOnly = dateStr.split('T')[0];
+    const [year, month, day] = dateOnly.split('-');
+    
+    // Crear la fecha usando los componentes por separado para evitar problemas de timezone
+    const date = new Date(year, month - 1, day);
+    
     return date.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
@@ -243,13 +256,15 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
               <button className="btn btn-outline-secondary" onClick={handleViewItineraries}>
                 Mis Itinerarios
               </button>
-              <button
-                className="btn btn-outline-primary"
-                onClick={() => navigate(`/itineraries/${selectedItinerary.id}/share`)}
-                title="Compartir por mail"
-              >
-                ✉️ Compartir por mail
-              </button>
+              {isPremium && (
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => navigate(`/itineraries/${selectedItinerary.id}/share`)}
+                  title="Compartir por mail"
+                >
+                  ✉️ Compartir por mail
+                </button>
+              )}
               <button
                 className="btn btn-outline-danger"
                 onClick={() => handleDeleteItinerary(selectedItinerary.id)}
@@ -450,7 +465,22 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   // === Vista del formulario de solicitud ===
   return (
     <div className="container mt-4">
-      {/* ... (tu vista de formulario no cambia) ... */}
+      <div className="row justify-content-center">
+        <div className="col-lg-8">
+          <div className="d-flex align-items-center justify-content-between mb-4">
+            <h3 className="mb-0">Solicitar Nuevo Itinerario</h3>
+            <button className="btn btn-outline-secondary" onClick={handleViewItineraries}>
+              Mis Itinerarios
+            </button>
+          </div>
+
+          {loading && <div className="alert alert-info">Generando itinerario...</div>}
+          {error && <div className="alert alert-danger">{error}</div>}
+          {successMsg && <div className="alert alert-success">{successMsg}</div>}
+
+          <ItineraryRequestForm onSubmit={handleSubmit} isLoading={loading} />
+        </div>
+      </div>
     </div>
   );
 }

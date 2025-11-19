@@ -3,10 +3,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-
 from backend.app.api import suggestions
 from .db import Base, engine, log_db_info
-from .api import auth, health, users, publications, debug, categories, preferences, itineraries, expenses, trips, reviews
+from .api import auth, health, users, publications, debug, categories, preferences, itineraries, expenses, trips, reviews, points
 from .db_migrations import ensure_min_schema
 
 # 👇 NUEVO
@@ -41,6 +40,7 @@ app.include_router(itineraries.router)
 app.include_router(invitations.router)
 app.include_router(expenses.router)
 app.include_router(trips.router)
+app.include_router(points.router, prefix="/api/users")
 
 if os.getenv("ENV", "dev") == "dev":
   try:

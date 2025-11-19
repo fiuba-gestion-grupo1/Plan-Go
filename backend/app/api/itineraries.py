@@ -31,7 +31,8 @@ def build_itinerary_prompt(
     publications: list,
     user_preferences: str | None,
     arrival_time: str | None,
-    departure_time: str | None
+    departure_time: str | None,
+    comments: str | None
 ) -> str:
     """Construye el prompt para la IA basado en los parámetros del usuario y las publicaciones disponibles"""
     
@@ -66,6 +67,9 @@ Estilo: {trip_type}.
     
     if user_preferences:
         prompt += f"Preferencias del viajero: {user_preferences}.\n"
+    
+    if comments:
+        prompt += f"Comentarios adicionales del usuario: {comments}.\n"
     
     if arrival_time:
         prompt += f"Hora estimada de llegada al destino: {arrival_time}.\n"
@@ -140,6 +144,7 @@ IMPORTANTE:
 def extract_used_publications(itinerary_text: str, available_publications: list) -> list:
     """
     Analiza el texto del itinerario generado y extrae solo las publicaciones que fueron realmente mencionadas.
+    Excluye menciones negativas o de exclusión. Usa criterios más estrictos para evitar falsos positivos.
     """
     used_publication_ids = []
     
@@ -149,29 +154,70 @@ def extract_used_publications(itinerary_text: str, available_publications: list)
     # Normalizar el texto del itinerario para búsqueda (lowercase, sin acentos)
     itinerary_lower = itinerary_text.lower()
     
+    # Palabras que indican recomendación positiva
+    positive_indicators = [
+        'visitar', 'ir a', 'conocer', 'recorrer', 'pasear por', 'disfrutar',
+        'parada en', 'almorzar en', 'cenar en', 'hospedarse en', 'quedarse en',
+        'recomiendo', 'sugiero', 'incluir', 'ver', 'explorar', 'caminar por',
+        'día en', 'mañana en', 'tarde en', 'noche en'
+    ]
+    
     for pub in available_publications:
         publication_mentioned = False
         
         # Lista de términos a buscar para esta publicación
         search_terms = []
         
-        # Agregar el nombre del lugar
-        if pub.place_name:
+        # Agregar el nombre completo del lugar
+        if pub.place_name and len(pub.place_name) >= 4:
             search_terms.append(pub.place_name.lower())
         
-        # Agregar palabras clave del nombre (dividir por espacios, comas, etc.)
-        if pub.place_name:
-            # Extraer palabras significativas (más de 2 caracteres)
-            words = re.findall(r'\b\w{3,}\b', pub.place_name.lower())
+        # Solo agregar palabras individuales si el nombre es largo (>15 caracteres)
+        # y las palabras son significativas (>4 caracteres)
+        if pub.place_name and len(pub.place_name) > 15:
+            words = re.findall(r'\b\w{5,}\b', pub.place_name.lower())
             search_terms.extend(words)
         
         # Verificar si algún término de la publicación aparece en el itinerario
         for term in search_terms:
-            if term and len(term) >= 3:  # Solo buscar términos de al menos 3 caracteres
+            if term and len(term) >= 4:  # Solo buscar términos de al menos 4 caracteres
                 # Buscar como palabra completa para evitar falsos positivos
                 pattern = r'\b' + re.escape(term) + r'\b'
-                if re.search(pattern, itinerary_lower):
-                    publication_mentioned = True
+                
+                # Buscar todas las ocurrencias del término
+                matches = list(re.finditer(pattern, itinerary_lower))
+                
+                for match in matches:
+                    # Obtener contexto más amplio alrededor de la coincidencia (±80 caracteres)
+                    start_idx = max(0, match.start() - 80)
+                    end_idx = min(len(itinerary_lower), match.end() + 80)
+                    context = itinerary_lower[start_idx:end_idx]
+                    
+                    # Palabras que indican exclusión o mención negativa
+                    negative_indicators = [
+                        'no ', 'sin ', 'excluir', 'evitar', 'omitir', 'no incluí', 'no incluyo',
+                        'no recomiendo', 'no visitaremos', 'no iremos', 'no quería', 'no quiero',
+                        'excepto', 'menos', 'salvo', 'no consideré', 'descartamos', 'porque no',
+                        'no está', 'no hay', 'no encontré', 'no tengo', 'falta', 'ausencia de'
+                    ]
+                    
+                    # Verificar si hay indicadores negativos en el contexto
+                    is_negative_mention = any(neg in context for neg in negative_indicators)
+                    
+                    # Verificar si hay indicadores positivos en el contexto
+                    has_positive_indicator = any(pos in context for pos in positive_indicators)
+                    
+                    # Solo considerar como uso positivo si:
+                    # 1. No hay indicadores negativos
+                    # 2. Hay indicadores positivos o el contexto sugiere uso
+                    if not is_negative_mention and (has_positive_indicator or 'itinerario' in context or 'programa' in context):
+                        publication_mentioned = True
+                        print(f"[ITINERARY DEBUG] Contexto positivo para {pub.place_name}: '{context.strip()}'")
+                        break
+                    else:
+                        print(f"[ITINERARY DEBUG] Contexto ignorado para {pub.place_name}: '{context.strip()}'")
+                
+                if publication_mentioned:
                     break
         
         if publication_mentioned:
@@ -222,6 +268,7 @@ def request_itinerary(
         trip_type=payload.trip_type,
         arrival_time=payload.arrival_time,
         departure_time=payload.departure_time,
+        comments=payload.comments,
         status="pending"
     )
     
@@ -315,6 +362,7 @@ def request_itinerary(
             trip_type=itinerary.trip_type,
             arrival_time=itinerary.arrival_time,
             departure_time=itinerary.departure_time,
+            comments=itinerary.comments,
             generated_itinerary=itinerary.generated_itinerary,
             status=itinerary.status,
             created_at=itinerary.created_at.isoformat()
@@ -335,7 +383,8 @@ def request_itinerary(
             publications=publications,
             user_preferences=current_user.travel_preferences,
             arrival_time=payload.arrival_time,
-            departure_time=payload.departure_time
+            departure_time=payload.departure_time,
+            comments=payload.comments
         )
         
         # Llamar a la API de Gemini
@@ -411,6 +460,7 @@ def request_itinerary(
         trip_type=itinerary.trip_type,
         arrival_time=itinerary.arrival_time,
         departure_time=itinerary.departure_time,
+        comments=itinerary.comments,
         generated_itinerary=itinerary.generated_itinerary,
         status=itinerary.status,
         created_at=itinerary.created_at.isoformat(),
@@ -483,6 +533,7 @@ def get_my_itineraries(
             trip_type=it.trip_type,
             arrival_time=it.arrival_time,
             departure_time=it.departure_time,
+            comments=it.comments,
             generated_itinerary=it.generated_itinerary,
             status=it.status,
             created_at=it.created_at.isoformat(),
@@ -564,6 +615,7 @@ def get_itinerary(
         trip_type=itinerary.trip_type,
         arrival_time=itinerary.arrival_time,
         departure_time=itinerary.departure_time,
+        comments=itinerary.comments,
         generated_itinerary=itinerary.generated_itinerary,
         status=itinerary.status,
         created_at=itinerary.created_at.isoformat(),
@@ -742,6 +794,66 @@ def share_itinerary_by_email(
     send_email_html(payload.to, subject, html_body)
     return {"ok": True, "message": "Itinerario enviado por email"}
 
+@router.get("/by-user/{user_id}", response_model=list[schemas.ItineraryOut])
+def get_itineraries_by_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Itinerarios generados por un usuario concreto (para ver su perfil viajero).
+    """
+    itineraries = (
+        db.query(models.Itinerary)
+        .filter(models.Itinerary.user_id == user_id)
+        .order_by(models.Itinerary.created_at.desc())
+        .all()
+    )
+    return itineraries
+
+
+@router.get("/by-user/{user_id}")
+def get_itineraries_by_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Itinerarios visibles del usuario indicado.
+    Por ahora dejamos que cualquier usuario autenticado pueda ver los itinerarios
+    publicados de otros.
+    """
+    its = (
+        db.query(models.Itinerary)
+        .filter(models.Itinerary.user_id == user_id)
+        .order_by(models.Itinerary.created_at.desc())
+        .all()
+    )
+
+    # devolvemos dicts serializables
+    result = []
+    for it in its:
+        result.append(
+            {
+                "id": it.id,
+                "destination": it.destination,
+                "start_date": it.start_date,
+                "end_date": it.end_date,
+                "trip_type": getattr(it, "trip_type", None),
+                "budget": getattr(it, "budget", None),
+                "cant_persons": getattr(it, "cant_persons", None),
+                "status": it.status,
+                "arrival_time": getattr(it, "arrival_time", None),
+                "departure_time": getattr(it, "departure_time", None),
+                "generated_itinerary": getattr(it, "generated_itinerary", None),
+                "created_at": (
+                    it.created_at.isoformat()
+                    if getattr(it, "created_at", None)
+                    else None
+                ),
+            }
+        )
+    return result
 
 def _to_date(value):
     """Acepta datetime/date/str y devuelve date."""

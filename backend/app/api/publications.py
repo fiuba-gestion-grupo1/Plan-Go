@@ -10,7 +10,12 @@ from ..db import get_db
 from .auth import get_current_user
 from pydantic import BaseModel
 from .auth import get_current_user, get_optional_user
+from .points import award_points_for_review
+from fastapi import Query
 
+import logging
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/publications", tags=["publications"])
 
 # Schema para rechazar o eliminar con motivo
@@ -717,6 +722,12 @@ def create_review(
     db.commit()
     db.refresh(review)
 
+    # 🏆 Otorgar puntos por escribir reseña (solo usuarios premium)
+    try:
+        award_points_for_review(db, user.id, review.id)
+    except Exception as e:
+        print(f"Error al otorgar puntos por reseña: {e}")
+
     return schemas.ReviewOut(
         id=review.id,
         rating=review.rating,
@@ -981,13 +992,22 @@ def toggle_favorite(pub_id: int, db: Session = Depends(get_db), current_user: mo
 
 # --- GET MY FAVORITES ---
 @router.get("/favorites", response_model=List[schemas.PublicationOut])
-def list_my_favorites(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def list_favorites(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    user_id: int | None = Query(default=None),
+):
     """
-    Devuelve todas las publicaciones favoritas del usuario actual
+    Devuelve publicaciones favoritas.
+
+    - Sin user_id: favoritos del usuario logueado (current_user).
+    - Con user_id: favoritos del usuario indicado (perfil que estás viendo).
     """
+    target_user_id = user_id if user_id is not None else current_user.id
+
     favorites = (
         db.query(models.Favorite)
-        .filter(models.Favorite.user_id == current_user.id)
+        .filter(models.Favorite.user_id == target_user_id)
         .order_by(models.Favorite.created_at.desc())
         .all()
     )
@@ -995,7 +1015,7 @@ def list_my_favorites(db: Session = Depends(get_db), current_user: models.User =
     out: List[schemas.PublicationOut] = []
     for fav in favorites:
         p = fav.publication
-        if p and p.status == "approved":  # Solo mostrar si está aprobada
+        if p and p.status == "approved":
             out.append(
                 schemas.PublicationOut(
                     id=p.id,
@@ -1241,6 +1261,42 @@ def report_review(
     ).filter(models.ReviewReport.id == report.id).first()
     
     return build_review_report_out(report_with_data)
+
+
+@router.get("/visited", response_model=list[schemas.PublicationOut])
+def list_visited(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    user_id: int | None = Query(default=None),
+):
+    """
+    Devuelve las publicaciones marcadas como 'realizadas' / 'visitadas'.
+
+    - Si NO viene user_id: visitadas del usuario logueado.
+    - Si viene user_id: visitadas del usuario cuyo perfil se está viendo.
+    """
+    target_user_id = user_id if user_id is not None else current_user.id
+    logger.debug(
+        f"[visited] current_user={current_user.id}, user_id_param={user_id}, "
+        f"target_user_id={target_user_id}"
+    )
+
+    visited = (
+        db.query(models.Publication)
+        .join(
+            models.VisitedPublication,
+            models.VisitedPublication.publication_id == models.Publication.id,
+        )
+        .filter(models.VisitedPublication.user_id == target_user_id)
+        .all()
+    )
+
+    logger.debug(
+        f"[visited] target_user_id={target_user_id}, count={len(visited)}"
+    )
+
+    return visited
+
 
 
 def build_review_report_out(report: models.ReviewReport) -> schemas.ReviewReportOut:

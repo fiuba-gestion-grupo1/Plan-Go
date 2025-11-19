@@ -1,7 +1,6 @@
 from pydantic import BaseModel, EmailStr, validator, Field
 from typing import List, Optional
 from datetime import date, datetime
-
 # Compatibilidad Pydantic v1/v2
 try:
     from pydantic import ConfigDict
@@ -153,6 +152,7 @@ class PublicationOut(BaseModel):
 class ReviewCommentCreate(BaseModel):
     comment: str = Field(..., min_length=1, max_length=1000)
 
+
 class ReviewCommentOut(BaseModel):
     id: int
     comment: str
@@ -164,6 +164,7 @@ class ReviewCommentOut(BaseModel):
     else:
         class Config:
             orm_mode = True
+
 
 class ReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
@@ -207,7 +208,7 @@ class ReviewReportOut(BaseModel):
     status: str
     created_at: str
     resolved_at: Optional[str] = None
-    
+
     # Información de la reseña reportada
     review: ReviewOut
     # Información de la publicación
@@ -279,6 +280,7 @@ class ItineraryRequest(BaseModel):
     trip_type: str = Field(..., min_length=2, max_length=100)
     arrival_time: Optional[str] = None
     departure_time: Optional[str] = None
+    comments: Optional[str] = Field(None, max_length=500)
 
 
 class ItineraryOut(BaseModel):
@@ -292,9 +294,10 @@ class ItineraryOut(BaseModel):
     trip_type: str
     arrival_time: Optional[str] = None
     departure_time: Optional[str] = None
+    comments: Optional[str] = None
     generated_itinerary: Optional[str] = None
     status: str
-    created_at: str
+    created_at: datetime  # 👈 CAMBIO: datetime en vez de str
     publications: List[PublicationOut] = []  # Lista de publicaciones utilizadas
 
     if _V2:
@@ -311,10 +314,13 @@ class ExpenseIn(BaseModel):
     amount: float
     date: date
 
+
 class ExpenseOut(ExpenseIn):
     id: int
+
     class Config:
         from_attributes = True
+
 
 class TripOut(BaseModel):
     id: int
@@ -327,3 +333,123 @@ class TripOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+# -------------------------------------------------
+# Points System
+# -------------------------------------------------
+class UserPointsOut(BaseModel):
+    user_id: int
+    points: int
+    updated_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class PointsTransactionOut(BaseModel):
+    id: int
+    user_id: int
+    points: int
+    transaction_type: str
+    description: Optional[str] = None
+    reference_id: Optional[int] = None
+    created_at: str
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class AddPointsRequest(BaseModel):
+    user_id: int
+    points: int
+    transaction_type: str = Field(..., pattern='^(review_earned|bonus|redeemed)$')
+    description: Optional[str] = None
+    reference_id: Optional[int] = None
+
+
+# -------------------------------------------------
+# Viajeros (búsqueda y perfiles públicos)
+# -------------------------------------------------
+class TravelerCardOut(BaseModel):
+    """
+    Datos resumidos para la grilla de 'Buscar otros viajeros'.
+    Todos los campos tienen default para no romper si el endpoint
+    no los completa.
+    """
+    id: int = 0
+    username: str = ""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    bio: Optional[str] = None
+    travel_preferences: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+
+    # info opcional para las tarjetas
+    favorite_destinations: Optional[list[str]] = None
+    favorite_categories: Optional[list[str]] = None
+    match_percent: Optional[float] = None  # coincidencia %
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class TravelerProfileOut(BaseModel):
+    """
+    Detalle de un viajero para el perfil público.
+    Si tu endpoint /api/users/{id} no usa este modelo, no molesta.
+    """
+    id: int
+    username: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    bio: Optional[str] = None
+    travel_preferences: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+
+    # Secciones que mostramos en el perfil
+    itineraries: list[ItineraryOut] = []
+    favorites_to_visit: list[PublicationOut] = []
+    favorites_visited: list[PublicationOut] = []
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class TravelerCard(BaseModel):
+    id: int
+    username: str
+    full_name: Optional[str] = None
+    profile_description: Optional[str] = None
+    favorites_count: int
+    match_percentage: int  # 0–100
+
+    class Config:
+        orm_mode = True
+
+
+class TravelerCardOut(BaseModel):
+    id: int
+    username: str
+    name: str
+    city: str | None = None
+    destinations: list[str] = []
+    style: str | None = None
+    budget: str | None = None
+    about: str | None = None
+    tags: list[str] = []
+    matches_with_you: int | None = None
+
+    class Config:
+        from_attributes = True   # en vez de orm_mode en Pydantic v2
