@@ -53,7 +53,6 @@ export default function Register({ setView }) {
 
         try {
             await api('/api/auth/register', { method: 'POST', body: { ...payload, password } });
-            //actualizo esto apra que aparezca un mensaje de exito en vez de una alerta de localhost
             setRegistrationSuccess(true);
         } catch (err) {
             setError(err.detail || 'Error en el registro.');

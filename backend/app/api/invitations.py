@@ -64,7 +64,7 @@ def send_invitation(
             detail="Función disponible solo para usuarios premium."
         )
 
-    app_url = os.getenv("APP_PUBLIC_URL", "http://localhost:8000")
+    app_url = "https://plan-go-rln6.onrender.com/"
     subject = f"Te invitaron a {os.getenv('APP_BRAND_NAME', 'Plan&Go')} ✈️"
     html = _build_email_html(
         invitee_email=payload.email,
