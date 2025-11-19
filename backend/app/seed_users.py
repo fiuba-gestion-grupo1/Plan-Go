@@ -26,10 +26,8 @@ def create_or_update_user(
     Crea el usuario si no existe. Si existe, actualiza password/role y perfil de viaje si difieren.
     El perfil de viaje se guarda en el campo `travel_preferences` como JSON.
     """
-    # Serializamos el perfil de viaje (si viene)
     travel_preferences_str = None
     if travel_profile is not None:
-        # Usamos ensure_ascii=False para que se guarden bien las tildes
         travel_preferences_str = json.dumps(travel_profile, ensure_ascii=False)
 
     user = db.query(models.User).filter(models.User.email == email).first()
@@ -37,12 +35,10 @@ def create_or_update_user(
     if user:
         changed = False
 
-        # Role
         if user.role != role:
             user.role = role
             changed = True
 
-        # Nombre / apellido
         if first_name is not None and user.first_name != first_name:
             user.first_name = first_name
             changed = True
@@ -51,13 +47,11 @@ def create_or_update_user(
             user.last_name = last_name
             changed = True
 
-        # Password
         new_hashed = security.hash_password(password)
         if user.hashed_password != new_hashed:
             user.hashed_password = new_hashed
             changed = True
 
-        # Perfil de viaje (travel_preferences)
         if travel_preferences_str is not None and user.travel_preferences != travel_preferences_str:
             user.travel_preferences = travel_preferences_str
             changed = True
@@ -71,7 +65,7 @@ def create_or_update_user(
             print(f"Sin cambios: {email}")
         return user
 
-    # No existe: crear
+    # Crear nuevo
     new_user = models.User(
         email=email,
         username=username,
@@ -97,7 +91,11 @@ def create_or_update_user(
 def seed_users(db: Session):
     print("--- Iniciando Seeding de Usuarios ---")
 
-    # Admin y usuario "normal" para pruebas genéricas
+    # -------------------------
+    # Usuarios base / sistema
+    # -------------------------
+
+    # Admin: tipo “viajó por todo”
     create_or_update_user(
         db,
         email="admin@fi.uba.ar",
@@ -105,8 +103,17 @@ def seed_users(db: Session):
         password="password",
         role="admin",
         first_name="Admin",
+        travel_profile={
+            "city": "Buenos Aires, Argentina",
+            "destinations": ["Europa", "Estados Unidos", "Patagonia"],
+            "style": "Work & travel",
+            "budget": "$$$",
+            "about": "Me gusta combinar viajes de trabajo con tiempo libre para conocer ciudades nuevas.",
+            "tags": ["Tecnología", "Ciudades grandes", "Restaurantes"],
+        },
     )
 
+    # Usuario normal: perfil tranqui
     create_or_update_user(
         db,
         email="normal@fi.uba.ar",
@@ -115,9 +122,76 @@ def seed_users(db: Session):
         role="user",
         first_name="Usuario",
         last_name="Normal",
+        travel_profile={
+            "city": "La Plata, Argentina",
+            "destinations": ["Brasil", "Costa Atlántica", "Sierras de Córdoba"],
+            "style": "Relajado",
+            "budget": "$$",
+            "about": "Prefiero viajes simples, playa y algo de naturaleza sin tanta planificación.",
+            "tags": ["Playas", "Cabañas", "Escapadas de finde"],
+        },
     )
 
-    # --- VIAJEROS QUE APARECEN EN LA PANTALLA DE BÚSQUEDA ---
+    # premium: le gusta viajar cómodo
+    create_or_update_user(
+        db,
+        email="premium@fi.uba.ar",
+        username="premium",
+        password="password",
+        role="premium",
+        first_name="Usuario",
+        last_name="Premium",
+        travel_profile={
+            "city": "Buenos Aires, Argentina",
+            "destinations": ["Caribe", "Europa"],
+            "style": "Confort & experiencias",
+            "budget": "$$$",
+            "about": "Busco hoteles cómodos y buenas experiencias gastronómicas.",
+            "tags": ["Hoteles boutique", "Vino", "City tours"],
+        },
+    )
+
+    # premium2: más aventurero
+    create_or_update_user(
+        db,
+        email="premium2@fi.uba.ar",
+        username="premium2",
+        password="password",
+        role="premium",
+        first_name="Viajero",
+        last_name="Premium 2",
+        travel_profile={
+            "city": "Córdoba, Argentina",
+            "destinations": ["Noroeste argentino", "Bolivia", "Perú"],
+            "style": "Aventura",
+            "budget": "$$",
+            "about": "Me gustan los roadtrips, la montaña y los destinos poco turísticos.",
+            "tags": ["Montaña", "Roadtrip", "Trekking"],
+        },
+    )
+
+    # premium3: más urbano
+    create_or_update_user(
+        db,
+        email="premium3@fi.uba.ar",
+        username="premium3",
+        password="password",
+        role="premium",
+        first_name="Viajera",
+        last_name="Premium 3",
+        travel_profile={
+            "city": "Rosario, Argentina",
+            "destinations": ["Madrid", "Barcelona", "Montevideo"],
+            "style": "City break",
+            "budget": "$$",
+            "about": "Me encantan las escapadas cortas para conocer barrios, cafés y museos.",
+            "tags": ["Museos", "Cafés", "Mercados"],
+        },
+    )
+
+    # -------------------------
+    # VIAJEROS “lindos” de la grilla
+    # -------------------------
 
     # 1) Agustina (@agus.viajes)
     create_or_update_user(
@@ -134,8 +208,6 @@ def seed_users(db: Session):
             "budget": "$$",
             "about": "Me encantan las ciudades con historia, los museos y los cafés lindos.",
             "tags": ["Museos", "Café", "Caminatas", "Hostels"],
-            # Campo opcional para mockear la coincidencia con el usuario actual
-            "match_percentage": 92,
         },
     )
 
@@ -154,7 +226,6 @@ def seed_users(db: Session):
             "budget": "$",
             "about": "Busco gente para viajes largos, poca planificación y mucha aventura.",
             "tags": ["Backpacking", "Playas", "Street food"],
-            "match_percentage": 78,
         },
     )
 
@@ -173,7 +244,6 @@ def seed_users(db: Session):
             "budget": "$$$",
             "about": "Amo las escapadas cortas, los buenos restaurantes y los barrios con encanto.",
             "tags": ["Restaurantes", "Airbnb", "Mercados"],
-            "match_percentage": 84,
         },
     )
 
@@ -192,7 +262,6 @@ def seed_users(db: Session):
             "budget": "$$",
             "about": "Viajo con niños, busco planes tranquilos y alojamientos cómodos.",
             "tags": ["Niños", "All inclusive", "Playa"],
-            "match_percentage": 66,
         },
     )
 
@@ -211,7 +280,6 @@ def seed_users(db: Session):
             "budget": "$$",
             "about": "Me gusta viajar sola pero compartir algunos planes con otras personas.",
             "tags": ["Co-working", "Cafés", "Tours a pie"],
-            "match_percentage": 81,
         },
     )
 

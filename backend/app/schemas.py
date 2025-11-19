@@ -1,7 +1,6 @@
 from pydantic import BaseModel, EmailStr, validator, Field
 from typing import List, Optional
 from datetime import date, datetime
-
 # Compatibilidad Pydantic v1/v2
 try:
     from pydantic import ConfigDict
@@ -426,3 +425,31 @@ class TravelerProfileOut(BaseModel):
     else:
         class Config:
             orm_mode = True
+
+
+class TravelerCard(BaseModel):
+    id: int
+    username: str
+    full_name: Optional[str] = None
+    profile_description: Optional[str] = None
+    favorites_count: int
+    match_percentage: int  # 0–100
+
+    class Config:
+        orm_mode = True
+
+
+class TravelerCardOut(BaseModel):
+    id: int
+    username: str
+    name: str
+    city: str | None = None
+    destinations: list[str] = []
+    style: str | None = None
+    budget: str | None = None
+    about: str | None = None
+    tags: list[str] = []
+    matches_with_you: int | None = None
+
+    class Config:
+        from_attributes = True   # en vez de orm_mode en Pydantic v2

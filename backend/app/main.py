@@ -3,7 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-
 from backend.app.api import suggestions
 from .db import Base, engine, log_db_info
 from .api import auth, health, users, publications, debug, categories, preferences, itineraries, expenses, trips, reviews, points

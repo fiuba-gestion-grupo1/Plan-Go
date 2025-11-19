@@ -1,12 +1,22 @@
 # backend/app/api/users.py
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    UploadFile,
+    File,
+    HTTPException,
+    status,
+    Query,
+    Request
+)
 from sqlalchemy.orm import Session
 import shutil
 import uuid
 import os
 import json
 from json import JSONDecodeError
-
+from ..utils.match import compute_match_percentage  # 👈 nuevo import
+from collections.abc import Sequence  
 from ..db import get_db
 from .. import models, schemas
 from .auth import get_current_user  # Importamos la dependencia desde auth.py
@@ -88,40 +98,101 @@ def cancel_subscription(
     return user
 
 
-# -----------------------------
-# NUEVO: listar viajeros
-# -----------------------------
 @router.get("/travelers", response_model=list[schemas.TravelerCardOut])
 def list_travelers(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    users = db.query(models.User).filter(models.User.id != current_user.id).all()
-    travelers = []
+    """
+    Lista viajeros (otros usuarios) y calcula el % de coincidencia
+    en base a las preferencias configuradas (UserPreference).
+    """
+
+    # --- helper: saca TODAS las preferencias (climas+actividades+continentes) ---
+    def extract_pref_keywords(pref) -> list[str]:
+        """
+        Devuelve una lista de strings con las preferencias del usuario.
+        Soporta tanto:
+           - pref = objeto UserPreference
+           - pref = lista (InstrumentedList) de UserPreference
+        """
+        if not pref:
+            return []
+
+        # Si viene como lista / InstrumentedList, usamos el primero (relación 1-1)
+        if isinstance(pref, Sequence) and not isinstance(pref, (str, bytes)):
+            if not pref:
+                return []
+            pref = pref[0]
+
+        keywords: list[str] = []
+
+        for field in ("climates", "activities", "continents"):
+            arr = getattr(pref, field, None)
+            if isinstance(arr, list):
+                keywords.extend(arr)
+
+        return keywords
+
+    # preferencias del usuario logueado (A)
+    my_keywords = extract_pref_keywords(getattr(current_user, "preference", None))
+
+    # (usamos q solo para filtrar por nombre/username, el resto lo hace el front)
+    q = request.query_params.get("q") or None
+
+    query = db.query(models.User).filter(models.User.id != current_user.id)
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (models.User.username.ilike(like))
+            | (models.User.first_name.ilike(like))
+            | (models.User.last_name.ilike(like))
+        )
+
+    users = query.all()
+    travelers: list[schemas.TravelerCardOut] = []
 
     for u in users:
+        # travel_profile para mostrar la card (destinos, estilo, etc.)
         try:
-            prefs = json.loads(u.travel_preferences) if u.travel_preferences else {}
+            prefs_json = json.loads(u.travel_preferences) if u.travel_preferences else {}
         except (JSONDecodeError, TypeError):
-            prefs = {}
+            prefs_json = {}
+
+        destinations = prefs_json.get("destinations", []) or []
+        style = prefs_json.get("style", "") or ""
+        budget = prefs_json.get("budget", "") or ""
+        about = prefs_json.get("about", "") or ""
+        tags = prefs_json.get("tags", []) or []
+        city = prefs_json.get("city", "") or ""
+
+        # preferencias del usuario de la tarjeta (B)
+        other_keywords = extract_pref_keywords(getattr(u, "preference", None))
+
+        # --- cálculo de coincidencia con la función utilitaria ---
+        match_percentage = compute_match_percentage(
+            me_keywords=my_keywords,
+            other_keywords=other_keywords,
+        ) or 0  # por si algún día devolvés None
 
         travelers.append(
             schemas.TravelerCardOut(
                 id=u.id,
                 username=u.username,
                 name=u.first_name or u.username,
-                city=prefs.get("city", ""),
-                destinations=prefs.get("destinations", []),
-                style=prefs.get("style", ""),
-                budget=prefs.get("budget", ""),
-                about=prefs.get("about", ""),
-                tags=prefs.get("tags", []),
-                matches_with_you=prefs.get("match_percentage", 0),
+                city=city,
+                destinations=destinations,
+                style=style,
+                budget=budget,
+                about=about,
+                tags=tags,
+                matches_with_you=match_percentage,
             )
         )
 
     return travelers
-
 
 @router.get("/{user_id}", response_model=schemas.UserOut)
 def get_user_by_id(
@@ -136,3 +207,5 @@ def get_user_by_id(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
+
+

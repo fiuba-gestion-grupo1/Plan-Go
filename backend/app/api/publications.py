@@ -992,13 +992,22 @@ def toggle_favorite(pub_id: int, db: Session = Depends(get_db), current_user: mo
 
 # --- GET MY FAVORITES ---
 @router.get("/favorites", response_model=List[schemas.PublicationOut])
-def list_my_favorites(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def list_favorites(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    user_id: int | None = Query(default=None),
+):
     """
-    Devuelve todas las publicaciones favoritas del usuario actual
+    Devuelve publicaciones favoritas.
+
+    - Sin user_id: favoritos del usuario logueado (current_user).
+    - Con user_id: favoritos del usuario indicado (perfil que estás viendo).
     """
+    target_user_id = user_id if user_id is not None else current_user.id
+
     favorites = (
         db.query(models.Favorite)
-        .filter(models.Favorite.user_id == current_user.id)
+        .filter(models.Favorite.user_id == target_user_id)
         .order_by(models.Favorite.created_at.desc())
         .all()
     )
@@ -1006,7 +1015,7 @@ def list_my_favorites(db: Session = Depends(get_db), current_user: models.User =
     out: List[schemas.PublicationOut] = []
     for fav in favorites:
         p = fav.publication
-        if p and p.status == "approved":  # Solo mostrar si está aprobada
+        if p and p.status == "approved":
             out.append(
                 schemas.PublicationOut(
                     id=p.id,
@@ -1252,43 +1261,6 @@ def report_review(
     ).filter(models.ReviewReport.id == report.id).first()
     
     return build_review_report_out(report_with_data)
-
-
-@router.get("/favorites", response_model=list[schemas.PublicationOut])
-def list_favorites(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-    user_id: int | None = Query(default=None),
-):
-    """
-    Devuelve las publicaciones favoritas.
-
-    - Si NO viene user_id -> favoritos del usuario logueado (current_user).
-    - Si viene user_id -> favoritos de ese usuario (perfil que estás viendo).
-    """
-    # si no mandan user_id, uso el user logueado
-    target_user_id = user_id if user_id is not None else current_user.id
-
-    logger.debug(
-        f"[favorites] current_user={current_user.id}, "
-        f"user_id_param={user_id}, target_user_id={target_user_id}"
-    )
-
-    favorites = (
-        db.query(models.Publication)
-        .join(
-            models.FavoritePublication,
-            models.FavoritePublication.publication_id == models.Publication.id,
-        )
-        .filter(models.FavoritePublication.user_id == target_user_id)
-        .all()
-    )
-
-    logger.debug(
-        f"[favorites] target_user_id={target_user_id}, count={len(favorites)}"
-    )
-
-    return favorites
 
 
 @router.get("/visited", response_model=list[schemas.PublicationOut])

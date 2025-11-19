@@ -15,6 +15,17 @@ function SearchUsers({ me, onOpenMyProfile }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [destinationOptions, setDestinationOptions] = useState([]);
+  const [styleOptions, setStyleOptions] = useState([]);
+
+  // helper para normalizar strings (lowercase + sin tildes)
+  const normalize = (s) =>
+    (s || "")
+      .toString()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
   // Cargar viajeros reales desde el backend
   useEffect(() => {
     if (!token) return;
@@ -26,14 +37,29 @@ function SearchUsers({ me, onOpenMyProfile }) {
       setError("");
 
       try {
-        const data = await request("/api/users/travelers", { token });
+        // Armamos query params para el backend
+        const params = new URLSearchParams();
 
+        if (searchText) {
+          params.set("q", searchText);
+        }
+        if (filterDestination !== "todos") {
+          params.set("destination_interest", filterDestination);
+        }
+        if (filterStyle !== "todos") {
+          // lo mando como lista "styles"
+          params.append("styles", filterStyle);
+        }
+
+        const qs = params.toString();
+        const url = `/api/users/travelers${qs ? `?${qs}` : ""}`;
+
+        const data = await request(url, { token });
         const list = Array.isArray(data) ? data : [];
 
-        // Normalizo para que matchee la estructura de los mocks
         const normalized = list.map((u) => {
-          const name = u.first_name || u.name || u.username || "Viajero";
-          const city = [u.city, u.country].filter(Boolean).join(", ");
+          const name = u.name || u.first_name || u.username || "Viajero";
+          const city = u.city || "";
 
           return {
             id: u.id,
@@ -41,54 +67,49 @@ function SearchUsers({ me, onOpenMyProfile }) {
             name,
             city: city || "Sin ubicación",
 
-            // destinos favoritos (pueden venir de distintos campos)
-            destinations:
-              u.favorite_destinations ||
-              u.destinations ||
-              u.top_destinations ||
-              [],
+            destinations: u.destinations || [],
+            style: u.style || "",
+            budget: u.budget || "",
 
-            // estilo de viaje
-            style:
-              u.travel_style ||
-              u.travel_profile ||
-              u.travel_preference ||
-              "",
-
-            // nivel de presupuesto
-            budget:
-              u.budget_label ||
-              (u.budget_level === 1
-                ? "$"
-                : u.budget_level === 2
-                ? "$$"
-                : u.budget_level === 3
-                ? "$$$"
-                : ""),
-
-            // descripción / bio
             about:
-              u.bio ||
               u.about ||
               "Todavía no completó la descripción de su perfil.",
 
-            // tags: uso tags explícitas o las armo con preferencias
-            tags:
-              u.tags ||
-              u.preference_tags || [
-                ...(u.activities || []),
-                ...(u.climates || []),
-                ...(u.continents || []),
-              ],
+            tags: u.tags || [],
 
-            // % de coincidencia (si el backend lo calcula)
+            // viene del backend como matches_with_you / match_percentage
             matchesWithYou:
-              u.match_percentage ?? u.match_score ?? u.match ?? null,
+              u.matches_with_you ??
+              u.match_percentage ??
+              null,
           };
         });
 
+        // armo opciones dinámicas de destinos y estilos
+        const destSet = new Set();
+        const styleSet = new Set();
+
+        normalized.forEach((t) => {
+          (t.destinations || []).forEach((d) => {
+            const label = (d || "").trim();
+            if (label) destSet.add(label);
+          });
+
+          const style = (t.style || "").trim();
+          if (style) styleSet.add(style);
+        });
+
+        const destArray = Array.from(destSet).sort((a, b) =>
+          a.localeCompare(b)
+        );
+        const styleArray = Array.from(styleSet).sort((a, b) =>
+          a.localeCompare(b)
+        );
+
         if (!cancelled) {
           setTravelers(normalized);
+          setDestinationOptions(destArray);
+          setStyleOptions(styleArray);
         }
       } catch (e) {
         if (!cancelled) {
@@ -105,29 +126,29 @@ function SearchUsers({ me, onOpenMyProfile }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, searchText, filterDestination, filterStyle]);
 
   // Filtros (idéntico a la versión con mocks, pero usando travelers reales)
   const filteredTravelers = useMemo(() => {
-    const text = searchText.toLowerCase();
+    const text = normalize(searchText);
+    const filterDestNorm = normalize(filterDestination);
+    const filterStyleNorm = normalize(filterStyle);
 
     return travelers.filter((t) => {
-      const matchesText =
-        !text ||
-        t.username.toLowerCase().includes(text) ||
-        t.name.toLowerCase().includes(text) ||
-        t.destinations.join(" ").toLowerCase().includes(text) ||
-        t.tags.join(" ").toLowerCase().includes(text);
+      const bigText = `${t.username} ${t.name} ${t.destinations.join(
+        " "
+      )} ${t.tags.join(" ")}`;
+      const matchesText = !text || normalize(bigText).includes(text);
 
       const matchesDestination =
         filterDestination === "todos" ||
-        t.destinations.some((d) =>
-          d.toLowerCase().includes(filterDestination.toLowerCase())
+        (t.destinations || []).some(
+          (d) => normalize(d) === filterDestNorm
         );
 
       const matchesStyle =
         filterStyle === "todos" ||
-        t.style.toLowerCase().includes(filterStyle.toLowerCase());
+        normalize(t.style) === filterStyleNorm;
 
       return matchesText && matchesDestination && matchesStyle;
     });
@@ -203,10 +224,11 @@ function SearchUsers({ me, onOpenMyProfile }) {
                 onChange={(e) => setFilterDestination(e.target.value)}
               >
                 <option value="todos">Cualquier destino</option>
-                <option value="europa">Europa</option>
-                <option value="brasil">Brasil</option>
-                <option value="caribe">Caribe</option>
-                <option value="sudeste asiático">Sudeste Asiático</option>
+                {destinationOptions.map((dest) => (
+                  <option key={dest} value={dest}>
+                    {dest}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -218,11 +240,11 @@ function SearchUsers({ me, onOpenMyProfile }) {
                 onChange={(e) => setFilterStyle(e.target.value)}
               >
                 <option value="todos">Cualquiera</option>
-                <option value="mochilero">Mochilero</option>
-                <option value="low cost">Low cost</option>
-                <option value="city break">City break</option>
-                <option value="familia">En familia</option>
-                <option value="solo">Solo traveler</option>
+                {styleOptions.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

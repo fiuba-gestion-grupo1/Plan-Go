@@ -22,7 +22,7 @@ export default function TravelerProfile({ me }) {
   const username = profileUser?.username || "usuario";
   const bio =
     profileUser?.bio ||
-    "Contale a la comunidad qué te gusta cuando viajás: destinos favoritos, estilos de viaje, si preferís low cost, all inclusive, naturaleza, ciudades, etc.";
+    ".";
 
   const initials = displayName
     .split(" ")
