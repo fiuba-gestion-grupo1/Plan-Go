@@ -476,6 +476,7 @@ def list_my_submissions(db: Session = Depends(get_db), current_user: models.User
 @router.get("/search", response_model=List[schemas.PublicationOut])
 def search_publications(
     q: str = "",
+    destination: str = "",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -486,22 +487,50 @@ def search_publications(
     - País, provincia/estado, ciudad, dirección
     - Continente, clima, actividades
     - CATEGORÍAS
+    
+    Si destination está presente, filtra solo por ubicación (país, provincia, ciudad)
     """
-    if not q or len(q.strip()) < 2:
-        # Si no hay búsqueda o es muy corta, devolver todas las aprobadas
-        pubs = db.query(models.Publication).filter(
-            models.Publication.status == "approved"
-        ).order_by(models.Publication.created_at.desc()).all()
-    else:
+    # Obtener todas las publicaciones aprobadas
+    pubs = db.query(models.Publication).filter(
+        models.Publication.status == "approved"
+    ).all()
+    
+    # Si hay filtro por destino, filtrar solo por ubicación
+    if destination and len(destination.strip()) >= 2:
+        normalized_dest = _normalize_search_text(destination)
+        filtered_pubs = []
+        
+        for p in pubs:
+            # Solo buscar en campos de ubicación para destino
+            location_fields = [
+                p.country or "",
+                p.province or "", 
+                p.city or "",
+            ]
+            
+            # Normalizar destino de búsqueda
+            normalized_dest_lower = destination.lower()
+            normalized_dest_no_accents = _remove_accents(normalized_dest_lower)
+            
+            match = False
+            for field in location_fields:
+                field_lower = field.lower()
+                field_no_accents = _remove_accents(field_lower)
+                
+                # Buscar tanto con tildes como sin tildes
+                if normalized_dest_lower in field_lower or normalized_dest_no_accents in field_no_accents:
+                    match = True
+                    break
+            
+            if match:
+                filtered_pubs.append(p)
+        
+        pubs = filtered_pubs
+        
+    # Si hay búsqueda general (q) y no hay filtro de destino específico
+    elif q and len(q.strip()) >= 2:
         # Normalizar búsqueda: minúsculas y sin tildes
         normalized_search = _normalize_search_text(q)
-        
-        # Crear filtro que busca en todos los campos relevantes
-        # Primero traemos todas las publicaciones aprobadas y filtramos en Python
-        # porque SQLite no tiene función COLLATE NOACCENT nativa
-        pubs = db.query(models.Publication).filter(
-            models.Publication.status == "approved"
-        ).all()
         
         # Filtrar en Python para buscar sin tildes
         filtered_pubs = []
@@ -548,8 +577,16 @@ def search_publications(
             if match:
                 filtered_pubs.append(p)
         
-        # Ordenar por fecha de creación descendente
-        pubs = sorted(filtered_pubs, key=lambda p: p.created_at, reverse=True)
+        pubs = filtered_pubs
+    
+    # Si no hay búsqueda ni destino, devolver todas ordenadas
+    # Ordenar por fecha de creación descendente
+    if hasattr(pubs, '__iter__') and not hasattr(pubs, 'order_by'):
+        # Es una lista, ordenar en Python
+        pubs = sorted(pubs, key=lambda p: p.created_at, reverse=True)
+    else:
+        # Es un query, ordenar en SQL
+        pubs = pubs.order_by(models.Publication.created_at.desc()).all()
 
     # Obtener IDs de favoritos del usuario actual
     favorite_ids = {

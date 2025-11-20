@@ -1120,3 +1120,158 @@ def get_saved_itineraries(
         })
     
     return result
+
+
+class CustomItineraryRequest(BaseModel):
+    destination: str
+    start_date: str
+    end_date: str
+    itinerary_data: dict
+    type: str = "custom"
+
+
+@router.post("/custom", response_model=schemas.ItineraryOut)
+async def create_custom_itinerary(
+    request: CustomItineraryRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Crea un itinerario personalizado donde el usuario ha seleccionado
+    manualmente las actividades para cada horario
+    """
+    try:
+        # Crear el itinerario en la base de datos
+        itinerary = models.Itinerary(
+            destination=request.destination,
+            start_date=datetime.fromisoformat(request.start_date).date(),
+            end_date=datetime.fromisoformat(request.end_date).date(),
+            budget=0,  # No aplica para itinerarios personalizados
+            cant_persons=1,  # Valor por defecto
+            trip_type="personalizado",
+            user_id=current_user.id,
+            status="completed",  # Ya está listo
+            generated_itinerary=_format_custom_itinerary(request.itinerary_data),
+            user_preferences="Itinerario personalizado creado manualmente"
+        )
+        
+        db.add(itinerary)
+        db.commit()
+        db.refresh(itinerary)
+        
+        # Extraer IDs de publicaciones del itinerary_data y crear relaciones
+        publication_ids = _extract_publication_ids(request.itinerary_data)
+        publications = []
+        
+        for pub_id in publication_ids:
+            pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
+            if pub:
+                publications.append(pub)
+                # Crear la relación many-to-many
+                itinerary.publications.append(pub)
+        
+        db.commit()
+        
+        return schemas.ItineraryOut(
+            id=itinerary.id,
+            destination=itinerary.destination,
+            start_date=itinerary.start_date.isoformat(),
+            end_date=itinerary.end_date.isoformat(),
+            budget=itinerary.budget,
+            cant_persons=itinerary.cant_persons,
+            trip_type=itinerary.trip_type,
+            user_id=itinerary.user_id,
+            status=itinerary.status,
+            created_at=itinerary.created_at.isoformat(),
+            generated_itinerary=itinerary.generated_itinerary,
+            publications=[
+                {
+                    "id": pub.id,
+                    "place_name": pub.place_name,
+                    "country": pub.country,
+                    "province": pub.province,
+                    "city": pub.city,
+                    "address": pub.address,
+                    "description": pub.description,
+                    "status": pub.status,
+                    "created_by_user_id": pub.created_by_user_id,
+                    "created_at": pub.created_at.isoformat() if pub.created_at else None,
+                    "photos": [ph.url for ph in pub.photos] if pub.photos else [],
+                    "categories": [{"name": cat.name, "slug": cat.slug} for cat in pub.categories] if pub.categories else [],
+                    "rating_avg": getattr(pub, 'rating_avg', 0.0) or 0.0,
+                    "rating_count": getattr(pub, 'rating_count', 0) or 0,
+                    "is_favorite": False  # TODO: calcular si es favorito del usuario actual
+                } for pub in publications
+            ]
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al crear itinerario personalizado: {str(e)}"
+        )
+
+
+def _format_custom_itinerary(itinerary_data: dict) -> str:
+    """
+    Formatea los datos del itinerario personalizado en un texto legible
+    similar al formato de la IA
+    """
+    result = []
+    
+    for day_key in sorted(itinerary_data.keys()):
+        day_data = itinerary_data[day_key]
+        
+        # Convertir fecha a formato legible
+        try:
+            date_obj = datetime.fromisoformat(day_key).date()
+            day_counter = len(result) + 1
+            result.append(f"═══════════════════════════════════════════════════")
+            result.append(f"DÍA {day_counter} - {date_obj.strftime('%Y-%m-%d')}")
+            result.append(f"═══════════════════════════════════════════════════")
+            result.append("")
+        except:
+            continue
+        
+        # Procesar cada período del día
+        periods = {
+            'morning': '🌅 MAÑANA (6:00 - 12:00)',
+            'afternoon': '🌞 TARDE (12:00 - 18:00)',
+            'evening': '🌙 NOCHE (18:00 - 23:00)'
+        }
+        
+        for period_key, period_label in periods.items():
+            if period_key not in day_data:
+                continue
+                
+            period_data = day_data[period_key]
+            has_activities = any(activity for activity in period_data.values() if activity)
+            
+            if has_activities:
+                result.append(period_label)
+                
+                for time_slot in sorted(period_data.keys()):
+                    activity = period_data[time_slot]
+                    if activity and isinstance(activity, dict):
+                        place_name = activity.get('place_name', 'Actividad')
+                        result.append(f"• {time_slot} - {place_name}")
+                
+                result.append("")
+    
+    return "\n".join(result)
+
+
+def _extract_publication_ids(itinerary_data: dict) -> set:
+    """
+    Extrae los IDs únicos de las publicaciones del itinerary_data
+    """
+    publication_ids = set()
+    
+    for day_data in itinerary_data.values():
+        for period_data in day_data.values():
+            for activity in period_data.values():
+                if activity and isinstance(activity, dict) and 'id' in activity:
+                    publication_ids.add(activity['id'])
+    
+    return publication_ids

@@ -28,7 +28,7 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
 
     // { id: 'favorites', label: '❤️ Mis favoritos' }, <-- ELIMINADO/MOVIDO
     { id: 'suggestions', label: '💡 Sugerencias' },
-    { id: 'itinerary', label: '🤖 Generar itinerario con IA' },
+    { id: 'itinerary', label: '🗺️ Generar Itinerario' },
     // { id: 'my-itineraries', label: '📅 Mis itinerarios' }, <-- ELIMINADO/MOVIDO
     // { id: 'expenses', label: '💰 Mis gastos' }, <-- ELIMINADO/MOVIDO
     

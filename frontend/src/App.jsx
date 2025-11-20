@@ -24,6 +24,9 @@ import ShareItineraryPage from "./pages/ShareItineraryPage";
 
 import InviteFriend from "./pages/InviteFriend";
 import Benefits from "./pages/Benefits";
+import ItinerarySelector from "./pages/ItinerarySelector";
+import ItineraryRequest from "./pages/ItineraryRequest";
+import CustomItinerary from "./pages/CustomItinerary";
 
 import { api } from "./api";
 import Sidebar from "./components/Sidebar";
@@ -262,18 +265,15 @@ function AppWithRouter() {
         )}
 
         {authView === "itinerary" && (
-          <Home
-            key="itinerary"
-            me={me}
-            view="itinerary"
-            onOpenShareItinerary={(id) => {
-              if (!isPremium) {
-                alert("Función disponible sólo para usuarios premium.");
-                return;
-              }
-              navigate(`/share-itinerary/${id}`);
-            }}
-          />
+          <ItinerarySelector onNavigate={handleNavigate} />
+        )}
+
+        {authView === "itinerary-ai" && (
+          <ItineraryRequest me={me} />
+        )}
+
+        {authView === "itinerary-custom" && (
+          <CustomItinerary me={me} token={token} />
         )}
 
         {/* premium only */}
