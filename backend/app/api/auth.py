@@ -8,6 +8,33 @@ from ..models import User
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+
+def award_invitation_points(inviter_id: int, invited_username: str, db: Session):
+    """Otorga 50 puntos al usuario que invitó por invitación exitosa."""
+    # Verificar o crear registro de puntos del invitador
+    user_points = db.query(models.UserPoints).filter(
+        models.UserPoints.user_id == inviter_id
+    ).first()
+    
+    if not user_points:
+        user_points = models.UserPoints(user_id=inviter_id, total_points=0)
+        db.add(user_points)
+        db.flush()
+    
+    # Agregar 50 puntos
+    user_points.total_points += 50
+    
+    # Crear transacción de puntos
+    transaction = models.PointsTransaction(
+        user_id=inviter_id,
+        points=50,
+        transaction_type="invitation_bonus",
+        description=f"Invitación exitosa de {invited_username}"
+    )
+    db.add(transaction)
+    db.commit()
+
+
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 def get_current_user(
@@ -61,6 +88,21 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="El nombre de usuario ya existe")
 
+    # Verificar código de invitación si se proporcionó
+    invitation = None
+    if payload.invitation_code:
+        invitation = db.query(models.Invitation).filter(
+            models.Invitation.invitation_code == payload.invitation_code,
+            models.Invitation.used == False
+        ).first()
+        
+        if not invitation:
+            raise HTTPException(status_code=400, detail="Código de invitación inválido o ya utilizado.")
+        
+        # Verificar que el email coincida
+        if invitation.invitee_email != payload.email:
+            raise HTTPException(status_code=400, detail="El código de invitación no corresponde a este email.")
+
     hashed_answer_1 = security.hash_password(payload.security_answer_1)
     hashed_answer_2 = security.hash_password(payload.security_answer_2)
 
@@ -79,6 +121,17 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
         role="user",  # 👈 nuevo
     )
     db.add(user)
+    db.flush()  # Para obtener el ID del usuario
+    
+    # Si hay invitación, marcarla como usada y otorgar puntos al invitador
+    if invitation:
+        invitation.used = True
+        invitation.used_at = datetime.now(timezone.utc)
+        invitation.invited_user_id = user.id
+        
+        # Otorgar 50 puntos al invitador
+        award_invitation_points(invitation.inviter_id, user.username, db)
+    
     db.commit()
     db.refresh(user)
     return user
