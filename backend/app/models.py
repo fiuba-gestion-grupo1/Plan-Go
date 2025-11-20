@@ -77,6 +77,8 @@ class Publication(Base):
     activities    = Column(JSON, nullable=True)     # ej: ["playa", "gastronomía"]
     cost_per_day  = Column(Float, nullable=True)
     duration_min = Column(Integer, nullable=True)
+    available_days = Column(JSON, nullable=True)    # ej: ["lunes", "martes", "miércoles"]
+    available_hours = Column(JSON, nullable=True)   # ej: ["19:00", "23:00"]
 
     # Ratings (US-5.1)
     rating_avg   = Column(Float,  nullable=False, server_default="0")

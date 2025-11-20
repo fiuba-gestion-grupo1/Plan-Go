@@ -107,6 +107,8 @@ class PublicationCreate(BaseModel):
     address: str = Field(..., min_length=3, max_length=200)
     # Para endpoints JSON (si se usan). En multipart llega como CSV y se parsea en el router.
     categories: Optional[List[str]] = None  # slugs
+    available_days: Optional[List[str]] = None  # ["lunes", "martes", etc.]
+    available_hours: Optional[List[str]] = None  # ["19:00", "23:00", etc.]
 
 
 class PublicationOut(BaseModel):
@@ -133,6 +135,8 @@ class PublicationOut(BaseModel):
     activities: Optional[List[str]] = None
     cost_per_day: Optional[float] = None
     duration_min: Optional[int] = None
+    available_days: Optional[List[str]] = None
+    available_hours: Optional[List[str]] = None
 
     favorite_status: Optional[str] = "pending"
 

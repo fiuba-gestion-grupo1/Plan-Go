@@ -117,6 +117,8 @@ def seed_publications(db: Session):
             "activities": ["cultura", "gastronomia", "ciudad", "noche"],
             "cost_per_day": None, "duration_min": None,
             "images": ["hotel_continental_1.jpg", "hotel_continental_2.jpg"],
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["00:00-23:59"],
             "reviews": [
                 (5, "Excelente ubicación, pleno centro. La habitación muy cómoda y el personal amable."),
                 (4, "Muy buen hotel, algo ruidoso por estar en Corrientes, pero es de esperar. El desayuno 10/10."),
@@ -134,6 +136,8 @@ def seed_publications(db: Session):
             "activities": ["cultura", "gastronomia", "lujo", "romance", "ciudad"],
             "cost_per_day": None, "duration_min": None,
             "images": ["ritz_paris_1.jpg", "ritz_paris_2.jpg"],
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["00:00-23:59"],
             "reviews": [
                 (5, "Insuperable. Cada detalle es perfecto. El servicio es de otro nivel."),
                 (5, "Un sueño hecho realidad. El Bar Hemingway es una visita obligada."),
@@ -150,6 +154,8 @@ def seed_publications(db: Session):
             "continent": "asia", "climate": "templado",
             "activities": ["cultura", "relax", "naturaleza", "historia"],
             "cost_per_day": None, "duration_min": None,
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["00:00-23:59"],
             "images": ["four_seasons_kyoto_1.jpg", "four_seasons_kyoto_2.jpg"],
             "reviews": [
                 (5, "Paz absoluta. El jardín es mágico, parece salido de una pintura."),
@@ -168,6 +174,8 @@ def seed_publications(db: Session):
             "activities": ["show", "casino", "gastronomia", "noche"],
             "cost_per_day": None, "duration_min": None,
             "images": ["palms_casino_1.jpg", "palms_casino_2.jpg"],
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["00:00-23:59"],
             "reviews": [
                 (4, "Habitaciones modernas y muy limpias. Buenas opciones de comida."),
                 (3, "Está un poco lejos del Strip principal, hay que tomar taxi para todo."),
@@ -186,6 +194,8 @@ def seed_publications(db: Session):
             "continent": "américa", "climate": "seco",
             "activities": ["gastronomia", "tour", "naturaleza"],
             "cost_per_day": 150, "duration_min": 1440,
+            "available_days": ["lunes", "martes", "miércoles", "viernes", "sábado"],  
+            "available_hours": ["11:00-21:00"],
             "images": ["tour_vinos_mendoza_1.jpg", "tour_vinos_mendoza_2.jpg"],
             "reviews": [
                 (5, "Increíble. Las bodegas son hermosas y los vinos espectaculares."),
@@ -204,6 +214,8 @@ def seed_publications(db: Session):
             "activities": ["playa", "deporte", "aventura"],
             "cost_per_day": 100, "duration_min": 1440,
             "images": ["surf_bondi_1.jpg", "surf_bondi_2.jpg"],
+            "available_days": ["martes", "jueves", "viernes", "sábado"],  
+            "available_hours": ["09:00-17:00"],
             "reviews": [
                 (5, "¡Genial! Era mi primera vez y logré pararme en la tabla. El instructor un genio."),
                 (4, "Muy divertido, pero había demasiada gente en el agua. Es Bondi, qué se le va a hacer."),
@@ -221,6 +233,8 @@ def seed_publications(db: Session):
             "activities": ["trekking", "cultura", "aventura", "montaña", "historia"],
             "cost_per_day": 125, "duration_min": 5760,
             "images": ["machu_picchu_1.jpg", "machu_picchu_2.jpg"],
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],  
+            "available_hours": ["07:00-18:30"],
             "reviews": [
                 (5, "La mejor experiencia de mi vida. Llegar a la Puerta del Sol al amanecer es algo que no me olvidaré jamás."),
                 (5, "Durísimo, la altura se siente, pero vale cada segundo de esfuerzo. Los paisajes son de otro planeta."),
@@ -238,6 +252,8 @@ def seed_publications(db: Session):
             "activities": ["cultura", "arte", "historia", "ciudad"],
             "cost_per_day": 25, "duration_min": 1440,
             "images": ["museo_louvre_1.jpg", "museo_louvre_2.jpg"],
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["08:00-20:30"],
             "reviews": [
                 (5, "Impresionante. Es enorme, necesitas días para verlo bien."),
                 (3, "Ver la Mona Lisa fue una decepción. Un cuadro chiquito rodeado de 500 personas. El resto del museo, genial."),
@@ -257,6 +273,8 @@ def seed_publications(db: Session):
             "activities": ["playa", "relax", "naturaleza"],
             "cost_per_day": None, "duration_min": None,
             "images": ["palms_zanzibar_1.jpg", "palms_zanzibar_2.jpg"],
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["00:00-23:59"],
             "reviews": [
                 (5, "El paraíso en la tierra. Privacidad total, servicio de mayordomo impecable."),
                 (5, "La playa es de las más lindas que vi. El color del agua es irreal."),
@@ -274,6 +292,8 @@ def seed_publications(db: Session):
             "activities": ["aventura", "naturaleza", "safari"],
             "cost_per_day": 600, "duration_min": 7200,
             "images": ["serengeti_1.jpg", "serengeti_2.jpg"],
+            "available_days": ["lunes", "martes","jueves", "sábado", "domingo"],  
+            "available_hours": ["08:00-19:30"],
             "reviews": [
                 (5, "¡Vi a los 5 grandes en dos días! Nuestro guía, Joseph, fue el mejor."),
                 (5, "Ver la gran migración cruzando el río Mara es algo que te marca. Impresionante."),
@@ -291,6 +311,8 @@ def seed_publications(db: Session):
             "activities": ["playa", "relax", "cultura", "gastronomia", "naturaleza"],
             "cost_per_day": None, "duration_min": None,
             "images": ["bali_villa_1.jpg", "bali_villa_2.jpg"],
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["00:00-23:59"],
             "reviews": [
                 (5, "Paz total en medio de la selva. La piscina privada es un lujo."),
                 (4, "El desayuno 'flotante' es genial para la foto. El staff muy amable."),
@@ -308,6 +330,8 @@ def seed_publications(db: Session):
             "activities": ["naturaleza", "montaña", "trekking"],
             "cost_per_day": 100, "duration_min": 1440,
             "images": ["perito_moreno_1.jpg", "perito_moreno_2.jpg"],
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["10:00-18:30"],
             "reviews": [
                 (5, "Imponente. Te sentís muy chiquito al lado de esa masa de hielo."),
                 (5, "El ruido del hielo rompiendo y cayendo al agua es inolvidable."),
@@ -325,6 +349,8 @@ def seed_publications(db: Session):
             "activities": ["ciudad", "cultura", "gastronomia", "noche", "show"],
             "cost_per_day": None, "duration_min": None,
             "images": ["standard_nyc_1.jpg", "standard_nyc_2.jpg"],
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["00:00-23:59"],
             "reviews": [
                 (4, "Las vistas desde la habitación (con ventana de piso a techo) son LO MÁS."),
                 (3, "El rooftop es EL lugar para ir, pero la música estaba tan fuerte que se escuchaba en la habitación."),
@@ -342,6 +368,8 @@ def seed_publications(db: Session):
             "activities": ["historia", "cultura", "ciudad", "gastronomia"],
             "cost_per_day": 90, "duration_min": 1440,
             "images": ["roma_gastro_1.jpg", "roma_gastro_2.jpg"],
+            "available_days": ["lunes", "martes","viernes", "sábado"],  
+            "available_hours": ["17:30-20:30"],
             "reviews": [
                 (5, "La mejor pasta Cacio e Pepe que probé en mi vida. El guía un genio."),
                 (5, "Descubrimos lugares que jamás hubiésemos encontrado solos. Buenísimo."),
@@ -356,6 +384,8 @@ def seed_publications(db: Session):
             "description": "El epítome del diseño y la sofisticación en la playa de Ipanema. Disfruta de su icónica piscina infinita.",
             "categories": [cat_hotel],
             "continent": "américa", "climate": "tropical",
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["00:00-23:59"],
             "activities": ["playa", "ciudad", "noche", "gastronomia"],
             "cost_per_day": None, "duration_min": None,
             "images": ["fasano_rio_1.jpg", "fasano_rio_2.jpg"],
@@ -376,6 +406,8 @@ def seed_publications(db: Session):
             "activities": ["gastronomia", "ciudad", "cultura", "noche"],
             "cost_per_day": 40, "duration_min": 1440,
             "images": ["bangkok_food_1.jpg", "bangkok_food_2.jpg"],
+             "available_days": ["lunes", "martes","viernes", "sábado"],  
+            "available_hours": ["17:30-20:30"],
             "reviews": [
                 (5, "Sabores que nunca había probado. Una locura. El guía nos llevó a puestos increíbles."),
                 (5, "El mejor Pad Thai de mi vida, lo comí en la calle por 2 dólares."),
@@ -393,6 +425,8 @@ def seed_publications(db: Session):
             "activities": ["aventura", "deporte", "montaña", "naturaleza"],
             "cost_per_day": 180, "duration_min": 1440,
             "images": ["queenstown_bungee_1.jpg", "queenstown_bungee_2.jpg"],
+             "available_days": ["lunes", "martes","viernes", "sábado"],  
+            "available_hours": ["11:30-20:30"],
             "reviews": [
                 (5, "¡Adrenalina pura! La sensación de caer es indescriptible."),
                 (5, "Súper seguro y organizado. El staff te da toda la confianza."),
@@ -409,6 +443,8 @@ def seed_publications(db: Session):
             "continent": "europa", "climate": "frío",
             "activities": ["naturaleza", "aventura", "noche"],
             "cost_per_day": 110, "duration_min": 1440,
+             "available_days": ["lunes", "martes", "miercoles", "viernes", "sábado"],  
+            "available_hours": ["19:30-23:30"],
             "images": ["aurora_iceland_1.jpg", "aurora_iceland_2.jpg"],
             "reviews": [
                 (5, "¡Las vimos! Bailaron en el cielo por más de una hora. Mágico."),
@@ -426,6 +462,8 @@ def seed_publications(db: Session):
             "continent": "áfrica", "climate": "seco",
             "activities": ["historia", "cultura", "desierto"],
             "cost_per_day": 80, "duration_min": 1440,
+            "available_days": ["lunes", "martes", "miercoles", "jueves", "viernes", "sábado"],  
+            "available_hours": ["10:30-18:30"],
             "images": ["giza_pyramids_1.jpg", "giza_pyramids_2.jpg"],
             "reviews": [
                 (5, "No hay foto ni video que le haga justicia. Estar ahí es imponente."),
@@ -444,6 +482,8 @@ def seed_publications(db: Session):
             "activities": ["playa", "relax", "noche", "gastronomia"],
             "cost_per_day": None, "duration_min": None,
             "images": ["cancun_resort_1.jpg", "cancun_resort_2.jpg"],
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["00:00-23:59"],
             "reviews": [
                 (4, "Playa hermosa y la piscina gigante. Ideal para no moverse en una semana."),
                 (3, "El buffet era muy repetitivo. Los restaurantes 'a la carta' eran mejores."),
@@ -460,7 +500,9 @@ def seed_publications(db: Session):
             "categories": [cat_actividad, cat_cultura],
             "continent": "europa", "climate": "templado",
             "activities": ["cultura", "historia", "ciudad", "romance", "vista_panoramica"],
-            "cost_per_day": 50, "duration_min": 1440,
+            "cost_per_day": 50, "duration_min": 120,
+            "available_days": ["lunes", "martes", "miercoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["09:30-11:30", "12:00-14:00", "14:30-16:30", "17:00-19:00", "19:30-21:30"],
             "images": ["torre_eiffel_1.jpg", "torre_eiffel_2.jpg"],
             "reviews": [
                 (5, "¡Absolutamente mágico! Subir al atardecer es una experiencia que no tiene precio. París a tus pies."),
@@ -479,6 +521,8 @@ def seed_publications(db: Session):
             "activities": ["cultura", "historia", "arte", "naturaleza", "palacio"],
             "cost_per_day": 70, "duration_min": 1440,
             "images": ["palacio_versalles_1.jpg", "palacio_versalles_2.jpg"],
+            "available_days": ["lunes", "martes", "miercoles", "jueves", "viernes", "sábado", "domingo"],  
+            "available_hours": ["09:30-20:30"],
             "reviews": [
                 (5, "El Salón de los Espejos te deja sin aliento. Es una locura pensar cómo vivían."),
                 (5, "Los jardines son LO MEJOR. Alquilamos un carrito de golf para recorrerlos porque son inmensos. Un día no alcanza."),
@@ -509,6 +553,8 @@ def seed_publications(db: Session):
             exists.activities = item.get("activities")
             exists.cost_per_day = item.get("cost_per_day")
             exists.duration_min = item.get("duration_min")
+            exists.available_days = item.get("available_days", [])
+            exists.available_hours = item.get("available_hours", [])
             exists.name = item["place_name"]
             exists.street = item["address"].split(",")[0]
             
@@ -518,6 +564,7 @@ def seed_publications(db: Session):
             # Actualizar fotos si es necesario
             # (Opcional: podrías eliminar fotos existentes y recrearlas)
             
+            db.commit() # Commit para la actualización
             continue
             
         print(f"Creando: '{item['place_name']}'...")
@@ -538,6 +585,8 @@ def seed_publications(db: Session):
             activities=item.get("activities"),
             cost_per_day=item.get("cost_per_day"),
             duration_min=item.get("duration_min"),
+            available_days=item.get("available_days", []),
+            available_hours=item.get("available_hours", []),
             name=item["place_name"],
             street=item["address"].split(",")[0],
             # Los campos rating_avg y rating_count se actualizan abajo

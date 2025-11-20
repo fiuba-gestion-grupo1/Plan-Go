@@ -1151,24 +1151,24 @@ async def create_custom_itinerary(
             trip_type="personalizado",
             user_id=current_user.id,
             status="completed",  # Ya está listo
-            generated_itinerary=_format_custom_itinerary(request.itinerary_data),
-            user_preferences="Itinerario personalizado creado manualmente"
+            generated_itinerary=_format_custom_itinerary(request.itinerary_data)
         )
         
         db.add(itinerary)
         db.commit()
         db.refresh(itinerary)
         
-        # Extraer IDs de publicaciones del itinerary_data y crear relaciones
+        # Extraer IDs de publicaciones del itinerary_data
         publication_ids = _extract_publication_ids(request.itinerary_data)
         publications = []
         
-        for pub_id in publication_ids:
-            pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
-            if pub:
-                publications.append(pub)
-                # Crear la relación many-to-many
-                itinerary.publications.append(pub)
+        # Obtener las publicaciones y actualizar publication_ids
+        if publication_ids:
+            publications = db.query(models.Publication).filter(
+                models.Publication.id.in_(publication_ids)
+            ).all()
+            # Guardar los IDs como JSON en el campo publication_ids
+            itinerary.publication_ids = list(publication_ids)
         
         db.commit()
         
@@ -1185,23 +1185,29 @@ async def create_custom_itinerary(
             created_at=itinerary.created_at.isoformat(),
             generated_itinerary=itinerary.generated_itinerary,
             publications=[
-                {
-                    "id": pub.id,
-                    "place_name": pub.place_name,
-                    "country": pub.country,
-                    "province": pub.province,
-                    "city": pub.city,
-                    "address": pub.address,
-                    "description": pub.description,
-                    "status": pub.status,
-                    "created_by_user_id": pub.created_by_user_id,
-                    "created_at": pub.created_at.isoformat() if pub.created_at else None,
-                    "photos": [ph.url for ph in pub.photos] if pub.photos else [],
-                    "categories": [{"name": cat.name, "slug": cat.slug} for cat in pub.categories] if pub.categories else [],
-                    "rating_avg": getattr(pub, 'rating_avg', 0.0) or 0.0,
-                    "rating_count": getattr(pub, 'rating_count', 0) or 0,
-                    "is_favorite": False  # TODO: calcular si es favorito del usuario actual
-                } for pub in publications
+                schemas.PublicationOut(
+                    id=pub.id,
+                    place_name=pub.place_name,
+                    country=pub.country,
+                    province=pub.province,
+                    city=pub.city,
+                    address=pub.address,
+                    description=getattr(pub, "description", None),
+                    status=pub.status,
+                    created_by_user_id=pub.created_by_user_id,
+                    created_at=pub.created_at.isoformat() if pub.created_at else None,
+                    photos=[ph.url for ph in pub.photos] if pub.photos else [],
+                    categories=[cat.slug for cat in pub.categories] if pub.categories else [],
+                    rating_avg=getattr(pub, 'rating_avg', 0.0) or 0.0,
+                    rating_count=getattr(pub, 'rating_count', 0) or 0,
+                    continent=getattr(pub, "continent", None),
+                    climate=getattr(pub, "climate", None),
+                    activities=getattr(pub, "activities", None) or [],
+                    cost_per_day=getattr(pub, "cost_per_day", None),
+                    duration_min=getattr(pub, "duration_min", None),
+                    available_days=getattr(pub, "available_days", None) or [],
+                    available_hours=getattr(pub, "available_hours", None) or []
+                ) for pub in publications
             ]
         )
         
@@ -1216,7 +1222,7 @@ async def create_custom_itinerary(
 def _format_custom_itinerary(itinerary_data: dict) -> str:
     """
     Formatea los datos del itinerario personalizado en un texto legible
-    similar al formato de la IA
+    con horarios reales de inicio y fin de actividades
     """
     result = []
     
@@ -1226,7 +1232,7 @@ def _format_custom_itinerary(itinerary_data: dict) -> str:
         # Convertir fecha a formato legible
         try:
             date_obj = datetime.fromisoformat(day_key).date()
-            day_counter = len(result) + 1
+            day_counter = len([line for line in result if line.startswith("DÍA")]) + 1
             result.append(f"═══════════════════════════════════════════════════")
             result.append(f"DÍA {day_counter} - {date_obj.strftime('%Y-%m-%d')}")
             result.append(f"═══════════════════════════════════════════════════")
@@ -1234,32 +1240,128 @@ def _format_custom_itinerary(itinerary_data: dict) -> str:
         except:
             continue
         
+        # Recopilar todas las actividades del día con sus horarios
+        daily_activities = []
+        
         # Procesar cada período del día
-        periods = {
+        periods = ['morning', 'afternoon', 'evening']
+        time_slots = {
+            'morning': ['06:00', '06:30', '07:00', '07:30', '08:00', '08:30', 
+                       '09:00', '09:30', '10:00', '10:30', '11:00', '11:30'],
+            'afternoon': ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+                         '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'],
+            'evening': ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
+                       '21:00', '21:30', '22:00', '22:30', '23:00', '23:30']
+        }
+        
+        # Crear lista de todos los slots en orden
+        all_time_slots = []
+        for period in periods:
+            if period in day_data:
+                for time_slot in time_slots[period]:
+                    if time_slot in day_data[period]:
+                        activity = day_data[period][time_slot]
+                        all_time_slots.append({
+                            'time': time_slot,
+                            'activity': activity,
+                            'period': period
+                        })
+        
+        # Procesar actividades para mostrar solo las principales con horarios de inicio/fin
+        processed_times = set()
+        
+        for slot_info in all_time_slots:
+            time_slot = slot_info['time']
+            activity = slot_info['activity']
+            
+            if activity and time_slot not in processed_times:
+                # Si es una actividad principal (no continuación)
+                if not activity.get('is_continuation', False):
+                    start_time = time_slot
+                    duration_min = activity.get('duration_min', 120)  # 2h por defecto
+                    
+                    # Calcular hora de fin
+                    start_minutes = _time_to_minutes(start_time)
+                    end_minutes = start_minutes + duration_min
+                    end_time = _minutes_to_time(end_minutes)
+                    
+                    place_name = activity.get('place_name', 'Actividad')
+                    
+                    # Agregar a la lista de actividades
+                    daily_activities.append({
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'place_name': place_name,
+                        'start_minutes': start_minutes
+                    })
+                    
+                    # Marcar todos los slots de esta actividad como procesados
+                    slots_needed = (duration_min + 29) // 30  # Redondear hacia arriba
+                    for i in range(slots_needed):
+                        slot_minutes = start_minutes + (i * 30)
+                        slot_time = _minutes_to_time(slot_minutes)
+                        processed_times.add(slot_time)
+        
+        # Ordenar actividades por hora de inicio
+        daily_activities.sort(key=lambda x: x['start_minutes'])
+        
+        # Generar texto con períodos
+        current_period = None
+        period_labels = {
             'morning': '🌅 MAÑANA (6:00 - 12:00)',
             'afternoon': '🌞 TARDE (12:00 - 18:00)',
             'evening': '🌙 NOCHE (18:00 - 23:00)'
         }
         
-        for period_key, period_label in periods.items():
-            if period_key not in day_data:
-                continue
-                
-            period_data = day_data[period_key]
-            has_activities = any(activity for activity in period_data.values() if activity)
+        for activity in daily_activities:
+            # Determinar período de la actividad
+            activity_period = _get_period_for_time(activity['start_time'])
             
-            if has_activities:
-                result.append(period_label)
-                
-                for time_slot in sorted(period_data.keys()):
-                    activity = period_data[time_slot]
-                    if activity and isinstance(activity, dict):
-                        place_name = activity.get('place_name', 'Actividad')
-                        result.append(f"• {time_slot} - {place_name}")
-                
-                result.append("")
+            # Si cambiamos de período, agregar encabezado
+            if activity_period != current_period:
+                if current_period is not None:
+                    result.append("")  # Línea en blanco entre períodos
+                result.append(period_labels[activity_period])
+                current_period = activity_period
+            
+            # Agregar la actividad con horario de inicio y fin
+            result.append(f"• {activity['start_time']} - {activity['end_time']} | {activity['place_name']}")
+        
+        # Si hay actividades en el día, agregar línea en blanco al final
+        if daily_activities:
+            result.append("")
+        else:
+            result.append("Sin actividades programadas")
+            result.append("")
     
     return "\n".join(result)
+
+
+def _time_to_minutes(time_str: str) -> int:
+    """Convierte un tiempo HH:MM a minutos desde medianoche"""
+    hours, minutes = map(int, time_str.split(':'))
+    return hours * 60 + minutes
+
+
+def _minutes_to_time(minutes: int) -> str:
+    """Convierte minutos desde medianoche a formato HH:MM"""
+    # Si pasa de medianoche, limitar a 23:59
+    minutes = min(minutes, 23 * 60 + 59)
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours:02d}:{mins:02d}"
+
+
+def _get_period_for_time(time_str: str) -> str:
+    """Determina el período del día para un tiempo dado"""
+    minutes = _time_to_minutes(time_str)
+    
+    if 6 * 60 <= minutes < 12 * 60:  # 6:00 - 11:59
+        return 'morning'
+    elif 12 * 60 <= minutes < 18 * 60:  # 12:00 - 17:59
+        return 'afternoon'
+    else:  # 18:00 - 23:59 y 0:00 - 5:59
+        return 'evening'
 
 
 def _extract_publication_ids(itinerary_data: dict) -> set:

@@ -211,6 +211,8 @@ def create_publication(
     activities: Optional[str] = Form(None),      # CSV: playa,gastronomía
     cost_per_day: Optional[float] = Form(None),  # ej: 80.0
     duration_min: Optional[int] = Form(None),   # ej: 7
+    available_days: Optional[str] = Form(None),  # CSV: lunes,martes,miércoles
+    available_hours: Optional[str] = Form(None), # CSV: 19:00,23:00
 
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_admin),
@@ -232,6 +234,8 @@ def create_publication(
     continent_norm  = _norm_continent(continent)
     climate_norm    = _norm_climate(climate)
     activities_list = _csv_to_list(activities)
+    available_days_list = _csv_to_list(available_days)
+    available_hours_list = _csv_to_list(available_hours)
 
     # Crear con campos siempre presentes
     pub = models.Publication(
@@ -261,6 +265,10 @@ def create_publication(
         pub.cost_per_day = cost_per_day
     if hasattr(pub, "duration_min"):
         pub.duration_min = duration_min
+    if hasattr(pub, "available_days"):
+        pub.available_days = available_days_list
+    if hasattr(pub, "available_hours"):
+        pub.available_hours = available_hours_list
 
     # categorías (opc)
     slugs: List[str] = []
@@ -340,6 +348,8 @@ def submit_publication(
     activities: Optional[str] = Form(None),        # CSV: playa,gastronomía
     cost_per_day: Optional[float] = Form(None),    # ej: 80.0
     duration_min: Optional[int] = Form(None),     # ej: 7
+    available_days: Optional[str] = Form(None),    # CSV: lunes,martes,miércoles
+    available_hours: Optional[str] = Form(None),   # CSV: 19:00,23:00
 
     photos: Optional[List[UploadFile]] = File(None),
 
@@ -364,6 +374,8 @@ def submit_publication(
     continent_norm  = _norm_continent(continent)
     climate_norm    = _norm_climate(climate)
     activities_list = _csv_to_list(activities)
+    available_days_list = _csv_to_list(available_days)
+    available_hours_list = _csv_to_list(available_hours)
 
     # crear publicación PENDING
     pub = models.Publication(
@@ -385,6 +397,8 @@ def submit_publication(
         activities=activities_list if hasattr(models.Publication, "activities") else None,
         cost_per_day=cost_per_day if hasattr(models.Publication, "cost_per_day") else None,
         duration_min=duration_min if hasattr(models.Publication, "duration_min") else None,
+        available_days=available_days_list if hasattr(models.Publication, "available_days") else None,
+        available_hours=available_hours_list if hasattr(models.Publication, "available_hours") else None,
     )
     if hasattr(models.Publication, "number"):
         setattr(pub, "number", number)
@@ -617,6 +631,8 @@ def search_publications(
                 activities=p.activities,
                 cost_per_day=p.cost_per_day,
                 duration_min=p.duration_min,
+                available_days=p.available_days,
+                available_hours=p.available_hours,
                 is_favorite=p.id in favorite_ids,
             )
         )

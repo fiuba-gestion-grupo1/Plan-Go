@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { request } from '../utils/api';
+import { PublicationAvailability, DurationBadge } from '../components/shared/AvailabilityComponents';
 
 export default function CustomItinerary({ me, token }) {
   const [step, setStep] = useState('setup'); // 'setup' | 'building'
@@ -115,30 +116,155 @@ export default function CustomItinerary({ me, token }) {
     setStep('building');
   }
 
-  // Agregar publicación a un slot
+  // Convertir tiempo a minutos desde medianoche
+  const timeToMinutes = (timeStr) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  // Convertir minutos a formato HH:MM
+  const minutesToTime = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  };
+
+  // Obtener todos los slots de tiempo en orden
+  const getAllTimeSlots = () => {
+    return [...timeSlots.morning, ...timeSlots.afternoon, ...timeSlots.evening];
+  };
+
+  // Calcular slots que debe ocupar una actividad según su duración
+  const calculateOccupiedSlots = (startTime, durationMinutes) => {
+    const allSlots = getAllTimeSlots();
+    const startIndex = allSlots.indexOf(startTime);
+    if (startIndex === -1) return [startTime];
+
+    const slotsNeeded = Math.ceil(durationMinutes / 30); // Cada slot es de 30 min
+    const occupiedSlots = [];
+    
+    for (let i = 0; i < slotsNeeded && (startIndex + i) < allSlots.length; i++) {
+      occupiedSlots.push(allSlots[startIndex + i]);
+    }
+    
+    return occupiedSlots;
+  };
+
+  // Determinar período de un tiempo específico
+  const getPeriodForTime = (time) => {
+    if (timeSlots.morning.includes(time)) return 'morning';
+    if (timeSlots.afternoon.includes(time)) return 'afternoon';
+    if (timeSlots.evening.includes(time)) return 'evening';
+    return 'morning'; // default
+  };
+
+  // Calcular duración inteligente basada en categorías
+  const getSmartDuration = (publication) => {
+    if (publication.duration_min && publication.duration_min > 0) {
+      return publication.duration_min;
+    }
+
+    // Duraciones por defecto basadas en categorías comunes
+    const categories = publication.categories || [];
+    const categoryDurations = {
+      'museo': 180,        // 3 horas
+      'restaurante': 90,   // 1.5 horas  
+      'teatro': 150,       // 2.5 horas
+      'cine': 120,         // 2 horas
+      'parque': 240,       // 4 horas
+      'playa': 300,        // 5 horas
+      'shopping': 180,     // 3 horas
+      'mercado': 120,      // 2 horas
+      'iglesia': 60,       // 1 hora
+      'mirador': 90,       // 1.5 horas
+      'bar': 120,          // 2 horas
+      'cafe': 60,          // 1 hora
+      'aventura': 240,     // 4 horas
+      'deportes': 180,     // 3 horas
+      'spa': 180,          // 3 horas
+      'cultura': 150,      // 2.5 horas
+      'gastronomia': 90,   // 1.5 horas
+      'vida-nocturna': 180 // 3 horas
+    };
+
+    // Buscar duración basada en categorías
+    for (const category of categories) {
+      const categoryLower = (typeof category === 'string' ? category : category.slug || category.name || '').toLowerCase();
+      if (categoryDurations[categoryLower]) {
+        return categoryDurations[categoryLower];
+      }
+    }
+
+    // Duración por defecto
+    return 120; // 2 horas
+  };
+
+  // Agregar publicación a un slot (actualizado para usar duración inteligente)
   function addPublicationToSlot(publication) {
     if (!selectedSlot) return;
 
     const { dayKey, period, time } = selectedSlot;
     
-    setItineraryData(prev => ({
-      ...prev,
-      itinerary: {
-        ...prev.itinerary,
-        [dayKey]: {
-          ...prev.itinerary[dayKey],
-          [period]: {
-            ...prev.itinerary[dayKey][period],
-            [time]: publication
-          }
-        }
-      }
-    }));
+    // Calcular duración usando lógica inteligente
+    const durationMinutes = getSmartDuration(publication);
+    const occupiedSlots = calculateOccupiedSlots(time, durationMinutes);
+    
+    // Verificar si hay conflictos con actividades existentes
+    const hasConflict = occupiedSlots.some(slotTime => {
+      const slotPeriod = getPeriodForTime(slotTime);
+      return itineraryData.itinerary[dayKey][slotPeriod][slotTime] !== null;
+    });
 
-    setSelectedPublications(prev => ({
-      ...prev,
-      [`${dayKey}-${period}-${time}`]: publication
-    }));
+    if (hasConflict) {
+      alert('Esta actividad se superpone con otra ya programada. Por favor, elige otro horario.');
+      return;
+    }
+
+    // Agregar la actividad principal al slot seleccionado
+    const activityData = {
+      ...publication,
+      duration_min: durationMinutes,
+      start_time: time,
+      is_main_slot: true
+    };
+
+    // Marcar todos los slots ocupados
+    setItineraryData(prev => {
+      const newItinerary = { ...prev.itinerary };
+      
+      occupiedSlots.forEach(slotTime => {
+        const slotPeriod = getPeriodForTime(slotTime);
+        newItinerary[dayKey] = {
+          ...newItinerary[dayKey],
+          [slotPeriod]: {
+            ...newItinerary[dayKey][slotPeriod],
+            [slotTime]: slotTime === time ? activityData : {
+              ...publication,
+              duration_min: durationMinutes,
+              start_time: time,
+              is_continuation: true,
+              main_slot_time: time
+            }
+          }
+        };
+      });
+      
+      return { ...prev, itinerary: newItinerary };
+    });
+
+    // Actualizar selected publications para todos los slots ocupados
+    setSelectedPublications(prev => {
+      const newSelected = { ...prev };
+      occupiedSlots.forEach(slotTime => {
+        const slotPeriod = getPeriodForTime(slotTime);
+        newSelected[`${dayKey}-${slotPeriod}-${slotTime}`] = slotTime === time ? activityData : {
+          ...publication,
+          is_continuation: true,
+          main_slot_time: time
+        };
+      });
+      return newSelected;
+    });
 
     setShowPublicationModal(false);
     setSelectedSlot(null);
@@ -146,25 +272,73 @@ export default function CustomItinerary({ me, token }) {
 
   // Remover publicación de un slot
   function removePublicationFromSlot(dayKey, period, time) {
-    setItineraryData(prev => ({
-      ...prev,
-      itinerary: {
-        ...prev.itinerary,
-        [dayKey]: {
-          ...prev.itinerary[dayKey],
-          [period]: {
-            ...prev.itinerary[dayKey][period],
-            [time]: null
+    const currentActivity = itineraryData.itinerary[dayKey][period][time];
+    if (!currentActivity) return;
+
+    // Determinar el tiempo de inicio principal
+    const mainStartTime = currentActivity.is_continuation ? currentActivity.main_slot_time : time;
+    
+    // Si es una continuación, encontrar la actividad principal
+    let mainActivity = currentActivity;
+    if (currentActivity.is_continuation) {
+      // Buscar la actividad principal
+      const mainPeriod = getPeriodForTime(mainStartTime);
+      mainActivity = itineraryData.itinerary[dayKey][mainPeriod][mainStartTime];
+    }
+
+    if (mainActivity && mainActivity.duration_min) {
+      // Calcular todos los slots ocupados por esta actividad
+      const occupiedSlots = calculateOccupiedSlots(mainStartTime, mainActivity.duration_min);
+      
+      // Limpiar todos los slots ocupados
+      setItineraryData(prev => {
+        const newItinerary = { ...prev.itinerary };
+        
+        occupiedSlots.forEach(slotTime => {
+          const slotPeriod = getPeriodForTime(slotTime);
+          newItinerary[dayKey] = {
+            ...newItinerary[dayKey],
+            [slotPeriod]: {
+              ...newItinerary[dayKey][slotPeriod],
+              [slotTime]: null
+            }
+          };
+        });
+        
+        return { ...prev, itinerary: newItinerary };
+      });
+
+      // Actualizar selected publications
+      setSelectedPublications(prev => {
+        const newSelected = { ...prev };
+        occupiedSlots.forEach(slotTime => {
+          const slotPeriod = getPeriodForTime(slotTime);
+          delete newSelected[`${dayKey}-${slotPeriod}-${slotTime}`];
+        });
+        return newSelected;
+      });
+    } else {
+      // Remover solo el slot actual (actividad sin duración)
+      setItineraryData(prev => ({
+        ...prev,
+        itinerary: {
+          ...prev.itinerary,
+          [dayKey]: {
+            ...prev.itinerary[dayKey],
+            [period]: {
+              ...prev.itinerary[dayKey][period],
+              [time]: null
+            }
           }
         }
-      }
-    }));
+      }));
 
-    setSelectedPublications(prev => {
-      const newSelected = { ...prev };
-      delete newSelected[`${dayKey}-${period}-${time}`];
-      return newSelected;
-    });
+      setSelectedPublications(prev => {
+        const newSelected = { ...prev };
+        delete newSelected[`${dayKey}-${period}-${time}`];
+        return newSelected;
+      });
+    }
   }
 
   // Formatear fecha para mostrar
@@ -196,7 +370,15 @@ export default function CustomItinerary({ me, token }) {
       });
 
       alert('¡Itinerario personalizado guardado exitosamente!');
-      // Reset o navegar a lista de itinerarios
+      
+      // Resetear para comenzar un nuevo itinerario o navegar
+      setStep('setup');
+      setDestination('');
+      setStartDate('');
+      setEndDate('');
+      setItineraryData(null);
+      setSelectedPublications({});
+      setError('');
     } catch (e) {
       setError('Error al guardar el itinerario');
       console.error(e);
@@ -351,15 +533,15 @@ export default function CustomItinerary({ me, token }) {
                           
                           return (
                             <div key={time} className="col-md-6 col-lg-4">
-                              <div className="card border-light h-100">
+                              <div className={`card h-100 ${publication ? (publication.is_continuation ? 'border-warning bg-warning bg-opacity-10' : 'border-success bg-light') : 'border-light'}`}>
                                 <div className="card-body p-3">
                                   <div className="d-flex align-items-center justify-content-between mb-2">
                                     <strong className="text-primary">{time}</strong>
-                                    {publication && (
+                                    {publication && !publication.is_continuation && (
                                       <button
                                         className="btn btn-sm btn-outline-danger"
                                         onClick={() => removePublicationFromSlot(dayKey, period, time)}
-                                        title="Remover actividad"
+                                        title="Remover actividad completa"
                                       >
                                         ×
                                       </button>
@@ -368,12 +550,42 @@ export default function CustomItinerary({ me, token }) {
                                   
                                   {publication ? (
                                     <div>
-                                      <div className="mb-1">
-                                        <strong>{publication.place_name}</strong>
-                                      </div>
-                                      <small className="text-muted">
-                                        📍 {publication.address}
-                                      </small>
+                                      {publication.is_continuation ? (
+                                        <div className="text-center text-muted">
+                                          <small>
+                                            <em>↳ Continuación de:</em>
+                                            <br />
+                                            <strong>{publication.place_name}</strong>
+                                            <br />
+                                            <small>Inicio: {publication.start_time || publication.main_slot_time}</small>
+                                          </small>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <div className="mb-1">
+                                            <strong>{publication.place_name}</strong>
+                                          </div>
+                                          <small className="text-muted">
+                                            📍 {publication.address}
+                                          </small>
+                                          {publication.duration_min && (
+                                            <div className="mt-1">
+                                              <span className="badge bg-info text-white">
+                                                {Math.floor(publication.duration_min / 60)}h {publication.duration_min % 60}m
+                                              </span>
+                                            </div>
+                                          )}
+                                          {publication.categories && publication.categories.length > 0 && (
+                                            <div className="mt-1">
+                                              {publication.categories.slice(0, 2).map(cat => (
+                                                <span key={cat} className="badge bg-secondary me-1 small">
+                                                  {cat}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </>
+                                      )}
                                     </div>
                                   ) : (
                                     <div className="text-center">
@@ -436,24 +648,49 @@ export default function CustomItinerary({ me, token }) {
                       {availablePublications.map(pub => (
                         <div key={pub.id} className="col-md-6">
                           <div 
-                            className="card h-100 border-primary"
+                            className="card h-100 border-primary hover-card"
                             style={{ cursor: 'pointer' }}
                             onClick={() => addPublicationToSlot(pub)}
                           >
+                            {pub.photos && pub.photos.length > 0 && (
+                              <img 
+                                src={pub.photos[0]} 
+                                className="card-img-top"
+                                alt={pub.place_name}
+                                style={{ height: '150px', objectFit: 'cover' }}
+                              />
+                            )}
                             <div className="card-body">
                               <h6 className="card-title">{pub.place_name}</h6>
                               <p className="card-text small text-muted mb-2">
                                 📍 {pub.address}
                               </p>
-                              {pub.categories && (
-                                <div>
-                                  {pub.categories.map(cat => (
-                                    <span key={cat} className="badge bg-secondary me-1">
-                                      {cat}
+                              <p className="card-text small mb-2">
+                                🌎 {pub.city}, {pub.province}, {pub.country}
+                              </p>
+                              {pub.rating_avg && pub.rating_avg > 0 && (
+                                <p className="card-text small mb-2">
+                                  ⭐ {pub.rating_avg.toFixed(1)} ({pub.rating_count || 0} reseñas)
+                                </p>
+                              )}
+                              {/* Mostrar duración estimada */}
+                              <DurationBadge durationMin={pub.duration_min} />
+                              {pub.categories && pub.categories.length > 0 && (
+                                <div className="mb-2">
+                                  {pub.categories.map((cat, idx) => (
+                                    <span key={idx} className="badge bg-secondary me-1">
+                                      {typeof cat === 'string' ? cat : cat.name || cat.slug}
                                     </span>
                                   ))}
                                 </div>
                               )}
+                              {/* Información de disponibilidad */}
+                              <PublicationAvailability publication={pub} />
+                            </div>
+                            <div className="card-footer text-center">
+                              <small className="text-primary">
+                                Haz clic para agregar
+                              </small>
                             </div>
                           </div>
                         </div>
@@ -481,5 +718,20 @@ export default function CustomItinerary({ me, token }) {
     );
   }
 
-  return null;
+  return (
+    <>
+      {/* El resto del componente estará aquí */}
+      <style>{`
+        .hover-card {
+          transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        
+        .hover-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+        }
+      `}</style>
+      {null}
+    </>
+  );
 }

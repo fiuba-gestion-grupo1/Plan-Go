@@ -296,6 +296,8 @@ def add_premium_publications(db: Session):
             "activities": ["gastronomia", "ciudad", "romance", "vista_panoramica"],
             "cost_per_day": None,  # Varía según consumo
             "duration_min": None,  
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["17:30-23:30"],
             "images": ["terraza_prmeium_1.jpg", "terraza_prmeium_2.jpg"],
             "reviews": [
                 (5, "Vista increíble de Puerto Madero. La cena fue perfecta para nuestro aniversario."),
@@ -314,6 +316,8 @@ def add_premium_publications(db: Session):
             "activities": ["gastronomia", "vinos", "cultura", "relax"],
             "cost_per_day": None,  # Varía según consumo
             "duration_min": None,  
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["11:30-23:30"],
             "images": ["wine_club_1.jpg", "wine_club_2.jpg"],
             "reviews": [
                 (5, "El sommelier conoce cada etiqueta de memoria. Los maridajes son perfectos."),
@@ -332,6 +336,8 @@ def add_premium_publications(db: Session):
             "activities": ["gastronomia", "familia", "tradicion", "carnes"],
             "cost_per_day": None,  # Varía según consumo
             "duration_min": None,  
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["11:30-23:30"],
             "images": ["asado_porteno_1.jpg", "asado_porteno_2.jpg"],
             "reviews": [
                 (5, "El mejor bife de chorizo que probé en años. La parrilla se ve desde la mesa, espectáculo incluido."),
@@ -350,6 +356,8 @@ def add_premium_publications(db: Session):
             "activities": ["cafe", "arte", "cultura", "trabajo", "reunion"],
             "cost_per_day": None,  # Varía según consumo
             "duration_min": None,  
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["08:00-11:30", "14:00-20:00"],
             "images": ["cafe_artistas_1.jpg", "cafe_artistas_2.jpg"],
             "reviews": [
                 (5, "Perfecto para trabajar con laptop. WiFi excelente y el café está buenísimo."),
@@ -370,6 +378,8 @@ def add_premium_publications(db: Session):
             "activities": ["spa", "lujo", "relax", "ciudad", "cultura"],
             "cost_per_day": None,
             "duration_min": None, 
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["00:00-23:59"],
             "images": ["grand_palace_1.jpg", "grand_palace_2.jpg"],
             "reviews": [
                 (5, "Lujo absoluto en el corazón de Recoleta. El spa es de otro nivel, relajación total."),
@@ -388,6 +398,8 @@ def add_premium_publications(db: Session):
             "activities": ["cultura", "historia", "tradicion", "turismo", "relax"],
             "cost_per_day": None,
             "duration_min": None,
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["00:00-23:59"],
             "images": ["boutique_pampa_1.jpg", "boutique_pampa_2.jpg"],
             "reviews": [
                 (5, "Decoración auténtica con arte regional salteño. Cada habitación cuenta una historia."),
@@ -406,6 +418,8 @@ def add_premium_publications(db: Session):
             "activities": ["montaña", "naturaleza", "romance", "familia", "aventura", "relax"],
             "cost_per_day": None,
             "duration_min": None,
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_hours": ["00:00-23:59"],
             "images": ["mountain_resort_1.jpg", "mountain_resort_2.jpg"],
             "reviews": [
                 (5, "Despertar con vista a las montañas nevadas no tiene precio. Resort familiar pero también romántico."),
@@ -425,7 +439,9 @@ def add_premium_publications(db: Session):
             "continent": "américa", "climate": "templado",
             "activities": ["educacion", "familia", "ciencia", "tecnologia", "interactivo"],
             "cost_per_day": 25,
-            "duration_min": None,  # Visita promedio 4 horas
+            "duration_min": None,  
+             "available_days": ["martes", "miércoles", "viernes", "sábado", "domingo"],  
+            "available_hours": ["11:00-21:00"],
             "images": ["museo_ciencias_1.jpeg", "museo_ciencias_2.jpeg"],
             "reviews": [
                 (5, "Los niños se divirtieron tanto que no se querían ir. Aprendieron jugando, una maravilla."),
@@ -443,7 +459,9 @@ def add_premium_publications(db: Session):
             "continent": "américa", "climate": "templado",
             "activities": ["aventura", "deportes", "naturaleza", "familia", "adrenalina"],
             "cost_per_day": 35,
-            "duration_min": None,  # Actividades promedio 5 horas
+            "duration_min": None,  
+             "available_days": ["martes", "miércoles", "viernes", "sábado"],  
+            "available_hours": ["11:00-21:00"],
             "images": ["parque_aventura_1.jpg", "parque_aventura_2.jpg"],
             "reviews": [
                 (5, "¡Adrenalina pura! La tirolesa sobre el lago es espectacular. Súper seguro y organizado."),
@@ -462,6 +480,8 @@ def add_premium_publications(db: Session):
             "activities": ["gastronomia", "cultura", "ciudad", "tour", "enologia"],
             "cost_per_day": 75,  # Precio fijo del tour incluye todo
             "duration_min": 240,  # Tour promedio 4 horas
+            "available_days": ["lunes", "miércoles", "viernes", "sábado"],  
+            "available_hours": ["11:00-21:00"],
             "images": ["tour_gastro_1.jpg", "tour_gastro_2.jpg"],
             "reviews": [
                 (5, "Conocimos rincones gastronómicos que jamás hubiésemos encontrado solos. El chef guía es un genio."),

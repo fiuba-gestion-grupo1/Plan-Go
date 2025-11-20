@@ -1,6 +1,7 @@
 import React from "react";
 import PhotoCarousel from "./PhotoCarousel";
 import { StatusBadge, RatingBadge } from "./UIComponents";
+import { PublicationAvailability } from "./AvailabilityComponents";
 
 /**
  * Componente de tarjeta de publicación reutilizable
@@ -58,6 +59,9 @@ export default function PublicationCard({
             {showActions && actions}
           </div>
         </div>
+
+        {/* Información de disponibilidad */}
+        <PublicationAvailability publication={p} />
       </div>
 
       {/* Carrusel de fotos */}
