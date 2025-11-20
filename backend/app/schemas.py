@@ -20,6 +20,7 @@ class UserCreate(BaseModel):
     security_answer_1: str
     security_question_2: str
     security_answer_2: str
+    invitation_code: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -299,6 +300,35 @@ class ItineraryOut(BaseModel):
     status: str
     created_at: datetime  # 👈 CAMBIO: datetime en vez de str
     publications: List[PublicationOut] = []  # Lista de publicaciones utilizadas
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+        class Config:
+            orm_mode = True
+
+
+class SavedItineraryRequest(BaseModel):
+    original_itinerary_id: int
+
+
+class SavedItineraryOut(BaseModel):
+    id: int
+    user_id: int
+    original_itinerary_id: int
+    destination: str
+    start_date: date
+    end_date: date
+    budget: int
+    cant_persons: int
+    trip_type: str
+    arrival_time: Optional[str] = None
+    departure_time: Optional[str] = None
+    comments: Optional[str] = None
+    generated_itinerary: Optional[str] = None
+    original_author_id: Optional[int] = None
+    saved_at: datetime
+    publications: List[PublicationOut] = []
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
