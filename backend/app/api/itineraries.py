@@ -39,7 +39,32 @@ def build_itinerary_prompt(
 ) -> str:
     """Construye el prompt para la IA basado en los parámetros del usuario y las publicaciones disponibles"""
     
-    # Construir lista de lugares/actividades disponibles CON DISPONIBILIDAD
+    # Construir JSON de publicaciones disponibles para la IA
+    publications_json = []
+    for pub in publications:
+        pub_data = {
+            "id": pub.id,
+            "place_name": pub.place_name,
+            "address": pub.address or "",
+            "city": pub.city or "",
+            "province": pub.province or "",
+            "country": pub.country or "",
+            "description": pub.description or "",
+            "rating_avg": float(pub.rating_avg or 0),
+            "rating_count": int(pub.rating_count or 0),
+            "categories": [cat.slug for cat in (pub.categories or [])],
+            "duration_min": pub.duration_min or 120,  # 2 horas por defecto
+            "available_days": pub.available_days if hasattr(pub, 'available_days') and pub.available_days else ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
+            "available_hours": pub.available_hours if hasattr(pub, 'available_hours') and pub.available_hours else ["09:00-18:00"],
+            "cost_per_day": pub.cost_per_day or 0
+        }
+        publications_json.append(pub_data)
+    
+    # Convertir a JSON string para el prompt
+    import json
+    publications_json_str = json.dumps(publications_json, ensure_ascii=False, indent=2)
+    
+    # Lista resumida para lectura humana (mantener para compatibilidad)
     places_info = []
     for pub in publications:
         place_details = f"- ID:{pub.id} | {pub.place_name}"
@@ -51,7 +76,7 @@ def build_itinerary_prompt(
             cats = ", ".join([cat.slug for cat in pub.categories])
             place_details += f" - Categorías: {cats}"
         
-        # NUEVA: Información de duración
+        # Información de duración
         if hasattr(pub, 'duration_min') and pub.duration_min:
             if pub.duration_min < 60:
                 place_details += f" - Duración: {pub.duration_min} min"
@@ -59,17 +84,17 @@ def build_itinerary_prompt(
                 hours = pub.duration_min / 60
                 place_details += f" - Duración: {hours:.1f}h"
         
-        # NUEVA: Días disponibles
+        # Días disponibles
         if hasattr(pub, 'available_days') and pub.available_days:
             days_str = ", ".join(pub.available_days)
             place_details += f" - Días: {days_str}"
         
-        # NUEVA: Horarios disponibles
+        # Horarios disponibles
         if hasattr(pub, 'available_hours') and pub.available_hours:
             hours_str = ", ".join(pub.available_hours)
             place_details += f" - Horarios: {hours_str}"
         
-        # NUEVA: Costo por día si está disponible
+        # Costo por día si está disponible
         if hasattr(pub, 'cost_per_day') and pub.cost_per_day:
             place_details += f" - Costo: US${pub.cost_per_day}/día"
         
@@ -113,15 +138,19 @@ Estilo: {trip_type}.
         warning_message = f"\n⚠️ IMPORTANTE: Solo hay {num_places} lugar(es) disponible(s) para este destino, pero el viaje es de {total_days} días. GENERA SOLO {days_to_generate} DÍA(S) DE ITINERARIO (1 día por cada lugar disponible).\n"
     
     prompt += f"""
-LUGARES Y ACTIVIDADES DISPONIBLES (DEBES USAR SOLO ESTOS):
+LUGARES Y ACTIVIDADES DISPONIBLES (JSON COMPLETO):
+{publications_json_str}
+
+RESUMEN DE LUGARES (para referencia rápida):
 {places_list}
 {warning_message}
+
 RESTRICCIONES CRÍTICAS - VALIDACIÓN DE DISPONIBILIDAD:
 - SOLO podés usar los lugares listados arriba con sus IDs. No inventes lugares ni uses información externa.
-- OBLIGATORIO: Respeta los días disponibles de cada publicación (ejemplo: si dice "Días: lunes, martes, viernes" NO lo uses miércoles/jueves).
-- OBLIGATORIO: Respeta los horarios disponibles de cada publicación (ejemplo: si dice "Horarios: 09:00-12:00, 14:00-17:00" NO lo uses a las 13:00).
-- OBLIGATORIO: Respeta la duración de cada actividad (si dice "Duración: 2h" planifica 2 horas, no más ni menos).
-- Calcula el costo total: si una publicación tiene costo, multiplica por cantidad de personas y días de uso.
+- OBLIGATORIO: Respeta los días disponibles de cada publicación (ejemplo: si dice "available_days": ["lunes", "martes", "viernes"] NO lo uses miércoles/jueves).
+- OBLIGATORIO: Respeta los horarios disponibles de cada publicación (ejemplo: si dice "available_hours": ["09:00-12:00", "14:00-17:00"] NO lo uses a las 13:00).
+- OBLIGATORIO: Respeta la duración de cada actividad (si dice "duration_min": 120 planifica 2 horas, no más ni menos).
+- Calcula el costo total: si una publicación tiene cost_per_day > 0, multiplica por cantidad de personas y días de uso.
 - El costo total de TODAS las actividades NO puede exceder el presupuesto de US${budget}.
 - Si hay {num_places} lugar(es) disponible(s) y el viaje dura {total_days} días, GENERA SOLO {days_to_generate} DÍA(S) DE ITINERARIO.
 
@@ -129,11 +158,11 @@ FORMATO DE SALIDA OBLIGATORIO - DEBES DEVOLVER EXACTAMENTE ESTO:
 
 ```json
 {{
-  "itinerary_text": "═══════════════════════════════════════════════════\\nDÍA 1 - [FECHA]\\n═══════════════════════════════════════════════════\\n\\n🌅 MAÑANA (6:00 - 12:00)\\n• 08:00-10:00 - [Actividad en lugar] (ID: X)\\n• 10:30-12:00 - [Actividad en lugar] (ID: Y)\\n\\n🌞 TARDE (12:00 - 18:00)\\n• 12:30-14:00 - [Actividad en lugar] (ID: Z)\\n\\n🌙 NOCHE (18:00 - 23:00)\\n• 19:00-21:00 - [Actividad en lugar] (ID: W)\\n\\n[Repetir para más días si es necesario]",
+  "itinerary_text": "═══════════════════════════════════════════════════\\nDÍA 1 - [FECHA]\\n═══════════════════════════════════════════════════\\n\\n🌅 MAÑANA (6:00 - 12:00)\\n• 08:00-10:00 - Desayuno con vista al Sena en Ritz Paris (ID: X)\\n• 10:30-12:00 - Visita guiada por los jardines del Louvre (ID: Y)\\n\\n🌞 TARDE (12:00 - 18:00)\\n• 12:30-14:00 - Almuerzo gourmet en Le Procope (ID: Z)\\n\\n🌙 NOCHE (18:00 - 23:00)\\n• 19:00-21:00 - Cena romántica con vista nocturna en Torre Eiffel (ID: W)\\n\\n[Repetir para más días si es necesario]",
   "used_publications": [
     {{
       "id": X,
-      "name": "Nombre del lugar",
+      "name": "Nombre completo del lugar",
       "times_used": 1,
       "total_cost": 50,
       "days_used": ["2024-12-01"],
@@ -141,7 +170,7 @@ FORMATO DE SALIDA OBLIGATORIO - DEBES DEVOLVER EXACTAMENTE ESTO:
     }},
     {{
       "id": Y,
-      "name": "Otro lugar",
+      "name": "Otro lugar completo",
       "times_used": 2,
       "total_cost": 100,
       "days_used": ["2024-12-01", "2024-12-02"],
@@ -153,12 +182,19 @@ FORMATO DE SALIDA OBLIGATORIO - DEBES DEVOLVER EXACTAMENTE ESTO:
 }}
 ```
 
+INSTRUCCIONES PARA EL TEXTO DEL ITINERARIO:
+- En el "itinerary_text", puedes escribir descripciones creativas y atractivas de las actividades
+- Ejemplo: "Desayuno con vista al Sena en Ritz Paris" en lugar de solo "Ritz Paris"  
+- Ejemplo: "Cena romántica con vista nocturna en Torre Eiffel" en lugar de solo "Torre Eiffel"
+- SIEMPRE incluye el ID entre paréntesis al final: (ID: X)
+- Las descripciones deben ser inspiradoras y específicas del lugar
+
 VALIDACIONES OBLIGATORIAS:
 1. Verifica que cada publicación usada esté disponible en los días programados
 2. Verifica que cada publicación usada esté disponible en los horarios programados  
 3. Calcula el costo real basado en cost_per_day × cant_persons × días_usados
 4. Asegúrate que total_cost ≤ presupuesto
-5. Incluye el ID de cada publicación en el texto del itinerario con formato: (ID: X)
+5. En "used_publications", incluye TODAS las publicaciones mencionadas en el itinerario con sus IDs exactos
 
 IMPORTANTE: 
 - Devuelve SOLO el JSON, sin texto adicional antes o después
@@ -968,6 +1004,22 @@ def convert_ai_to_custom_itinerary(
             "itinerary": {}
         }
         
+        # NUEVA LÓGICA: Parsear el texto de IA para extraer las actividades con sus horarios reales
+        print(f"[CONVERT] Parseando texto generado por IA...")
+        
+        # Obtener las publicaciones que usó la IA (IDs guardados en la DB)
+        publication_ids = ai_itinerary.publication_ids or []
+        print(f"[CONVERT] Publication IDs guardados: {publication_ids}")
+        
+        # Crear un mapa de publicaciones por ID para acceso rápido
+        publications_map = {}
+        if publication_ids:
+            used_publications = db.query(models.Publication).filter(
+                models.Publication.id.in_(publication_ids)
+            ).all()
+            publications_map = {pub.id: pub for pub in used_publications}
+            print(f"[CONVERT] Publicaciones cargadas: {len(publications_map)}")
+        
         # Inicializar estructura de días vacía
         for day in days:
             day_key = f"day_{day['day_number']}"
@@ -977,8 +1029,252 @@ def convert_ai_to_custom_itinerary(
                 "evening": {}
             }
         
+        # Parsear el texto de la IA para extraer actividades y horarios
+        ai_text = ai_itinerary.generated_itinerary or ""
+        print(f"[CONVERT] Parseando {len(ai_text)} caracteres de texto de IA...")
+        
+        # Extraer actividades del texto usando regex
+        import re
+        
+        # Patrón para extraer líneas de actividades con horarios y IDs de publicación
+        # Busca: • HH:MM-HH:MM - [Descripción] (ID: XX)
+        activity_pattern = r'• (\d{2}:\d{2})-(\d{2}:\d{2}) - ([^(]+)(?:\(ID:\s*(\d+)\))?'
+        
+        # Patrón para detectar días
+        day_pattern = r'DÍA (\d+) - ([^═\n]+)'
+        
+        lines = ai_text.split('\n')
+        current_day = None
+        current_period = None
+        
+        # Mapeo de horarios a períodos
+        def get_period_for_time(time_str):
+            hour = int(time_str.split(':')[0])
+            if 6 <= hour < 12:
+                return 'morning'
+            elif 12 <= hour < 18:
+                return 'afternoon'
+            else:
+                return 'evening'
+        
+        def _time_to_minutes_local(time_str):
+            """Convierte un tiempo HH:MM a minutos desde medianoche"""
+            hours, minutes = map(int, time_str.split(':'))
+            return hours * 60 + minutes
+        
+        activities_found = 0
+        for line in lines:
+            line = line.strip()
+            
+            # Detectar nuevo día
+            day_match = re.search(day_pattern, line)
+            if day_match:
+                day_num = int(day_match.group(1))
+                current_day = f"day_{day_num}"
+                print(f"[CONVERT] Procesando {current_day}")
+                continue
+            
+            # Detectar período (opcional - puede venir del horario directamente)
+            if '🌅 MAÑANA' in line or 'MAÑANA' in line:
+                current_period = 'morning'
+                continue
+            elif '🌞 TARDE' in line or 'TARDE' in line:
+                current_period = 'afternoon'
+                continue
+            elif '🌙 NOCHE' in line or 'NOCHE' in line:
+                current_period = 'evening'
+                continue
+            
+            # Extraer actividad
+            activity_match = re.search(activity_pattern, line)
+            if activity_match and current_day:
+                start_time = activity_match.group(1)
+                end_time = activity_match.group(2)
+                description = activity_match.group(3).strip()
+                pub_id_str = activity_match.group(4)
+                
+                # Determinar período basado en el horario si no está establecido
+                period = get_period_for_time(start_time)
+                
+                # Buscar la publicación correspondiente
+                pub_id = None
+                publication_data = None
+                
+                if pub_id_str:
+                    pub_id = int(pub_id_str)
+                    publication_data = publications_map.get(pub_id)
+                
+                # Si no tenemos ID, buscar por nombre en las publicaciones disponibles
+                if not publication_data:
+                    for pid, pub in publications_map.items():
+                        if pub.place_name.lower() in description.lower():
+                            pub_id = pid
+                            publication_data = pub
+                            break
+                
+                # Calcular duración en minutos basada en los horarios de la IA
+                start_minutes = _time_to_minutes_local(start_time)
+                end_minutes = _time_to_minutes_local(end_time)
+                actual_duration = end_minutes - start_minutes
+                
+                # Crear entrada de actividad principal
+                activity_entry = {
+                    "id": pub_id,
+                    "place_name": publication_data.place_name if publication_data else description,
+                    "address": publication_data.address if publication_data else "",
+                    "description": publication_data.description if publication_data else description,
+                    "duration_min": actual_duration,  # Usar duración real de la IA
+                    "categories": [cat.slug for cat in (publication_data.categories or [])] if publication_data else [],
+                    "cost_per_day": publication_data.cost_per_day if publication_data else None,
+                    "converted_from_ai": True,
+                    "original_text": description,
+                    "start_time": start_time,
+                    "end_time": end_time
+                }
+                
+                # Agregar la actividad al slot principal
+                if current_day in custom_structure["itinerary"]:
+                    custom_structure["itinerary"][current_day][period][start_time] = activity_entry
+                    activities_found += 1
+                    print(f"[CONVERT] ✓ {current_day}/{period}/{start_time}: {description[:50]}... (duración: {actual_duration}min)")
+                    
+                    # Si la actividad dura más de 30 minutos, agregar slots de continuación
+                    if actual_duration > 30:
+                        slots_needed = (actual_duration + 29) // 30  # Redondear hacia arriba
+                        
+                        # Generar todos los time slots disponibles para este período
+                        time_slots_for_period = {
+                            'morning': ['06:00', '06:30', '07:00', '07:30', '08:00', '08:30', 
+                                       '09:00', '09:30', '10:00', '10:30', '11:00', '11:30'],
+                            'afternoon': ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+                                         '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'],
+                            'evening': ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
+                                       '21:00', '21:30', '22:00', '22:30', '23:00', '23:30']
+                        }
+                        
+                        available_slots = time_slots_for_period.get(period, [])
+                        start_slot_index = available_slots.index(start_time) if start_time in available_slots else -1
+                        
+                        if start_slot_index >= 0:
+                            # Agregar slots de continuación
+                            for slot_offset in range(1, slots_needed):
+                                continuation_slot_index = start_slot_index + slot_offset
+                                
+                                if continuation_slot_index < len(available_slots):
+                                    continuation_time = available_slots[continuation_slot_index]
+                                    
+                                    # Crear entrada de continuación
+                                    continuation_entry = {
+                                        "id": pub_id,
+                                        "place_name": publication_data.place_name if publication_data else description,
+                                        "is_continuation": True,
+                                        "main_slot_time": start_time,
+                                        "start_time": start_time,
+                                        "end_time": end_time,
+                                        "converted_from_ai": True,
+                                        "continuation_of": start_time
+                                    }
+                                    
+                                    custom_structure["itinerary"][current_day][period][continuation_time] = continuation_entry
+                                    print(f"[CONVERT]   + Continuación en {continuation_time}")
+                                else:
+                                    # Si se agota el período, intentar continuar en el siguiente
+                                    next_period = None
+                                    if period == 'morning':
+                                        next_period = 'afternoon'
+                                    elif period == 'afternoon':
+                                        next_period = 'evening'
+                                    
+                                    if next_period and next_period in time_slots_for_period:
+                                        next_slots = time_slots_for_period[next_period]
+                                        overflow_slots = continuation_slot_index - len(available_slots)
+                                        
+                                        if overflow_slots < len(next_slots):
+                                            continuation_time = next_slots[overflow_slots]
+                                            
+                                            continuation_entry = {
+                                                "id": pub_id,
+                                                "place_name": publication_data.place_name if publication_data else description,
+                                                "is_continuation": True,
+                                                "main_slot_time": start_time,
+                                                "start_time": start_time,
+                                                "end_time": end_time,
+                                                "converted_from_ai": True,
+                                                "continuation_of": start_time,
+                                                "period_overflow": True
+                                            }
+                                            
+                                            custom_structure["itinerary"][current_day][next_period][continuation_time] = continuation_entry
+                                            print(f"[CONVERT]   + Continuación en {next_period}/{continuation_time}")
+        
+        print(f"[CONVERT] Actividades extraídas: {activities_found}")
+        
+        # Si no se encontraron actividades en el parsing, usar distribución simple como fallback
+        if activities_found == 0 and publications_map:
+            print(f"[CONVERT] No se pudieron parsear actividades, usando distribución simple...")
+            
+            # Distribución simple como fallback
+            publications_list = list(publications_map.values())
+            publications_per_day = len(publications_list) // total_days
+            extra_publications = len(publications_list) % total_days
+            
+            time_slots = {
+                'morning': ['08:00', '09:30', '11:00'],
+                'afternoon': ['12:30', '14:00', '15:30'], 
+                'evening': ['19:00', '20:30', '22:00']
+            }
+            
+            pub_index = 0
+            for day_index, day in enumerate(days):
+                day_key = f"day_{day['day_number']}"
+                
+                pubs_for_this_day = publications_per_day
+                if day_index < extra_publications:
+                    pubs_for_this_day += 1
+                
+                period_keys = ['morning', 'afternoon', 'evening']
+                for i in range(pubs_for_this_day):
+                    if pub_index >= len(publications_list):
+                        break
+                        
+                    pub = publications_list[pub_index]
+                    
+                    period_index = i % len(period_keys)
+                    period = period_keys[period_index]
+                    time_index = i // len(period_keys)
+                    
+                    if time_index < len(time_slots[period]):
+                        time_slot = time_slots[period][time_index]
+                        
+                        custom_structure["itinerary"][day_key][period][time_slot] = {
+                            "id": pub.id,
+                            "place_name": pub.place_name,
+                            "address": pub.address or "",
+                            "description": pub.description or "",
+                            "duration_min": pub.duration_min or 120,
+                            "categories": [cat.slug for cat in (pub.categories or [])],
+                            "cost_per_day": pub.cost_per_day,
+                            "converted_from_ai": True
+                        }
+                        
+                        pub_index += 1
+        
         print(f"[CONVERT] Conversión exitosa para {destination}")
         print(f"[CONVERT] Estructura creada con {total_days} días")
+        
+        # Debug: Log final de la estructura convertida
+        print(f"[CONVERT] ==== ESTRUCTURA FINAL ====")
+        print(f"[CONVERT] Días en estructura: {len(custom_structure['itinerary'])}")
+        for day_key, day_data in custom_structure["itinerary"].items():
+            total_activities = sum(len(period) for period in day_data.values())
+            print(f"[CONVERT] {day_key}: {total_activities} actividades")
+            for period, activities in day_data.items():
+                if activities:
+                    print(f"[CONVERT]   {period}: {len(activities)} slots ocupados")
+                    for time, activity in activities.items():
+                        title = activity.get('place_name', 'Sin título') if isinstance(activity, dict) else str(activity)
+                        print(f"[CONVERT]     {time}: {title}")
+        print(f"[CONVERT] ========================")
         
         return {
             "success": True,

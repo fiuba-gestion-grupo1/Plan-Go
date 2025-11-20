@@ -402,15 +402,28 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
   function openReviews(p) { setCurrent(p); setOpen(true); }
 
   async function fetchMySubmissions() {
+    console.log('🔥🔥🔥 [URGENT] fetchMySubmissions INICIADA 🔥🔥🔥');
+    console.log('🔍 [DEBUG] Iniciando fetchMySubmissions...');
+    console.log('🔍 [DEBUG] Token:', token ? 'Presente' : 'Ausente');
+    console.log('🔍 [DEBUG] Token valor:', token);
+    
     setLoading(true);
     setError("");
     try {
+      console.log('🔍 [DEBUG] Haciendo request a /api/publications/my-submissions');
       const data = await request("/api/publications/my-submissions", { token });
+      console.log('🔍 [DEBUG] Respuesta recibida:', data);
+      console.log('🔍 [DEBUG] Tipo de respuesta:', typeof data, 'Es array:', Array.isArray(data));
+      console.log('🔍 [DEBUG] Cantidad de publicaciones:', data ? data.length : 'No es array');
+      
       setMyPubs(data);
+      console.log('🔍 [DEBUG] Estado myPubs actualizado');
     } catch (e) {
+      console.error('❌ [DEBUG] Error en fetchMySubmissions:', e);
       setError(e.message);
     } finally {
       setLoading(false);
+      console.log('🔍 [DEBUG] fetchMySubmissions completado');
     }
   }
 
@@ -1381,7 +1394,21 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
 }
 
 function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequestDeletion, setSubView }) {
-  React.useEffect(() => { onLoad(); }, []);
+  console.log('🔥 [URGENT DEBUG] MySubmissionsView montado - START');
+  
+  React.useEffect(() => { 
+    console.log('🔥 [URGENT DEBUG] useEffect ejecutándose - llamando onLoad');
+    onLoad(); 
+  }, []);
+
+  console.log('🔍 [DEBUG] MySubmissionsView renderizando...');
+  console.log('🔍 [DEBUG] Props recibidas:');
+  console.log('  - pubs:', pubs);
+  console.log('  - loading:', loading);
+  console.log('  - error:', error);
+  console.log('  - pubs tipo:', typeof pubs);
+  console.log('  - pubs es array:', Array.isArray(pubs));
+  console.log('  - pubs length:', pubs ? pubs.length : 'No tiene length');
 
   const [openDetailModal, setOpenDetailModal] = React.useState(false);
   const [currentPub, setCurrentPub] = React.useState(null);
