@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, DateTime, func, Date, Text,
-    ForeignKey, Table, Float, UniqueConstraint
+    ForeignKey, Table, Float, UniqueConstraint, Boolean
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
@@ -259,6 +259,79 @@ class Itinerary(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="itineraries")
+
+
+class SavedItinerary(Base):
+    __tablename__ = "saved_itineraries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)  # Usuario que guarda
+    original_itinerary_id = Column(Integer, ForeignKey("itineraries.id", ondelete="CASCADE"), nullable=False, index=True)  # Itinerario original
+    destination = Column(String, nullable=False)  # Copia de los datos principales
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    budget = Column(Integer, nullable=False)
+    cant_persons = Column(Integer, nullable=False)
+    trip_type = Column(String, nullable=False)
+    arrival_time = Column(String, nullable=True)
+    departure_time = Column(String, nullable=True)
+    comments = Column(Text, nullable=True)
+    generated_itinerary = Column(Text, nullable=True)
+    publication_ids = Column(JSON, nullable=True)
+    original_author_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # Autor original
+    saved_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", foreign_keys=[user_id], backref="saved_itineraries")
+    original_itinerary = relationship("Itinerary", foreign_keys=[original_itinerary_id])
+    original_author = relationship("User", foreign_keys=[original_author_id])
+
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    inviter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    invitee_email = Column(String, nullable=False, index=True)
+    invitation_code = Column(String, unique=True, nullable=False, index=True)
+    used = Column(Boolean, default=False, nullable=False)
+    invited_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    used_at = Column(DateTime(timezone=True), nullable=True)
+
+    inviter = relationship("User", foreign_keys=[inviter_id], backref="sent_invitations")
+    invited_user = relationship("User", foreign_keys=[invited_user_id])
+
+
+class PremiumBenefit(Base):
+    __tablename__ = "premium_benefits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)  # "10% descuento en consumos"
+    description = Column(Text, nullable=True)  # "Aplica en bebidas y comidas del menú principal"
+    discount_percentage = Column(Integer, nullable=True)  # 10, 15, 20, etc.
+    benefit_type = Column(String, nullable=False)  # "discount", "free_item", "upgrade", etc.
+    terms_conditions = Column(Text, nullable=True)  # "Válido solo de lunes a viernes"
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    publication = relationship("Publication", backref="premium_benefits")
+
+
+class UserBenefit(Base):
+    __tablename__ = "user_benefits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    benefit_id = Column(Integer, ForeignKey("premium_benefits.id", ondelete="CASCADE"), nullable=False, index=True)
+    points_cost = Column(Integer, nullable=False)  # Puntos que costó el beneficio
+    voucher_code = Column(String, unique=True, nullable=False, index=True)  # Código QR único
+    is_used = Column(Boolean, default=False, nullable=False)  # Si ya fue utilizado
+    obtained_at = Column(DateTime(timezone=True), server_default=func.now())
+    used_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", backref="obtained_benefits")
+    benefit = relationship("PremiumBenefit")
 
 
 class Expense(Base):
