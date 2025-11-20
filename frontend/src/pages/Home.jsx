@@ -1216,7 +1216,11 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                     </div>
 
                     <p className="card-text mt-2 mb-0">
-                      <span className="text-success fw-bold">${p.cost_per_day}</span>
+                      {p.cost_per_day ? (
+                        <span className="text-success fw-bold">${p.cost_per_day}</span>
+                      ) : (
+                        <span className="text-info fw-bold">El precio sujeto al consumo en el lugar</span>
+                      )}
                     </p>
                   </div>
 
@@ -1445,7 +1449,11 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                     </div>
 
                     <p className="card-text mt-2 mb-0">
-                      <span className="text-success fw-bold">${p.cost_per_day}</span>
+                      {p.cost_per_day ? (
+                        <span className="text-success fw-bold">${p.cost_per_day}</span>
+                      ) : (
+                        <span className="text-info fw-bold">El precio sujeto al consumo en el lugar</span>
+                      )}
                     </p>
                   </div>
 
@@ -1689,7 +1697,11 @@ function FavoritesView({
                       </div>
 
                       <p className="card-text mt-2 mb-0">
-                        <span className="text-success fw-bold">${p.cost_per_day}</span>
+                        {p.cost_per_day ? (
+                          <span className="text-success fw-bold">${p.cost_per_day}</span>
+                        ) : (
+                          <span className="text-info fw-bold">El precio sujeto al consumo en el lugar</span>
+                        )}
                       </p>
                     </div>
 
