@@ -115,7 +115,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura, cat_gastro],
             "continent": "américa", "climate": "templado",
             "activities": ["cultura", "gastronomia", "ciudad", "noche"],
-            "cost_per_day": 200, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["hotel_continental_1.jpg", "hotel_continental_2.jpg"],
             "reviews": [
                 (5, "Excelente ubicación, pleno centro. La habitación muy cómoda y el personal amable."),
@@ -132,7 +132,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura, cat_gastro],
             "continent": "europa", "climate": "templado",
             "activities": ["cultura", "gastronomia", "lujo", "romance", "ciudad"],
-            "cost_per_day": 1200, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["ritz_paris_1.jpg", "ritz_paris_2.jpg"],
             "reviews": [
                 (5, "Insuperable. Cada detalle es perfecto. El servicio es de otro nivel."),
@@ -149,7 +149,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura],
             "continent": "asia", "climate": "templado",
             "activities": ["cultura", "relax", "naturaleza", "historia"],
-            "cost_per_day": 900, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["four_seasons_kyoto_1.jpg", "four_seasons_kyoto_2.jpg"],
             "reviews": [
                 (5, "Paz absoluta. El jardín es mágico, parece salido de una pintura."),
@@ -166,7 +166,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "américa", "climate": "seco",
             "activities": ["show", "casino", "gastronomia", "noche"],
-            "cost_per_day": 450, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["palms_casino_1.jpg", "palms_casino_2.jpg"],
             "reviews": [
                 (4, "Habitaciones modernas y muy limpias. Buenas opciones de comida."),
@@ -255,7 +255,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "áfrica", "climate": "tropical",
             "activities": ["playa", "relax", "naturaleza"],
-            "cost_per_day": 750, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["palms_zanzibar_1.jpg", "palms_zanzibar_2.jpg"],
             "reviews": [
                 (5, "El paraíso en la tierra. Privacidad total, servicio de mayordomo impecable."),
@@ -289,7 +289,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura],
             "continent": "asia", "climate": "tropical",
             "activities": ["playa", "relax", "cultura", "gastronomia", "naturaleza"],
-            "cost_per_day": 300, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["bali_villa_1.jpg", "bali_villa_2.jpg"],
             "reviews": [
                 (5, "Paz total en medio de la selva. La piscina privada es un lujo."),
@@ -299,7 +299,7 @@ def seed_publications(db: Session):
             ]
         },
         {
-            "place_name": "Glaciar Perito Moreno",
+            "place_name": "Tour Glaciar Perito Moreno",
             "country": "Argentina", "province": "Santa Cruz", "city": "El Calafate",
             "address": "Parque Nacional Los Glaciares",
             "description": "Contempla la imponente majestuosidad de este gigante de hielo vivo.",
@@ -323,7 +323,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel, cat_cultura],
             "continent": "américa", "climate": "templado",
             "activities": ["ciudad", "cultura", "gastronomia", "noche", "show"],
-            "cost_per_day": 550, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["standard_nyc_1.jpg", "standard_nyc_2.jpg"],
             "reviews": [
                 (4, "Las vistas desde la habitación (con ventana de piso a techo) son LO MÁS."),
@@ -357,7 +357,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "américa", "climate": "tropical",
             "activities": ["playa", "ciudad", "noche", "gastronomia"],
-            "cost_per_day": 650, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["fasano_rio_1.jpg", "fasano_rio_2.jpg"],
             "reviews": [
                 (5, "La piscina en el rooftop es TODO. La vista a Ipanema y al Morro Dos Hermanos no tiene precio."),
@@ -442,7 +442,7 @@ def seed_publications(db: Session):
             "categories": [cat_hotel],
             "continent": "américa", "climate": "tropical",
             "activities": ["playa", "relax", "noche", "gastronomia"],
-            "cost_per_day": 400, "duration_min": 1440,
+            "cost_per_day": None, "duration_min": None,
             "images": ["cancun_resort_1.jpg", "cancun_resort_2.jpg"],
             "reviews": [
                 (4, "Playa hermosa y la piscina gigante. Ideal para no moverse en una semana."),
@@ -487,14 +487,37 @@ def seed_publications(db: Session):
             ]
         },
     ]
-
+#pruebo otro
     # 4. Procesar y crear
     created_count = 0
+    updated_count = 0
     for item in data_to_seed:
         # Verificar si ya existe
         exists = db.query(Publication).filter_by(place_name=item["place_name"]).first()
         if exists:
-            print(f"Skipping: '{item['place_name']}' ya existe.")
+            print(f"Actualizando: '{item['place_name']}'...")
+            
+            # Actualizar campos de la publicación existente
+            exists.country = item["country"]
+            exists.province = item["province"]
+            exists.city = item["city"]
+            exists.address = item["address"]
+            exists.description = item.get("description")
+            exists.categories = item["categories"]
+            exists.continent = item.get("continent")
+            exists.climate = item.get("climate")
+            exists.activities = item.get("activities")
+            exists.cost_per_day = item.get("cost_per_day")
+            exists.duration_min = item.get("duration_min")
+            exists.name = item["place_name"]
+            exists.street = item["address"].split(",")[0]
+            
+            db.flush()
+            updated_count += 1
+            
+            # Actualizar fotos si es necesario
+            # (Opcional: podrías eliminar fotos existentes y recrearlas)
+            
             continue
             
         print(f"Creando: '{item['place_name']}'...")
@@ -566,7 +589,7 @@ def seed_publications(db: Session):
         db.commit() # Commit por cada publicación
         created_count += 1
 
-    print(f"--- Seeding completado. {created_count} nuevas publicaciones creadas. ---")
+    print(f"--- Seeding completado. {created_count} nuevas publicaciones creadas, {updated_count} actualizadas. ---")
 
 
 if __name__ == "__main__":
