@@ -244,42 +244,92 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </button>
                         </div>
 
-                        {pub.description && (
-                            <>
-                                <h6 className="mt-3 mb-2">Descripción</h6>
-                                <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
-                            </>
-                        )}
-
-                        <h6 className="mt-3 mb-2">Categorías</h6>
-                        <div className="d-flex flex-wrap gap-1 mb-3">
-                            {pub.categories?.map(cat => (
-                                <span key={cat} className="badge bg-secondary-subtle text-secondary border text-capitalize">
-                                    {cat}
-                                </span>
-                            ))}
+                        {/* Ubicación */}
+                        <div className="mb-3">
+                            <h6 className="text-primary mb-2">📍 Ubicación</h6>
+                            <p className="mb-2">
+                                {pub.address ? `${pub.address}, ` : ''}{pub.city}{pub.province ? `, ${pub.province}` : ''}{pub.country ? `, ${pub.country}` : ''}
+                            </p>
                         </div>
 
-                        <h6 className="mt-3 mb-2">Ubicación</h6>
-                        <p className="mb-2">
-                            📍 {pub.address}, {pub.city}, {pub.province}
-                        </p>
-
-                        <h6 className="mt-3 mb-2">Precio</h6>
-                        <p className="mb-2">
-                            ${pub.cost_per_day} por día
-                        </p>
-
-                        {pub.duration_min && (
-                            <>
-                                <h6 className="mt-3 mb-2">Duración</h6>
-                                <p className="mb-2">
-                                    ⏱️ {pub.duration_min < 60 ? `${pub.duration_min} minutos` : `${Math.round(pub.duration_min / 60)} horas`}
-                                </p>
-                            </>
+                        {/* Descripción */}
+                        {pub.description && (
+                            <div className="mb-3">
+                                <h6 className="text-primary mb-2">📋 Descripción</h6>
+                                <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
+                            </div>
                         )}
+
+                        {/* Categorías */}
+                        {pub.categories && pub.categories.length > 0 && (
+                            <div className="mb-3">
+                                <h6 className="text-primary mb-2">🏷️ Categorías</h6>
+                                <div className="d-flex flex-wrap gap-1">
+                                    {pub.categories.map(cat => (
+                                        <span key={cat} className="badge bg-secondary-subtle text-secondary border text-capitalize">
+                                            {cat}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Precio */}
+                        <div className="mb-3">
+                            <h6 className="text-primary mb-2">💰 Precio</h6>
+                            {pub.cost_per_day ? (
+                                <p className="mb-0">
+                                    <span className="text-success fw-bold">${pub.cost_per_day}</span> por día
+                                </p>
+                            ) : (
+                                <p className="mb-0">
+                                    <span className="text-info fw-bold">El precio sujeto al consumo en el lugar</span>
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Duración */}
+                        {pub.duration_min && (
+                            <div className="mb-3">
+                                <h6 className="text-primary mb-2">⏱️ Duración</h6>
+                                <p className="mb-0">
+                                    {pub.duration_min < 60 ? `${pub.duration_min} minutos` : `${Math.round(pub.duration_min / 60)} horas`}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Actividades */}
+                        {pub.activities && pub.activities.length > 0 && (
+                            <div className="mb-3">
+                                <h6 className="text-primary mb-2">🎯 Actividades</h6>
+                                <div className="d-flex flex-wrap gap-1">
+                                    {pub.activities.map((activity, index) => (
+                                        <span key={index} className="badge bg-info-subtle text-info border">
+                                            {activity}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Clima */}
+                        {pub.climate && (
+                            <div className="mb-3">
+                                <h6 className="text-primary mb-2">🌤️ Clima</h6>
+                                <p className="mb-0">{pub.climate}</p>
+                            </div>
+                        )}
+
+                        {/* Continente */}
+                        {pub.continent && (
+                            <div className="mb-3">
+                                <h6 className="text-primary mb-2">🌍 Continente</h6>
+                                <p className="mb-0">{pub.continent}</p>
+                            </div>
+                        )}
+                        
                         <hr />
-                        <h6 className="mt-3 mb-2">Reseñas</h6>
+                        <h6 className="text-primary mt-3 mb-2">⭐ Reseñas</h6>
 
                         {/* Lista de reseñas */}
                         <div style={{ maxHeight: 250, overflow: "auto" }}>
