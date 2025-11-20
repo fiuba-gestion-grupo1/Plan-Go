@@ -257,7 +257,8 @@ class Itinerary(Base):
     comments = Column(Text, nullable=True)
     generated_itinerary = Column(Text, nullable=True)
     publication_ids = Column(JSON, nullable=True)  # Lista de IDs de publicaciones utilizadas
-    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|completed|failed
+    validation_metadata = Column(JSON, nullable=True)  # Metadatos de validación del itinerario
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|completed|failed|completed_with_warnings
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="itineraries")

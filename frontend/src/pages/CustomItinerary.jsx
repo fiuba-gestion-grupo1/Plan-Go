@@ -19,6 +19,12 @@ export default function CustomItinerary({ me, token }) {
   const [showPublicationModal, setShowPublicationModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
+  // Estados para pegar itinerario de IA
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [aiItineraries, setAiItineraries] = useState([]);
+  const [loadingAiItineraries, setLoadingAiItineraries] = useState(false);
+  const [convertedFrom, setConvertedFrom] = useState(null);
+
   // Horarios predefinidos
   const timeSlots = {
     morning: [
@@ -341,6 +347,74 @@ export default function CustomItinerary({ me, token }) {
     }
   }
 
+  // Funciones para pegar itinerarios de IA
+  const loadAiItineraries = async () => {
+    setLoadingAiItineraries(true);
+    try {
+      console.log('🔍 Cargando itinerarios de IA...');
+      console.log('📡 Token:', token ? 'Presente' : 'Ausente');
+      const data = await request('/api/itineraries/ai-list', { token });
+      console.log('📦 Respuesta completa del API:', data);
+      console.log('📊 Tipo de respuesta:', typeof data, 'Es array:', Array.isArray(data));
+      
+      // La respuesta puede ser un array directamente o un objeto con una propiedad
+      let itineraries = data;
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        // Si es un objeto, buscar la propiedad que contiene el array
+        itineraries = data.itineraries || data.data || data.results || [];
+        console.log('🔍 Extrayendo array del objeto. Resultado:', itineraries);
+      }
+      
+      const finalItineraries = Array.isArray(itineraries) ? itineraries : [];
+      console.log('✅ Cargados', finalItineraries.length, 'itinerarios de IA');
+      setAiItineraries(finalItineraries);
+    } catch (error) {
+      console.error('❌ Error cargando itinerarios de IA:', error);
+      setAiItineraries([]);
+    } finally {
+      setLoadingAiItineraries(false);
+    }
+  };
+
+  const pasteAiItinerary = async (aiItinerary) => {
+    try {
+      console.log('📋 Convirtiendo itinerario de IA:', aiItinerary.destination);
+      
+      // Preparar datos para la conversión
+      const conversionData = {
+        ai_itinerary_id: aiItinerary.id,
+        custom_destination: destination || aiItinerary.destination,
+        custom_start_date: startDate,
+        custom_end_date: endDate
+      };
+      
+      console.log('📤 Enviando datos de conversión:', conversionData);
+      const result = await request('/api/itineraries/convert-ai-to-custom', {
+        method: 'POST',
+        token,
+        body: conversionData
+      });
+      
+      console.log('✅ Conversión exitosa:', result);
+      
+      // Configurar el itinerario convertido
+      setItineraryData(result);
+      setDestination(result.destination);
+      setStartDate(result.start_date);
+      setEndDate(result.end_date);
+      setConvertedFrom(aiItinerary);
+      
+      // Cerrar modal y cambiar a modo building
+      setShowPasteModal(false);
+      setStep('building');
+      
+      console.log('🎉 Itinerario de IA pegado exitosamente');
+    } catch (error) {
+      console.error('❌ Error convirtiendo itinerario:', error);
+      setError('Error al pegar el itinerario de IA: ' + error.message);
+    }
+  };
+
   // Formatear fecha para mostrar
   const formatDate = (date) => {
     return date.toLocaleDateString('es-ES', {
@@ -454,13 +528,36 @@ export default function CustomItinerary({ me, token }) {
                     </div>
                   </div>
 
-                  <div className="d-grid">
+                  <div className="d-grid gap-2">
                     <button
                       type="submit"
                       className="btn btn-primary"
                       disabled={loading}
                     >
                       {loading ? 'Preparando...' : 'Continuar'}
+                    </button>
+                    
+                    <div className="text-center my-2">
+                      <small className="text-muted">o</small>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      className="btn btn-outline-info"
+                      onClick={() => {
+                        console.log('🖱️ Botón "Pegar IA" clickeado');
+                        console.log('🎯 Estado actual showPasteModal:', showPasteModal);
+                        loadAiItineraries();
+                        setShowPasteModal(true);
+                        console.log('🎯 setShowPasteModal(true) ejecutado');
+                        // Verificar después de un pequeño delay
+                        setTimeout(() => {
+                          console.log('🎯 Estado showPasteModal después de setTimeout:', showPasteModal);
+                        }, 100);
+                      }}
+                      disabled={loading}
+                    >
+                      📋 Pegar itinerario de IA existente
                     </button>
                   </div>
                 </form>
@@ -474,6 +571,104 @@ export default function CustomItinerary({ me, token }) {
             </div>
           </div>
         </div>
+
+        {/* Modal para pegar itinerario de IA */}
+        {console.log('🎯 [RENDER] Evaluando condición modal (dentro de setup):', showPasteModal, typeof showPasteModal)}
+        {showPasteModal && (
+          <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+            {console.log('🎯 [RENDER] Modal de Pegar IA renderizándose desde setup!')}
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">📋 Pegar Itinerario de IA</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowPasteModal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {loadingAiItineraries ? (
+                    <div className="text-center p-4">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                      <p className="mt-2">Cargando tus itinerarios de IA...</p>
+                    </div>
+                  ) : aiItineraries.length === 0 ? (
+                    <div className="text-center p-4">
+                      <i className="bi bi-inbox fs-1 text-muted"></i>
+                      <h6 className="mt-3">No tienes itinerarios de IA</h6>
+                      <p className="text-muted">Primero debes crear un itinerario usando IA para poder pegarlo aquí.</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-muted mb-3">
+                        Selecciona uno de tus itinerarios de IA para pegarlo en el constructor personalizado:
+                      </p>
+                      <div className="row g-3">
+                        {aiItineraries.map((itinerary) => (
+                          <div key={itinerary.id} className="col-12">
+                            <div className="card border hover-card" style={{cursor: 'pointer'}}
+                                 onClick={() => pasteAiItinerary(itinerary)}>
+                              <div className="card-body">
+                                <div className="d-flex justify-content-between align-items-start">
+                                  <div className="flex-grow-1">
+                                    <h6 className="card-title mb-1">
+                                      📍 {itinerary.destination}
+                                    </h6>
+                                    <div className="mb-2">
+                                      <small className="text-muted">
+                                        📅 {itinerary.duration_days} día(s) • 
+                                        💰 US${itinerary.budget} • 
+                                        👥 {itinerary.cant_persons} persona(s) •
+                                        🎨 {itinerary.trip_type}
+                                      </small>
+                                    </div>
+                                    <p className="card-text text-muted small mb-1">
+                                      {itinerary.preview}
+                                    </p>
+                                    <div className="d-flex gap-2 align-items-center">
+                                      <span className={`badge ${
+                                        itinerary.status === 'completed' ? 'bg-success' : 'bg-warning'
+                                      }`}>
+                                        {itinerary.status === 'completed' ? '✅ Completo' : '⚠️ Con advertencias'}
+                                      </span>
+                                      {itinerary.has_validation && (
+                                        <span className="badge bg-info">🔍 Validado</span>
+                                      )}
+                                      <span className="badge bg-light text-dark">
+                                        🏛️ {itinerary.publication_count} lugares
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="text-end">
+                                    <small className="text-muted">
+                                      {new Date(itinerary.created_at).toLocaleDateString('es-ES')}
+                                    </small>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowPasteModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -717,21 +912,4 @@ export default function CustomItinerary({ me, token }) {
       </div>
     );
   }
-
-  return (
-    <>
-      {/* El resto del componente estará aquí */}
-      <style>{`
-        .hover-card {
-          transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        
-        .hover-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
-        }
-      `}</style>
-      {null}
-    </>
-  );
 }

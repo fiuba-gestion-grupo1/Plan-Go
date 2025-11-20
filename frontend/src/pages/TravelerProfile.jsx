@@ -48,6 +48,7 @@ export default function TravelerProfile({ me }) {
   const [selectedItineraryDetail, setSelectedItineraryDetail] = useState(null);
   const [openItineraryDetail, setOpenItineraryDetail] = useState(false);
   const [savingItinerary, setSavingItinerary] = useState(null); // ID del itinerario que se está guardando
+  const [convertingItinerary, setConvertingItinerary] = useState(null); // ID del itinerario que se está convirtiendo
 
   function openPublicationDetail(p) {
     setCurrentPub(p);
@@ -77,6 +78,43 @@ export default function TravelerProfile({ me }) {
       }
     } finally {
       setSavingItinerary(null);
+    }
+  }
+
+  async function convertItineraryToCustom(itineraryId) {
+    if (!isMyProfile) return; // Solo propios itinerarios se pueden convertir
+    
+    setConvertingItinerary(itineraryId);
+    try {
+      console.log('🔄 Convirtiendo itinerario', itineraryId, 'a personalizado...');
+      
+      const result = await request(`/api/itineraries/${itineraryId}/convert-to-custom`, {
+        method: 'POST',
+        token
+      });
+      
+      console.log('✅ Conversión exitosa:', result);
+      
+      if (result.success) {
+        alert(`¡Conversión exitosa! ${result.validation.total_days} días con ${result.validation.total_activities} actividades convertidas.`);
+        
+        // Guardar datos de conversión en localStorage para que el constructor personalizado los use
+        localStorage.setItem('convertedItinerary', JSON.stringify({
+          custom_structure: result.custom_structure,
+          original_info: result.original_itinerary,
+          conversion_metadata: result.conversion_metadata
+        }));
+        
+        // Navegar al constructor personalizado
+        window.location.href = '/itinerary-custom';
+      } else {
+        alert('Error en la conversión: ' + (result.error || 'Error desconocido'));
+      }
+    } catch (e) {
+      console.error('Error al convertir itinerario:', e);
+      alert('Error al convertir itinerario: ' + e.message);
+    } finally {
+      setConvertingItinerary(null);
     }
   }
 
@@ -338,6 +376,20 @@ export default function TravelerProfile({ me }) {
                               {savingItinerary === it.id ? '⏳' : '💾'} Guardar
                             </button>
                           )}
+                          
+                          {/* Botón MODIFICAR ITINERARIO - Solo para itinerarios propios completados */}
+                          {isMyProfile && (it.status === "completed" || it.status === "completed_with_warnings") && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-warning"
+                              onClick={() => convertItineraryToCustom(it.id)}
+                              disabled={convertingItinerary === it.id}
+                              title="Convertir a itinerario personalizado para editar"
+                            >
+                              {convertingItinerary === it.id ? '⏳' : '✏️'} Modificar itinerario
+                            </button>
+                          )}
+                          
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-primary"

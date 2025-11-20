@@ -13,6 +13,8 @@ from ..utils.mailer import send_email_html
 from pydantic import BaseModel, EmailStr
 import html
 from datetime import datetime, date
+from ..validation.itinerary_validator import ItineraryValidator
+from ..utils.itinerary_parser import parse_ai_itinerary_to_custom_structure, generate_custom_itinerary_preview, validate_custom_structure
 
 router = APIRouter(prefix="/api/itineraries", tags=["itineraries"])
 
@@ -37,10 +39,10 @@ def build_itinerary_prompt(
 ) -> str:
     """Construye el prompt para la IA basado en los parámetros del usuario y las publicaciones disponibles"""
     
-    # Construir lista de lugares/actividades disponibles
+    # Construir lista de lugares/actividades disponibles CON DISPONIBILIDAD
     places_info = []
     for pub in publications:
-        place_details = f"- {pub.place_name}"
+        place_details = f"- ID:{pub.id} | {pub.place_name}"
         if pub.address:
             place_details += f" ({pub.address})"
         if pub.rating_avg and pub.rating_avg > 0:
@@ -48,12 +50,29 @@ def build_itinerary_prompt(
         if pub.categories:
             cats = ", ".join([cat.slug for cat in pub.categories])
             place_details += f" - Categorías: {cats}"
+        
+        # NUEVA: Información de duración
         if hasattr(pub, 'duration_min') and pub.duration_min:
             if pub.duration_min < 60:
                 place_details += f" - Duración: {pub.duration_min} min"
             else:
                 hours = pub.duration_min / 60
                 place_details += f" - Duración: {hours:.1f}h"
+        
+        # NUEVA: Días disponibles
+        if hasattr(pub, 'available_days') and pub.available_days:
+            days_str = ", ".join(pub.available_days)
+            place_details += f" - Días: {days_str}"
+        
+        # NUEVA: Horarios disponibles
+        if hasattr(pub, 'available_hours') and pub.available_hours:
+            hours_str = ", ".join(pub.available_hours)
+            place_details += f" - Horarios: {hours_str}"
+        
+        # NUEVA: Costo por día si está disponible
+        if hasattr(pub, 'cost_per_day') and pub.cost_per_day:
+            place_details += f" - Costo: US${pub.cost_per_day}/día"
+        
         places_info.append(place_details)
     
     places_list = "\n".join(places_info) if places_info else "No hay lugares disponibles."
@@ -97,55 +116,145 @@ Estilo: {trip_type}.
 LUGARES Y ACTIVIDADES DISPONIBLES (DEBES USAR SOLO ESTOS):
 {places_list}
 {warning_message}
-RESTRICCIONES CRÍTICAS:
-- SOLO podés usar los lugares listados arriba. No inventes lugares ni uses información externa.
+RESTRICCIONES CRÍTICAS - VALIDACIÓN DE DISPONIBILIDAD:
+- SOLO podés usar los lugares listados arriba con sus IDs. No inventes lugares ni uses información externa.
+- OBLIGATORIO: Respeta los días disponibles de cada publicación (ejemplo: si dice "Días: lunes, martes, viernes" NO lo uses miércoles/jueves).
+- OBLIGATORIO: Respeta los horarios disponibles de cada publicación (ejemplo: si dice "Horarios: 09:00-12:00, 14:00-17:00" NO lo uses a las 13:00).
+- OBLIGATORIO: Respeta la duración de cada actividad (si dice "Duración: 2h" planifica 2 horas, no más ni menos).
+- Calcula el costo total: si una publicación tiene costo, multiplica por cantidad de personas y días de uso.
+- El costo total de TODAS las actividades NO puede exceder el presupuesto de US${budget}.
 - Si hay {num_places} lugar(es) disponible(s) y el viaje dura {total_days} días, GENERA SOLO {days_to_generate} DÍA(S) DE ITINERARIO.
-- REGLA: Genera 1 día de itinerario por cada lugar disponible (máximo).
-- Si hay menos lugares que días solicitados, MUESTRA ESTE AVISO AL INICIO: "⚠️ AVISO: Se encontraron solo {num_places} publicación(es) para generar el itinerario de {destination}. Se muestra itinerario de {days_to_generate} día(s) con los lugares disponibles."
-- IMPORTANTE: Considera la duración estimada de cada actividad/lugar para planificar horarios realistas.
-- Para lugares con duración específica, respeta ese tiempo en tu planificación.
-- Organiza las actividades de forma lógica según su ubicación, categoría y duración.
-- No incluyas transporte ni vuelos. Solo actividades.
-- Podés repetir el mismo lugar varias veces en el mismo día para diferentes actividades.
 
-- Formato de salida:
-Organiza el itinerario por días de la siguiente manera:
+FORMATO DE SALIDA OBLIGATORIO - DEBES DEVOLVER EXACTAMENTE ESTO:
 
-═══════════════════════════════════════════════════
-DÍA 1 - [FECHA]
-═══════════════════════════════════════════════════
+```json
+{{
+  "itinerary_text": "═══════════════════════════════════════════════════\\nDÍA 1 - [FECHA]\\n═══════════════════════════════════════════════════\\n\\n🌅 MAÑANA (6:00 - 12:00)\\n• 08:00-10:00 - [Actividad en lugar] (ID: X)\\n• 10:30-12:00 - [Actividad en lugar] (ID: Y)\\n\\n🌞 TARDE (12:00 - 18:00)\\n• 12:30-14:00 - [Actividad en lugar] (ID: Z)\\n\\n🌙 NOCHE (18:00 - 23:00)\\n• 19:00-21:00 - [Actividad en lugar] (ID: W)\\n\\n[Repetir para más días si es necesario]",
+  "used_publications": [
+    {{
+      "id": X,
+      "name": "Nombre del lugar",
+      "times_used": 1,
+      "total_cost": 50,
+      "days_used": ["2024-12-01"],
+      "hours_used": ["08:00-10:00"]
+    }},
+    {{
+      "id": Y,
+      "name": "Otro lugar",
+      "times_used": 2,
+      "total_cost": 100,
+      "days_used": ["2024-12-01", "2024-12-02"],
+      "hours_used": ["10:30-12:00", "14:00-16:00"]
+    }}
+  ],
+  "total_cost": 150,
+  "validation_notes": "Todos los horarios y días respetan las disponibilidades. Costo total dentro del presupuesto."
+}}
+```
 
-🌅 MAÑANA (6:00 - 12:00)
-• 08:00 - Desayuno en [lugar de la lista]
-• 09:30 - [Actividad usando lugares de la lista]
-• 11:00 - [Actividad usando lugares de la lista]
+VALIDACIONES OBLIGATORIAS:
+1. Verifica que cada publicación usada esté disponible en los días programados
+2. Verifica que cada publicación usada esté disponible en los horarios programados  
+3. Calcula el costo real basado en cost_per_day × cant_persons × días_usados
+4. Asegúrate que total_cost ≤ presupuesto
+5. Incluye el ID de cada publicación en el texto del itinerario con formato: (ID: X)
 
-🌞 TARDE (12:00 - 18:00)
-• 12:30 - Almuerzo en [lugar de la lista]
-• 14:00 - [Actividad usando lugares de la lista]
-• 16:00 - [Actividad usando lugares de la lista]
-
-🌙 NOCHE (18:00 - 23:00)
-• 19:00 - [Actividad usando lugares de la lista]
-• 20:30 - Cena en [lugar de la lista]
-• 22:00 - [Actividad opcional usando lugares de la lista]
-
-(Repetir este formato para cada día del viaje)
-
-IMPORTANTE:
-- Usa ÚNICAMENTE los lugares de la lista proporcionada.
-- Incluye actividades realistas y variadas según el estilo del viaje.
-- Respeta el presupuesto indicado.
-- Usa emojis para hacer más visual el itinerario.
-- Solo muestra el itinerario, sin introducción ni conclusión."""
+IMPORTANTE: 
+- Devuelve SOLO el JSON, sin texto adicional antes o después
+- El campo "itinerary_text" debe contener el itinerario formateado con \\n para saltos de línea
+- El array "used_publications" debe incluir TODAS las publicaciones mencionadas en el itinerario
+- Respeta ESTRICTAMENTE las disponibilidades de días y horarios de cada publicación"""
     
     return prompt
 
 
-def extract_used_publications(itinerary_text: str, available_publications: list) -> list:
+def parse_ai_response(ai_response: str) -> dict:
     """
-    Analiza el texto del itinerario generado y extrae solo las publicaciones que fueron realmente mencionadas.
-    Excluye menciones negativas o de exclusión. Usa criterios más estrictos para evitar falsos positivos.
+    Procesa la respuesta de la IA que debe estar en formato JSON.
+    Retorna un dict con itinerary_text, used_publications, total_cost y validation_notes.
+    """
+    import json
+    
+    try:
+        # Intentar extraer JSON de la respuesta
+        response_text = ai_response.strip()
+        
+        # Si la respuesta tiene markdown code blocks, extraer el contenido
+        if response_text.startswith("```json"):
+            # Encontrar el inicio y fin del bloque JSON
+            start = response_text.find("```json") + 7
+            end = response_text.rfind("```")
+            response_text = response_text[start:end].strip()
+        elif response_text.startswith("```"):
+            # Bloque de código sin especificar lenguaje
+            start = response_text.find("```") + 3
+            end = response_text.rfind("```")
+            response_text = response_text[start:end].strip()
+        
+        # Parsear JSON
+        parsed_data = json.loads(response_text)
+        
+        # Validar que tenga los campos requeridos
+        required_fields = ['itinerary_text', 'used_publications', 'total_cost']
+        for field in required_fields:
+            if field not in parsed_data:
+                raise ValueError(f"Campo requerido '{field}' no encontrado en la respuesta de IA")
+        
+        return parsed_data
+        
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"[AI ERROR] No se pudo parsear respuesta de IA como JSON: {e}")
+        print(f"[AI ERROR] Respuesta recibida: {ai_response[:500]}...")
+        
+        # Fallback: usar el método anterior para extraer publicaciones
+        return {
+            "itinerary_text": ai_response,
+            "used_publications": [],
+            "total_cost": 0,
+            "validation_notes": "Error: La IA no devolvió un formato JSON válido. Usar método de extracción manual."
+        }
+
+
+def extract_used_publications_fallback(itinerary_text: str, available_publications: list) -> list:
+    """
+    Método de fallback para extraer publicaciones cuando la IA no devuelve JSON válido.
+    Busca IDs en el formato (ID: X) en el texto del itinerario.
+    """
+    import re
+    used_publication_ids = []
+    
+    if not itinerary_text or not available_publications:
+        return used_publication_ids
+    
+    # Buscar patrones como (ID: 123) en el texto
+    id_patterns = re.findall(r'\(ID:\s*(\d+)\)', itinerary_text, re.IGNORECASE)
+    
+    for id_str in id_patterns:
+        try:
+            pub_id = int(id_str)
+            if pub_id not in used_publication_ids:
+                # Verificar que el ID existe en las publicaciones disponibles
+                for pub in available_publications:
+                    if pub.id == pub_id:
+                        used_publication_ids.append(pub_id)
+                        print(f"[ITINERARY DEBUG] Publicación encontrada por ID: {pub.place_name} (ID: {pub_id})")
+                        break
+        except ValueError:
+            continue
+    
+    # Si no se encontraron IDs, usar el método anterior de búsqueda por texto
+    if not used_publication_ids:
+        print("[ITINERARY DEBUG] No se encontraron IDs en formato (ID: X), usando búsqueda por texto...")
+        used_publication_ids = extract_used_publications_legacy(itinerary_text, available_publications)
+    
+    return used_publication_ids
+
+
+def extract_used_publications_legacy(itinerary_text: str, available_publications: list) -> list:
+    """
+    Método legacy para extraer publicaciones del texto cuando no hay IDs específicos.
+    Mantiene la funcionalidad anterior como respaldo.
     """
     used_publication_ids = []
     
@@ -194,6 +303,27 @@ def extract_used_publications(itinerary_text: str, available_publications: list)
                     end_idx = min(len(itinerary_lower), match.end() + 80)
                     context = itinerary_lower[start_idx:end_idx]
                     
+                    # Palabras que indican exclusión o mención negativa
+                    negative_indicators = [
+                        'no ', 'sin ', 'excluir', 'evitar', 'omitir', 'no incluí', 'no incluyo',
+                        'no recomiendo', 'no visitaremos', 'no iremos', 'no quería', 'no quiero',
+                        'excepto', 'menos', 'salvo', 'no consideré', 'descartamos', 'porque no',
+                        'no está', 'no hay', 'no encontré', 'no tengo', 'falta', 'ausencia de'
+                    ]
+                    
+                    # Verificar si hay indicadores negativos en el contexto
+                    is_negative_mention = any(neg in context for neg in negative_indicators)
+                    
+                    # Verificar si hay indicadores positivos en el contexto
+                    has_positive_indicator = any(pos in context for pos in positive_indicators)
+                    
+                    # Solo considerar como uso positivo si:
+                    # 1. No hay indicadores negativos
+                    # 2. Hay indicadores positivos o el contexto sugiere uso
+                    if not is_negative_mention and (has_positive_indicator or 'itinerario' in context or 'programa' in context):
+                        publication_mentioned = True
+                        print(f"[ITINERARY DEBUG] Contexto positivo para {pub.place_name}: '{context.strip()}'")
+                        break
                     # Palabras que indican exclusión o mención negativa
                     negative_indicators = [
                         'no ', 'sin ', 'excluir', 'evitar', 'omitir', 'no incluí', 'no incluyo',
@@ -392,16 +522,105 @@ def request_itinerary(
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(prompt)
         
-        # Guardar el resultado
-        itinerary.generated_itinerary = response.text
-        itinerary.status = "completed"
+        # Procesar la respuesta de la IA
+        ai_data = parse_ai_response(response.text)
         
-        # Extraer solo las publicaciones que fueron realmente mencionadas en el itinerario
-        used_publication_ids = extract_used_publications(response.text, publications)
-        itinerary.publication_ids = used_publication_ids
+        # NUEVA FUNCIONALIDAD: Validación backend completa del itinerario
+        print(f"[VALIDATION] Iniciando validación backend del itinerario de IA...")
+        validator = ItineraryValidator(db)
+        
+        validation_result = validator.validate_itinerary(
+            itinerary_data=ai_data,
+            budget=payload.budget,
+            cant_persons=payload.cant_persons,
+            start_date=str(start),
+            end_date=str(end)
+        )
+        
+        print(f"[VALIDATION] Resultado: {'✅ VÁLIDO' if validation_result['valid'] else '❌ INVÁLIDO'}")
+        print(f"[VALIDATION] {validation_result['validation_summary']}")
+        
+        # Si hay errores críticos, modificar el status y agregar reporte de validación
+        validation_report = ""
+        
+        # SIEMPRE agregar información de validación (exitosa o fallida)
+        validation_report += f"\n\n📊 VALIDACIÓN DEL ITINERARIO:\n"
+        validation_report += f"{'✅ VÁLIDO' if validation_result['valid'] else '❌ INVÁLIDO'} - {validation_result['validation_summary']}\n"
+        
+        if not validation_result["valid"]:
+            validation_report += "\n🚨 ERRORES DE VALIDACIÓN DETECTADOS:\n"
+            for error in validation_result["errors"]:
+                validation_report += f"❌ {error['message']}\n"
+        
+        if validation_result["warnings"]:
+            validation_report += "\n⚠️ ADVERTENCIAS:\n"
+            for warning in validation_result["warnings"]:
+                validation_report += f"⚠️ {warning['message']}\n"
+        
+        # Agregar información de costos reales vs estimados
+        ai_cost = validation_result.get("ai_estimated_cost", 0)
+        real_cost = validation_result.get("real_total_cost", 0)
+        budget_utilization = validation_result.get("budget_utilization_percent", 0)
+        
+        validation_report += f"\n💰 INFORMACIÓN DE COSTOS:\n"
+        if abs(ai_cost - real_cost) > 0.01:
+            validation_report += f"• Costo estimado por IA: US${ai_cost:.2f}\n"
+            validation_report += f"• Costo real validado: US${real_cost:.2f}\n"
+        else:
+            validation_report += f"• Costo total: US${real_cost:.2f}\n"
+        
+        validation_report += f"• Presupuesto disponible: US${payload.budget:.2f}\n"
+        validation_report += f"• Utilización del presupuesto: {budget_utilization:.1f}%\n"
+        
+        # Agregar detalles de publicaciones validadas si están disponibles
+        if "validated_publications" in validation_result:
+            validation_report += f"\n🏛️ LUGARES VALIDADOS ({len(validation_result['validated_publications'])}):\n"
+            for pub in validation_result["validated_publications"][:5]:  # Mostrar máximo 5
+                availability = "✅" if pub.get("availability_valid", True) else "❌"
+                validation_report += f"• {availability} {pub['name']} - US${pub['real_cost']:.2f}\n"
+        
+        # Guardar el resultado
+        itinerary.generated_itinerary = ai_data["itinerary_text"] + validation_report
+        
+        # Determinar status basado en validación
+        if validation_result["valid"]:
+            itinerary.status = "completed"
+        else:
+            # Si hay errores críticos, marcar como "validation_failed" pero mostrar el itinerario
+            itinerary.status = "completed_with_warnings"
+            print(f"[VALIDATION] Itinerario generado pero con errores de validación")
+        
+        # Guardar metadatos de validación completos
+        itinerary.validation_metadata = validation_result
+        
+        # Extraer IDs de publicaciones de la respuesta estructurada
+        if ai_data["used_publications"]:
+            # Usar los IDs de publicaciones de la respuesta JSON
+            used_publication_ids = [pub["id"] for pub in ai_data["used_publications"]]
+            
+            # Validar que los IDs existen en las publicaciones disponibles
+            valid_ids = []
+            available_ids = [pub.id for pub in publications]
+            for pub_id in used_publication_ids:
+                if pub_id in available_ids:
+                    valid_ids.append(pub_id)
+                else:
+                    print(f"[ITINERARY WARNING] ID {pub_id} no encontrado en publicaciones disponibles")
+            
+            itinerary.publication_ids = valid_ids
+        else:
+            # Fallback: usar método de extracción por texto
+            used_publication_ids = extract_used_publications_fallback(response.text, publications)
+            itinerary.publication_ids = used_publication_ids
+        
+        # Guardar información adicional de la validación
+        if "total_cost" in ai_data:
+            print(f"[ITINERARY DEBUG] Costo calculado por IA: US${ai_data['total_cost']}")
+        if "validation_notes" in ai_data:
+            print(f"[ITINERARY DEBUG] Notas de validación: {ai_data['validation_notes']}")
         
         print(f"[ITINERARY DEBUG] Publicaciones disponibles: {len(publications)}")
-        print(f"[ITINERARY DEBUG] Publicaciones realmente usadas: {len(used_publication_ids)}")
+        print(f"[ITINERARY DEBUG] Publicaciones realmente usadas: {len(itinerary.publication_ids)}")
         
     except Exception as e:
         itinerary.status = "failed"
@@ -606,6 +825,182 @@ def get_my_itineraries(
         ))
     
     return all_itineraries
+
+
+@router.get("/ai-list")
+def get_my_ai_itineraries(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Endpoint del PASO 4: Obtiene los itinerarios de IA del usuario para el botón "Pegar itinerario de IA"
+    """
+    
+    print(f"[PASTE] Usuario {current_user.id} solicitando sus itinerarios de IA...")
+    
+    # Buscar itinerarios de IA del usuario (completados exitosamente)
+    ai_itineraries = db.query(models.Itinerary).filter(
+        models.Itinerary.user_id == current_user.id,
+        models.Itinerary.status.in_(["completed", "completed_with_warnings"]),
+        models.Itinerary.generated_itinerary.isnot(None)
+    ).order_by(models.Itinerary.created_at.desc()).all()
+    
+    print(f"[PASTE] Encontrados {len(ai_itineraries)} itinerarios de IA")
+    
+    # Formatear para respuesta
+    itineraries_list = []
+    for itinerary in ai_itineraries:
+        # Extraer primera línea del itinerario como preview
+        lines = itinerary.generated_itinerary.split('\n')
+        preview = "Sin preview disponible"
+        for line in lines:
+            if line.strip() and not line.startswith('═') and 'DÍA' in line:
+                preview = line.strip()
+                break
+        
+        # Calcular duración
+        duration_days = (itinerary.end_date - itinerary.start_date).days + 1
+        
+        # Verificar si tiene información de validación
+        has_validation = any(keyword in itinerary.generated_itinerary for keyword in [
+            "VALIDACIÓN DEL ITINERARIO", "COSTO TOTAL", "LUGARES VALIDADOS"
+        ])
+        
+        itinerary_data = {
+            "id": itinerary.id,
+            "destination": itinerary.destination,
+            "start_date": str(itinerary.start_date),
+            "end_date": str(itinerary.end_date),
+            "budget": itinerary.budget,
+            "cant_persons": itinerary.cant_persons,
+            "trip_type": itinerary.trip_type,
+            "status": itinerary.status,
+            "created_at": itinerary.created_at.isoformat(),
+            "duration_days": duration_days,
+            "preview": preview,
+            "has_validation": has_validation,
+            "publication_count": len(itinerary.publication_ids) if itinerary.publication_ids else 0
+        }
+        
+        itineraries_list.append(itinerary_data)
+    
+    return {
+        "itineraries": itineraries_list,
+        "total": len(itineraries_list),
+        "user_id": current_user.id
+    }
+
+
+@router.post("/convert-ai-to-custom")
+def convert_ai_to_custom_itinerary(
+    conversion_data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Endpoint del PASO 4: Convierte un itinerario de IA a formato personalizado (custom)
+    """
+    
+    print(f"[CONVERT] Usuario {current_user.id} convirtiendo itinerario de IA...")
+    print(f"[CONVERT] Datos recibidos: {conversion_data}")
+    
+    try:
+        # Validar datos de entrada
+        ai_itinerary_id = conversion_data.get("ai_itinerary_id")
+        custom_destination = conversion_data.get("custom_destination", "")
+        custom_start_date = conversion_data.get("custom_start_date")
+        custom_end_date = conversion_data.get("custom_end_date")
+        
+        if not ai_itinerary_id:
+            raise HTTPException(status_code=400, detail="ID del itinerario de IA es requerido")
+        
+        # Obtener el itinerario de IA
+        ai_itinerary = db.query(models.Itinerary).filter(
+            models.Itinerary.id == ai_itinerary_id,
+            models.Itinerary.user_id == current_user.id
+        ).first()
+        
+        if not ai_itinerary:
+            raise HTTPException(status_code=404, detail="Itinerario de IA no encontrado")
+        
+        if not ai_itinerary.generated_itinerary:
+            raise HTTPException(status_code=400, detail="El itinerario no tiene contenido generado")
+        
+        # Usar las fechas personalizadas si están disponibles, sino usar las del itinerario original
+        start_date = custom_start_date or str(ai_itinerary.start_date)
+        end_date = custom_end_date or str(ai_itinerary.end_date)
+        destination = custom_destination or ai_itinerary.destination
+        
+        # Calcular días entre fechas
+        from datetime import datetime, date
+        if isinstance(start_date, str):
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+        else:
+            start_dt = start_date
+        
+        if isinstance(end_date, str):
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+        else:
+            end_dt = end_date
+            
+        total_days = (end_dt - start_dt).days + 1
+        
+        # Generar días para la estructura
+        days = []
+        current_date = start_dt
+        for i in range(total_days):
+            days.append({
+                "date": current_date.strftime("%Y-%m-%d"),
+                "day_name": current_date.strftime("%A"),
+                "day_number": i + 1
+            })
+            from datetime import timedelta
+            current_date += timedelta(days=1)
+        
+        print(f"[CONVERT] Generando estructura para {total_days} días")
+        
+        # Crear estructura básica del itinerario personalizado
+        custom_structure = {
+            "destination": destination,
+            "start_date": start_date,
+            "end_date": end_date,
+            "days": days,
+            "itinerary": {}
+        }
+        
+        # Inicializar estructura de días vacía
+        for day in days:
+            day_key = f"day_{day['day_number']}"
+            custom_structure["itinerary"][day_key] = {
+                "morning": {},
+                "afternoon": {},
+                "evening": {}
+            }
+        
+        print(f"[CONVERT] Conversión exitosa para {destination}")
+        print(f"[CONVERT] Estructura creada con {total_days} días")
+        
+        return {
+            "success": True,
+            "destination": destination,
+            "start_date": start_date,
+            "end_date": end_date,
+            "days": days,
+            "itinerary": custom_structure["itinerary"],
+            "converted_from": {
+                "id": ai_itinerary.id,
+                "destination": ai_itinerary.destination,
+                "original_text": ai_itinerary.generated_itinerary[:500] + "..."
+            },
+            "message": f"Itinerario convertido exitosamente para {total_days} día(s) en {destination}"
+        }
+        
+    except Exception as e:
+        print(f"[CONVERT] Error en conversión: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al convertir itinerario: {str(e)}"
+        )
 
 
 @router.get("/{itinerary_id}", response_model=schemas.ItineraryOut)
@@ -1377,3 +1772,117 @@ def _extract_publication_ids(itinerary_data: dict) -> set:
                     publication_ids.add(activity['id'])
     
     return publication_ids
+
+
+@router.post("/{itinerary_id}/convert-to-custom")
+def convert_ai_itinerary_to_custom(
+    itinerary_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Endpoint del PASO 3: Convierte un itinerario de IA a estructura de itinerario personalizado
+    Permite al usuario modificar manualmente un itinerario generado por IA
+    """
+    
+    print(f"[CONVERT] Convirtiendo itinerario {itinerary_id} de IA a personalizado...")
+    
+    # Buscar el itinerario original
+    itinerary = db.query(models.Itinerary).filter(
+        models.Itinerary.id == itinerary_id,
+        models.Itinerary.user_id == current_user.id
+    ).first()
+    
+    if not itinerary:
+        raise HTTPException(
+            status_code=404,
+            detail="Itinerario no encontrado o no tienes permisos para acceder a él"
+        )
+    
+    # Verificar que el itinerario tenga contenido generado
+    if not itinerary.generated_itinerary:
+        raise HTTPException(
+            status_code=400,
+            detail="El itinerario no tiene contenido generado para convertir"
+        )
+    
+    # Parsear el itinerario de IA a estructura personalizada
+    try:
+        custom_structure = parse_ai_itinerary_to_custom_structure(
+            itinerary_text=itinerary.generated_itinerary,
+            start_date=str(itinerary.start_date)
+        )
+        
+        # Validar la estructura parseada
+        validation = validate_custom_structure(custom_structure)
+        
+        if not validation["valid"]:
+            print(f"[CONVERT] Errores de parsing: {validation['errors']}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Error al parsear itinerario: {'; '.join(validation['errors'])}"
+            )
+        
+        # Generar preview del itinerario convertido
+        preview = generate_custom_itinerary_preview(custom_structure)
+        
+        # Extraer publication IDs de la estructura
+        publication_ids = []
+        for day_key, day_data in custom_structure.items():
+            if not day_key.startswith("day_"):
+                continue
+            for period_key, period_data in day_data.items():
+                for time_slot, activity in period_data.items():
+                    if isinstance(activity, dict) and "id" in activity:
+                        publication_ids.append(activity["id"])
+        
+        # Obtener información de las publicaciones utilizadas
+        publications_info = []
+        if publication_ids:
+            publications = db.query(models.Publication).filter(
+                models.Publication.id.in_(publication_ids)
+            ).all()
+            
+            for pub in publications:
+                publications_info.append({
+                    "id": pub.id,
+                    "place_name": pub.place_name,
+                    "city": pub.city,
+                    "country": pub.country
+                })
+        
+        print(f"[CONVERT] Conversión exitosa:")
+        print(f"[CONVERT]   Días: {validation['total_days']}")
+        print(f"[CONVERT]   Actividades: {validation['total_activities']}")
+        print(f"[CONVERT]   Publicaciones: {len(publication_ids)}")
+        
+        return {
+            "success": True,
+            "custom_structure": custom_structure,
+            "preview": preview,
+            "validation": validation,
+            "original_itinerary": {
+                "id": itinerary.id,
+                "destination": itinerary.destination,
+                "start_date": str(itinerary.start_date),
+                "end_date": str(itinerary.end_date),
+                "budget": itinerary.budget,
+                "cant_persons": itinerary.cant_persons,
+                "trip_type": itinerary.trip_type
+            },
+            "publications_used": publications_info,
+            "conversion_metadata": {
+                "converted_from_ai": True,
+                "original_itinerary_id": itinerary.id,
+                "conversion_timestamp": datetime.now().isoformat(),
+                "total_days": validation['total_days'],
+                "total_activities": validation['total_activities']
+            }
+        }
+        
+    except Exception as e:
+        print(f"[CONVERT] Error durante conversión: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno al convertir itinerario: {str(e)}"
+        )

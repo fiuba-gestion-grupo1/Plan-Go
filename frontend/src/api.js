@@ -1,5 +1,5 @@
 // src/api.js
-export const BASE_URL = ''; // la SPA se sirve desde el mismo dominio que el backend
+export const BASE_URL = 'http://localhost:8000'; // URL del backend
 
 export async function api(path, { method = 'GET', body, token, useAuth = true } = {}) {
   // 👉 Si no me pasan token explícitamente, lo busco en localStorage
@@ -21,7 +21,10 @@ export async function api(path, { method = 'GET', body, token, useAuth = true } 
     finalBody = JSON.stringify(body);
   }
 
-  const res = await fetch(path, {
+  // Construir URL completa
+  const fullUrl = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: finalBody
