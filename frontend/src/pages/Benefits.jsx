@@ -857,7 +857,7 @@ export default function Benefits({ token, me }) {
                   
                   <hr />
                   
-                  {/* Simulación de código QR */}
+                  {/* Simulación de código QR. Prueba de que me funciona Github */}
                   <div className="bg-white border rounded p-3 mb-3">
                     <div style={{
                       width: '120px',
