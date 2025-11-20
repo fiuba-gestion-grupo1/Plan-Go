@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from .. import models, schemas
 from .auth import get_current_user
+from ..models import Itinerary, SavedItinerary
 from datetime import datetime
 import google.generativeai as genai
 import re
@@ -474,11 +475,17 @@ def get_my_itineraries(
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    Obtiene todos los itinerarios del usuario actual.
+    Obtiene todos los itinerarios del usuario actual, incluyendo los itinerarios guardados.
     """
-    itineraries = db.query(models.Itinerary).filter(
+    # Itinerarios propios
+    own_itineraries = db.query(models.Itinerary).filter(
         models.Itinerary.user_id == current_user.id
     ).order_by(models.Itinerary.created_at.desc()).all()
+    
+    # Itinerarios guardados
+    saved_itineraries = db.query(SavedItinerary).filter(
+        SavedItinerary.user_id == current_user.id
+    ).order_by(SavedItinerary.saved_at.desc()).all()
     
     # Obtener IDs de favoritos del usuario actual
     favorite_ids = {
@@ -486,8 +493,11 @@ def get_my_itineraries(
         for fav in db.query(models.Favorite).filter(models.Favorite.user_id == current_user.id).all()
     }
     
-    result = []
-    for it in itineraries:
+    # Combinar todos los itinerarios
+    all_itineraries = []
+    
+    # Procesar itinerarios propios
+    for it in own_itineraries:
         # Obtener publicaciones si existen IDs guardados
         publication_list = []
         if it.publication_ids:
@@ -522,7 +532,7 @@ def get_my_itineraries(
                     is_favorite=pub.id in favorite_ids
                 ))
         
-        result.append(schemas.ItineraryOut(
+        all_itineraries.append(schemas.ItineraryOut(
             id=it.id,
             user_id=it.user_id,
             destination=it.destination,
@@ -540,7 +550,62 @@ def get_my_itineraries(
             publications=publication_list
         ))
     
-    return result
+    # Procesar itinerarios guardados
+    for saved in saved_itineraries:
+        original_it = saved.original_itinerary
+        # Obtener publicaciones si existen IDs guardados
+        publication_list = []
+        if original_it.publication_ids:
+            pubs = db.query(models.Publication).filter(
+                models.Publication.id.in_(original_it.publication_ids)
+            ).all()
+            
+            for pub in pubs:
+                categories = [cat.slug for cat in pub.categories] if pub.categories else []
+                photos = [photo.url for photo in pub.photos] if pub.photos else []
+                
+                publication_list.append(schemas.PublicationOut(
+                    id=pub.id,
+                    place_name=pub.place_name,
+                    country=pub.country,
+                    province=pub.province,
+                    city=pub.city,
+                    address=pub.address,
+                    description=getattr(pub, "description", None),
+                    status=pub.status,
+                    created_by_user_id=pub.created_by_user_id,
+                    created_at=pub.created_at.isoformat(),
+                    photos=photos,
+                    rating_avg=pub.rating_avg or 0.0,
+                    rating_count=pub.rating_count or 0,
+                    categories=categories,
+                    continent=getattr(pub, "continent", None),
+                    climate=getattr(pub, "climate", None),
+                    activities=getattr(pub, "activities", None) or [],
+                    cost_per_day=getattr(pub, "cost_per_day", None),
+                    duration_min=getattr(pub, "duration_min", None),
+                    is_favorite=pub.id in favorite_ids
+                ))
+        
+        all_itineraries.append(schemas.ItineraryOut(
+            id=saved.id,  # Usar ID del saved itinerary
+            user_id=original_it.user_id,  # Mantener el ID del creador original
+            destination=original_it.destination,
+            start_date=original_it.start_date,
+            end_date=original_it.end_date,
+            budget=original_it.budget,
+            cant_persons=original_it.cant_persons,
+            trip_type=original_it.trip_type,
+            arrival_time=original_it.arrival_time,
+            departure_time=original_it.departure_time,
+            comments=original_it.comments,
+            generated_itinerary=original_it.generated_itinerary,
+            status="saved",  # Indicador de que es un itinerario guardado
+            created_at=saved.saved_at.isoformat(),  # Usar fecha de guardado
+            publications=publication_list
+        ))
+    
+    return all_itineraries
 
 
 @router.get("/{itinerary_id}", response_model=schemas.ItineraryOut)
@@ -891,3 +956,167 @@ def _fmt_date_ymd(value) -> str:
     else:
         return str(value)
     return d.strftime("%Y-%m-%d")
+
+
+@router.post("/save", response_model=schemas.SavedItineraryOut)
+def save_itinerary(
+    payload: schemas.SavedItineraryRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Guardar una copia del itinerario de otro usuario en mis itinerarios guardados
+    """
+    
+    # Verificar que el itinerario original existe
+    original_itinerary = db.query(Itinerary).filter(
+        Itinerary.id == payload.original_itinerary_id
+    ).first()
+    
+    if not original_itinerary:
+        raise HTTPException(
+            status_code=404,
+            detail="Itinerario no encontrado"
+        )
+    
+    # Verificar que no es el propio itinerario
+    if original_itinerary.user_id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="No puedes guardar tu propio itinerario"
+        )
+    
+    # Verificar si ya fue guardado por este usuario
+    existing_saved = db.query(SavedItinerary).filter(
+        SavedItinerary.user_id == current_user.id,
+        SavedItinerary.original_itinerary_id == payload.original_itinerary_id
+    ).first()
+    
+    if existing_saved:
+        raise HTTPException(
+            status_code=400,
+            detail="Ya tienes este itinerario guardado"
+        )
+    
+    # Crear la copia guardada
+    saved_itinerary = SavedItinerary(
+        user_id=current_user.id,
+        original_itinerary_id=original_itinerary.id,
+        destination=original_itinerary.destination,
+        start_date=original_itinerary.start_date,
+        end_date=original_itinerary.end_date,
+        budget=original_itinerary.budget,
+        cant_persons=original_itinerary.cant_persons,
+        trip_type=original_itinerary.trip_type,
+        arrival_time=original_itinerary.arrival_time,
+        departure_time=original_itinerary.departure_time,
+        comments=original_itinerary.comments,
+        generated_itinerary=original_itinerary.generated_itinerary,
+        publication_ids=original_itinerary.publication_ids,
+        original_author_id=original_itinerary.user_id
+    )
+    
+    db.add(saved_itinerary)
+    db.commit()
+    db.refresh(saved_itinerary)
+    
+    # Obtener publicaciones si existen
+    publications = []
+    if saved_itinerary.publication_ids:
+        publications = db.query(models.Publication).filter(
+            models.Publication.id.in_(saved_itinerary.publication_ids)
+        ).all()
+    
+    return schemas.SavedItineraryOut(
+        id=saved_itinerary.id,
+        user_id=saved_itinerary.user_id,
+        original_itinerary_id=saved_itinerary.original_itinerary_id,
+        destination=saved_itinerary.destination,
+        start_date=saved_itinerary.start_date,
+        end_date=saved_itinerary.end_date,
+        budget=saved_itinerary.budget,
+        cant_persons=saved_itinerary.cant_persons,
+        trip_type=saved_itinerary.trip_type,
+        arrival_time=saved_itinerary.arrival_time,
+        departure_time=saved_itinerary.departure_time,
+        comments=saved_itinerary.comments,
+        generated_itinerary=saved_itinerary.generated_itinerary,
+        original_author_id=saved_itinerary.original_author_id,
+        saved_at=saved_itinerary.saved_at,
+        publications=[
+            schemas.PublicationOut(
+                id=pub.id,
+                place_name=pub.place_name,
+                country=pub.country,
+                province=pub.province,
+                city=pub.city,
+                address=pub.address,
+                description=pub.description,
+                status=pub.status,
+                created_by_user_id=pub.created_by_user_id,
+                created_at=pub.created_at,
+                photos=pub.photos or [],
+                categories=pub.categories or []
+            ) for pub in publications
+        ]
+    )
+
+
+@router.get("/saved")
+def get_saved_itineraries(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Obtener todos los itinerarios guardados por el usuario actual
+    """
+    saved_itineraries = db.query(SavedItinerary).filter(
+        SavedItinerary.user_id == current_user.id
+    ).order_by(SavedItinerary.saved_at.desc()).all()
+    
+    result = []
+    for saved in saved_itineraries:
+        # Obtener publicaciones si existen
+        publications = []
+        if saved.publication_ids:
+            publications = db.query(models.Publication).filter(
+                models.Publication.id.in_(saved.publication_ids)
+            ).all()
+        
+        result.append({
+            "id": saved.id,
+            "user_id": saved.user_id,
+            "original_itinerary_id": saved.original_itinerary_id,
+            "destination": saved.destination,
+            "start_date": saved.start_date.isoformat() if saved.start_date else None,
+            "end_date": saved.end_date.isoformat() if saved.end_date else None,
+            "budget": saved.budget,
+            "cant_persons": saved.cant_persons,
+            "trip_type": saved.trip_type,
+            "arrival_time": saved.arrival_time,
+            "departure_time": saved.departure_time,
+            "comments": saved.comments,
+            "generated_itinerary": saved.generated_itinerary,
+            "original_author_id": saved.original_author_id,
+            "saved_at": saved.saved_at.isoformat() if saved.saved_at else None,
+            "status": "saved",  # Estado especial para itinerarios guardados
+            "created_at": saved.saved_at.isoformat() if saved.saved_at else None,
+            "publications": [
+                {
+                    "id": pub.id,
+                    "place_name": pub.place_name,
+                    "country": pub.country,
+                    "province": pub.province,
+                    "city": pub.city,
+                    "address": pub.address,
+                    "description": pub.description,
+                    "status": pub.status,
+                    "created_by_user_id": pub.created_by_user_id,
+                    "created_at": pub.created_at.isoformat() if pub.created_at else None,
+                    "photos": pub.photos or [],
+                    "categories": pub.categories or []
+                } for pub in publications
+            ]
+        })
+    
+    return result
