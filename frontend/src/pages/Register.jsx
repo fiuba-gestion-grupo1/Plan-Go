@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 
 const SECURITY_QUESTIONS = [
@@ -18,10 +18,25 @@ export default function Register({ setView }) {
         security_question_1: SECURITY_QUESTIONS[0],
         security_answer_1: '',
         security_question_2: SECURITY_QUESTIONS[1],
-        security_answer_2: ''
+        security_answer_2: '',
+        invitation_code: ''
     });
     const [error, setError] = useState('');
     const [registrationSuccess, setRegistrationSuccess] = useState(false);
+    const [invitationInfo, setInvitationInfo] = useState(null);
+
+    // Detectar código de invitación desde URL
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const invitationCode = urlParams.get('invitation_code');
+        if (invitationCode) {
+            setFormData(prev => ({ ...prev, invitation_code: invitationCode }));
+            setInvitationInfo({
+                code: invitationCode,
+                message: '¡Te han invitado a unirte a Plan&Go! Completa el registro para obtener tu cuenta.'
+            });
+        }
+    }, []);
 
     function handleChange(e) {
         const { name, value } = e.target;
@@ -53,6 +68,7 @@ export default function Register({ setView }) {
 
         try {
             await api('/api/auth/register', { method: 'POST', body: { ...payload, password } });
+            //actualizo esto apra que aparezca un mensaje de exito en vez de una alerta de localhost
             setRegistrationSuccess(true);
         } catch (err) {
             setError(err.detail || 'Error en el registro.');
@@ -82,6 +98,20 @@ export default function Register({ setView }) {
     return (
         <form onSubmit={handleSubmit}>
             <h3 className="mb-4">Crear cuenta</h3>
+
+            {/* Mostrar información de invitación */}
+            {invitationInfo && (
+                <div className="alert alert-success" role="alert">
+                    <div className="d-flex align-items-center">
+                        <span className="fs-4 me-2">🎉</span>
+                        <div>
+                            <strong>¡Invitación especial!</strong>
+                            <p className="mb-0 mt-1">{invitationInfo.message}</p>
+                            <small className="text-muted">Código: {invitationInfo.code}</small>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="mb-3">
                 <label>Email</label>
