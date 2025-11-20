@@ -47,10 +47,37 @@ export default function TravelerProfile({ me }) {
   // modal itinerario
   const [selectedItineraryDetail, setSelectedItineraryDetail] = useState(null);
   const [openItineraryDetail, setOpenItineraryDetail] = useState(false);
+  const [savingItinerary, setSavingItinerary] = useState(null); // ID del itinerario que se está guardando
 
   function openPublicationDetail(p) {
     setCurrentPub(p);
     setOpenDetailModal(true);
+  }
+
+  async function saveItinerary(itineraryId) {
+    if (isMyProfile) return; // No permitir guardar propios itinerarios
+    
+    setSavingItinerary(itineraryId);
+    try {
+      await request('/api/itineraries/save', {
+        method: 'POST',
+        token,
+        body: {
+          original_itinerary_id: itineraryId
+        }
+      });
+      
+      alert('¡Itinerario guardado exitosamente!');
+    } catch (e) {
+      console.error('Error al guardar itinerario:', e);
+      if (e.message.includes('Ya tienes este itinerario guardado')) {
+        alert('Ya tienes este itinerario guardado');
+      } else {
+        alert('Error al guardar el itinerario: ' + e.message);
+      }
+    } finally {
+      setSavingItinerary(null);
+    }
   }
 
   // 1) cargar datos del usuario cuyo perfil se ve
@@ -299,16 +326,29 @@ export default function TravelerProfile({ me }) {
                             <span className="badge bg-danger">Error</span>
                           )}
                         </span>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => {
-                            setSelectedItineraryDetail(it);
-                            setOpenItineraryDetail(true);
-                          }}
-                        >
-                          Ver detalle
-                        </button>
+                        <div className="d-flex gap-2">
+                          {!isMyProfile && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success"
+                              onClick={() => saveItinerary(it.id)}
+                              disabled={savingItinerary === it.id}
+                              title="Guardar itinerario"
+                            >
+                              {savingItinerary === it.id ? '⏳' : '💾'} Guardar
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => {
+                              setSelectedItineraryDetail(it);
+                              setOpenItineraryDetail(true);
+                            }}
+                          >
+                            Ver detalle
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
