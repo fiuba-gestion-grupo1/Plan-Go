@@ -9,7 +9,7 @@ from fastapi import (
     Query,
     Request
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 import shutil
 import uuid
 import os
@@ -193,6 +193,231 @@ def list_travelers(
         )
 
     return travelers
+
+@router.get("/points")
+def get_user_points(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtiene los puntos actuales del usuario."""
+    user_points = db.query(models.UserPoints).filter(
+        models.UserPoints.user_id == current_user.id
+    ).first()
+    
+    return {
+        "points": user_points.total_points if user_points else 0
+    }
+
+
+@router.get("/points/movements")
+def get_points_movements(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtiene el historial de movimientos de puntos del usuario."""
+    movements = db.query(models.PointsTransaction).filter(
+        models.PointsTransaction.user_id == current_user.id
+    ).order_by(models.PointsTransaction.created_at.desc()).all()
+    
+    return movements
+
+
+@router.get("/benefits")
+def get_premium_benefits(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtiene los beneficios premium disponibles."""
+    if current_user.role != "premium":
+        raise HTTPException(
+            status_code=403,
+            detail="Función disponible solo para usuarios premium."
+        )
+    
+    # Obtener beneficios activos con información de la publicación
+    benefits = db.query(models.PremiumBenefit).filter(
+        models.PremiumBenefit.is_active == True
+    ).join(models.Publication).options(
+        selectinload(models.PremiumBenefit.publication).selectinload(models.Publication.photos),
+        selectinload(models.PremiumBenefit.publication).selectinload(models.Publication.categories)
+    ).all()
+    
+    result = []
+    for benefit in benefits:
+        pub = benefit.publication
+        result.append({
+            "id": benefit.id,
+            "title": benefit.title,
+            "description": benefit.description,
+            "discount_percentage": benefit.discount_percentage,
+            "benefit_type": benefit.benefit_type,
+            "terms_conditions": benefit.terms_conditions,
+            "publication": {
+                "id": pub.id,
+                "place_name": pub.place_name,
+                "country": pub.country,
+                "province": pub.province,
+                "city": pub.city,
+                "address": pub.address,
+                "description": pub.description,
+                "status": pub.status,
+                "created_at": pub.created_at.isoformat() if pub.created_at else "",
+                "photos": [ph.url for ph in pub.photos],
+                "rating_avg": getattr(pub, "rating_avg", 0.0) or 0.0,
+                "rating_count": getattr(pub, "rating_count", 0) or 0,
+                "categories": [c.slug for c in getattr(pub, "categories", [])],
+                "continent": getattr(pub, "continent", None),
+                "climate": getattr(pub, "climate", None),
+                "activities": getattr(pub, "activities", []),
+                "cost_per_day": getattr(pub, "cost_per_day", None),
+                "duration_min": getattr(pub, "duration_min", None),
+                "is_favorite": False  # Por defecto, se puede mejorar después
+            }
+        })
+    
+    return result
+
+
+@router.post("/benefits/{benefit_id}/redeem")
+def redeem_benefit(
+    benefit_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Canjear un beneficio premium por puntos."""
+    if current_user.role != "premium":
+        raise HTTPException(
+            status_code=403,
+            detail="Función disponible solo para usuarios premium."
+        )
+    
+    # Verificar que el beneficio existe y está activo
+    benefit = db.query(models.PremiumBenefit).filter(
+        models.PremiumBenefit.id == benefit_id,
+        models.PremiumBenefit.is_active == True
+    ).first()
+    
+    if not benefit:
+        raise HTTPException(status_code=404, detail="Beneficio no encontrado")
+    
+    # Verificar si ya tiene este beneficio
+    existing = db.query(models.UserBenefit).filter(
+        models.UserBenefit.user_id == current_user.id,
+        models.UserBenefit.benefit_id == benefit_id,
+        models.UserBenefit.is_used == False
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya tienes este beneficio disponible")
+    
+    # Calcular costo en puntos basado en el descuento
+    if benefit.discount_percentage:
+        points_cost = benefit.discount_percentage * 2  # 2 puntos por cada % de descuento
+    else:
+        points_cost = 20  # Beneficios gratuitos/upgrades cuestan 20 puntos
+    
+    # Verificar puntos suficientes
+    user_points = db.query(models.UserPoints).filter(
+        models.UserPoints.user_id == current_user.id
+    ).first()
+    
+    if not user_points or user_points.total_points < points_cost:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Puntos insuficientes. Necesitas {points_cost} puntos, tienes {user_points.total_points if user_points else 0}"
+        )
+    
+    # Generar código de comprobante único
+    import uuid
+    voucher_code = f"PG{str(uuid.uuid4()).replace('-', '')[:10].upper()}"
+    
+    # Crear el beneficio del usuario
+    user_benefit = models.UserBenefit(
+        user_id=current_user.id,
+        benefit_id=benefit_id,
+        points_cost=points_cost,
+        voucher_code=voucher_code,
+        is_used=False
+    )
+    db.add(user_benefit)
+    
+    # Descontar puntos
+    user_points.total_points -= points_cost
+    
+    # Crear transacción de puntos
+    transaction = models.PointsTransaction(
+        user_id=current_user.id,
+        points=-points_cost,
+        transaction_type="redeemed",
+        description=f"Beneficio: {benefit.title}"
+    )
+    db.add(transaction)
+    
+    db.commit()
+    db.refresh(user_benefit)
+    
+    return {
+        "success": True,
+        "message": "Beneficio obtenido exitosamente",
+        "voucher_code": voucher_code,
+        "points_used": points_cost,
+        "remaining_points": user_points.total_points
+    }
+
+
+@router.get("/my-benefits")
+def get_user_benefits(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtiene los beneficios que el usuario ha canjeado."""
+    if current_user.role != "premium":
+        raise HTTPException(
+            status_code=403,
+            detail="Función disponible solo para usuarios premium."
+        )
+    
+    user_benefits = db.query(models.UserBenefit).filter(
+        models.UserBenefit.user_id == current_user.id,
+        models.UserBenefit.is_used == False
+    ).join(models.PremiumBenefit).join(models.Publication).all()
+    
+    result = []
+    for user_benefit in user_benefits:
+        benefit = user_benefit.benefit
+        publication = benefit.publication
+        
+        # Calcular precio con descuento si la publicación tiene precio
+        original_price = publication.cost_per_day
+        discounted_price = None
+        if original_price and benefit.discount_percentage:
+            discounted_price = original_price * (1 - benefit.discount_percentage / 100)
+        
+        result.append({
+            "id": user_benefit.id,
+            "voucher_code": user_benefit.voucher_code,
+            "obtained_at": user_benefit.obtained_at.isoformat(),
+            "points_cost": user_benefit.points_cost,
+            "benefit": {
+                "title": benefit.title,
+                "description": benefit.description,
+                "discount_percentage": benefit.discount_percentage,
+                "benefit_type": benefit.benefit_type,
+                "terms_conditions": benefit.terms_conditions,
+                "publication": {
+                    "id": publication.id,
+                    "place_name": publication.place_name,
+                    "city": publication.city,
+                    "province": publication.province,
+                    "address": publication.address,
+                    "original_price": original_price,
+                    "discounted_price": discounted_price
+                }
+            }
+        })
+    
+    return result
+
 
 @router.get("/{user_id}", response_model=schemas.UserOut)
 def get_user_by_id(
