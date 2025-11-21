@@ -57,8 +57,8 @@ export function AvailabilityHours({ availableHours }) {
         {availableHours.map((hour, index) => (
           <span
             key={index}
-            className="badge bg-primary small"
-            style={{ fontSize: '0.7rem' }}
+            className="badge small"
+            style={{ fontSize: '0.7rem', backgroundColor: '#3A92B5', color: 'white' }}
           >
             {hour}
           </span>

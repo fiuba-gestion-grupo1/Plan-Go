@@ -248,7 +248,7 @@ export default function ItineraryRequestForm({ onSubmit, isLoading = false }) {
 
             <button 
                 type="submit" 
-                className="btn btn-primary w-100"
+                className="btn btn-outline-custom w-100"
                 disabled={isLoading}
             >
                 {isLoading ? (

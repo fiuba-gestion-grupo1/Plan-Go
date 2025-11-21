@@ -90,7 +90,7 @@ export default function AuthForm({ title, onSubmit, isRegister = false }) {
             </div>
 
             {error && <div className="alert alert-danger p-2 text-center">{error}</div>}
-            <button type="submit" className="btn btn-primary w-100 mt-3">{title}</button>
+            <button type="submit" className="btn btn-outline-custom w-100 mt-3">{title}</button>
         </form>
     )
 }

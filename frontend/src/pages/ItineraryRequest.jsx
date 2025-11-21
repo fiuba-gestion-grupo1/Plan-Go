@@ -258,7 +258,7 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
               </button>
               {isPremium && (
                 <button
-                  className="btn btn-outline-primary"
+                  className="btn btn-outline-custom"
                   onClick={() => navigate(`/itineraries/${selectedItinerary.id}/share`)}
                   title="Compartir por mail"
                 >

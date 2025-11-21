@@ -83,7 +83,7 @@ export default function ShareItineraryPage() {
               <button type="button" className="btn btn-outline-secondary" onClick={() => navigate(-1)}>
                 Cancelar
               </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
+              <button type="submit" className="btn btn-outline-custom" disabled={loading}>
                 {loading ? "Enviando..." : "Enviar itinerario"}
               </button>
             </div>

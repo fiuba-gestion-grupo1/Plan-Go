@@ -178,7 +178,7 @@ function SearchUsers({ me, onOpenMyProfile }) {
           {onOpenMyProfile && (
             <button
               type="button"
-              className="btn btn-outline-primary btn-sm rounded-pill ms-3"
+              className="btn btn-outline-custom btn-sm rounded-pill ms-3"
               onClick={onOpenMyProfile}
             >
               🧳 Ver mi perfil viajero
@@ -304,7 +304,7 @@ function SearchUsers({ me, onOpenMyProfile }) {
                     ))}
                   </div>
                   {t.style && (
-                    <span className="badge bg-primary bg-opacity-10 text-primary small me-2">
+                    <span className="badge small me-2" style={{backgroundColor: '#3A92B5', opacity: 0.1, color: '#3A92B5'}}>
                       ✈️ {t.style}
                     </span>
                   )}
@@ -345,7 +345,7 @@ function SearchUsers({ me, onOpenMyProfile }) {
                   </div>
                   <Link
                     to={`/viajeros/${t.id}`} // 👈 coincide con la ruta de App.jsx
-                    className="btn btn-sm btn-outline-primary rounded-pill px-3"
+                    className="btn btn-sm btn-outline-custom rounded-pill px-3"
                   >
                     Ver perfil
                   </Link>

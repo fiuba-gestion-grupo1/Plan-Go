@@ -81,7 +81,7 @@ export default function InviteFriend({ token }) {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary" disabled={sending}>
+          <button type="submit" className="btn btn-outline-custom" disabled={sending}>
             {sending ? "Enviando..." : "Enviar invitación"}
           </button>
         </form>

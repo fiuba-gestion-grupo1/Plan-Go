@@ -616,7 +616,7 @@ export default function CustomItinerary({ me, token }) {
                   <div className="d-grid gap-2">
                     <button
                       type="submit"
-                      className="btn btn-primary"
+                      className="btn btn-outline-custom"
                       disabled={loading}
                     >
                       {loading ? 'Preparando...' : 'Continuar'}
@@ -675,7 +675,7 @@ export default function CustomItinerary({ me, token }) {
                 <div className="modal-body">
                   {loadingAiItineraries ? (
                     <div className="text-center p-4">
-                      <div className="spinner-border text-primary" role="status">
+                      <div className="spinner-border" style={{color: '#3A92B5'}} role="status">
                         <span className="visually-hidden">Cargando...</span>
                       </div>
                       <p className="mt-2">Cargando tus itinerarios de IA...</p>
@@ -815,7 +815,7 @@ export default function CustomItinerary({ me, token }) {
           return (
             <div key={dayKey} className="mb-5">
               <div className="card shadow-sm">
-                <div className="card-header bg-primary text-white">
+                <div className="card-header text-white" style={{backgroundColor: '#3A92B5'}}>
                   <h5 className="mb-0">
                     DÍA {dayIndex + 1} - {formatDate(dayDate)}
                   </h5>
@@ -836,7 +836,7 @@ export default function CustomItinerary({ me, token }) {
                               <div className={`card h-100 ${publication ? (publication.is_continuation ? 'border-warning bg-warning bg-opacity-10' : 'border-success bg-light') : 'border-light'}`}>
                                 <div className="card-body p-3">
                                   <div className="d-flex align-items-center justify-content-between mb-2">
-                                    <strong className="text-primary">{time}</strong>
+                                    <strong style={{color: '#3A92B5'}}>{time}</strong>
                                     {publication && !publication.is_continuation && (
                                       <button
                                         className="btn btn-sm btn-outline-danger"
@@ -880,7 +880,7 @@ export default function CustomItinerary({ me, token }) {
                                           {/* Botón Ver detalle */}
                                           {(publication.description || publication.address) && (
                                             <button
-                                              className="btn btn-sm btn-outline-primary w-100"
+                                              className="btn btn-sm btn-outline-custom w-100"
                                               onClick={() => toggleActivityDetails(slotKey)}
                                             >
                                               {expandedActivities.has(slotKey) ? '🔼 Ocultar detalle' : '🔽 Ver detalle'}
@@ -920,7 +920,7 @@ export default function CustomItinerary({ me, token }) {
                                   ) : (
                                     <div className="text-center">
                                       <button
-                                        className="btn btn-sm btn-outline-primary"
+                                        className="btn btn-sm btn-outline-custom"
                                         onClick={() => {
                                           setSelectedSlot({ dayKey, period, time });
                                           setShowPublicationModal(true);
@@ -1018,7 +1018,7 @@ export default function CustomItinerary({ me, token }) {
                               <PublicationAvailability publication={pub} />
                             </div>
                             <div className="card-footer text-center">
-                              <small className="text-primary">
+                              <small style={{color: '#3A92B5'}}>
                                 Haz clic para agregar
                               </small>
                             </div>
@@ -1062,7 +1062,7 @@ export default function CustomItinerary({ me, token }) {
             <p><strong>ItineraryData:</strong> {itineraryData ? 'Presente' : 'Ausente'}</p>
             <p><strong>Loading:</strong> {loading ? 'Sí' : 'No'}</p>
             <button 
-              className="btn btn-primary mt-2"
+              className="btn btn-outline-custom mt-2"
               onClick={() => {
                 console.log('\ud83d\udd04 Reseteando al step setup');
                 setStep('setup');

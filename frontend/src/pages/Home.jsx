@@ -263,7 +263,7 @@ function PreferencesBox({ token }) {
       <div className="mb-3">
         <strong>Climas:</strong>{" "}
         {["templado", "frio", "tropical", "seco"].map(v => (
-          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.climates?.includes(v) ? "btn-primary" : "btn-outline-primary"}`}
+          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.climates?.includes(v) ? "btn-outline-custom" : "btn-outline-secondary"}`}
             onClick={() => toggleList("climates", v)}>{v}</button>
         ))}
       </div>
@@ -661,7 +661,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-  // Vista de Mis Publicaciones
+  // Vista de mis publicaciones
   if (view === 'my-publications' && !subView) {
     return (
       <>
@@ -1069,7 +1069,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                     {/* Compartir por email — solo Premium */}
                     {isPremium && (
                       <button
-                        className="btn btn-sm btn-outline-primary"
+                        className="btn btn-sm btn-outline-custom"
                         onClick={(e) => {
                           e.stopPropagation();
                           // Usar el callback que pasa App:
@@ -1430,7 +1430,7 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
   return (
     <div className="container mt-4">
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
-        <h3 className="mb-0">Mis Publicaciones</h3>
+        <h3 className="mb-0">Mis publicaciones</h3>
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <button
             className="btn btn-celeste"

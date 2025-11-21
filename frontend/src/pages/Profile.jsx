@@ -335,7 +335,7 @@ export default function Profile({ me, token, setMe }) {
                             </div>
                             <div className="d-grid gap-2 d-md-flex justify-content-md-end">
                                 <button type="button" onClick={() => setViewMode('view')} className="btn btn-secondary me-md-2">Cancelar</button>
-                                <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+                                <button type="submit" className="btn btn-outline-custom">Guardar Cambios</button>
                             </div>
                         </form>
                     </div>
@@ -368,7 +368,7 @@ export default function Profile({ me, token, setMe }) {
                             </div>
                             <div className="d-grid gap-2 d-md-flex justify-content-md-end">
                                 <button type="button" onClick={() => setViewMode('view')} className="btn btn-secondary me-md-2">Cancelar</button>
-                                <button type="submit" className="btn btn-primary">Actualizar Contraseña</button>
+                                <button type="submit" className="btn btn-outline-custom">Actualizar Contraseña</button>
                             </div>
                         </form>
                     </div>
@@ -483,7 +483,7 @@ export default function Profile({ me, token, setMe }) {
                         <button className="btn btn-outline-secondary" onClick={() => setViewMode('password')}>
                             Modificar Contraseña
                         </button>
-                        <button className="btn btn-primary" onClick={() => setViewMode('edit')}>
+                        <button className="btn btn-outline-custom" onClick={() => setViewMode('edit')}>
                             Editar Perfil
                         </button>
                     </div>

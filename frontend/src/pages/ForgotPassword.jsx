@@ -70,7 +70,7 @@ export default function ForgotPassword({ setView }) {
         return (
             <div>
                 <div className="alert alert-success">{message}</div>
-                <button onClick={() => setView('login')} className="btn btn-primary w-100">
+                <button onClick={() => setView('login')} className="btn btn-outline-custom w-100">
                     Volver a Iniciar Sesión
                 </button>
             </div>
@@ -91,7 +91,7 @@ export default function ForgotPassword({ setView }) {
                         <input type="password" name="confirm_password" className="form-control" onChange={(e) => setPasswords(p => ({...p, confirm_password: e.target.value}))} required />
                     </div>
                     {error && <div className="alert alert-danger">{error}</div>}
-                    <button type="submit" className="btn btn-primary w-100">Guardar Contraseña</button>
+                    <button type="submit" className="btn btn-outline-custom w-100">Guardar Contraseña</button>
                 </form>
             </div>
         );
@@ -128,7 +128,7 @@ export default function ForgotPassword({ setView }) {
                         />
                     </div>
                     {error && <div className="alert alert-danger">{error}</div>}
-                    <button type="submit" className="btn btn-primary w-100">Verificar Respuestas</button>
+                    <button type="submit" className="btn btn-outline-custom w-100">Verificar Respuestas</button>
                     <div className="text-center mt-3">
                         <button onClick={() => setView('login')} className="btn btn-link">Volver a Iniciar Sesión</button>
                     </div>
@@ -156,7 +156,7 @@ export default function ForgotPassword({ setView }) {
 
                 {error && <div className="alert alert-danger">{error}</div>}
 
-                <button type="submit" className="btn btn-primary w-100">
+                <button type="submit" className="btn btn-outline-custom w-100">
                     Buscar Preguntas
                 </button>
             </form>

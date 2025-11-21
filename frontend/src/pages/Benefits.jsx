@@ -346,7 +346,7 @@ export default function Benefits({ token, me }) {
                 <div className="card-body text-center">
                   <div className="display-4 text-warning mb-3">💎</div>
                   <h4 className="mb-2">Tus puntos actuales</h4>
-                  <div className="display-5 fw-bold text-primary mb-3">{loading ? '...' : userPoints}</div>
+                  <div className="display-5 fw-bold mb-3" style={{color: '#3A92B5'}}>{loading ? '...' : userPoints}</div>
                   <p className="text-muted">
                     Ganá más puntos escribiendo reseñas detalladas
                   </p>
@@ -521,7 +521,7 @@ export default function Benefits({ token, me }) {
                           </span>
                         )}
                         {benefit.benefit_type === 'free_item' && (
-                          <span className="badge bg-primary ms-2">GRATIS</span>
+                          <span className="badge ms-2" style={{backgroundColor: '#3A92B5', color: 'white'}}>GRATIS</span>
                         )}
                         {benefit.benefit_type === 'upgrade' && (
                           <span className="badge bg-warning text-dark ms-2">UPGRADE</span>
@@ -559,7 +559,7 @@ export default function Benefits({ token, me }) {
                           className="btn btn-outline-primary btn-sm"
                           onClick={() => handleShowPublication(benefit.publication)}
                         >
-                          Ver detalle de publicación
+                          Ver detalle de la publicación
                         </button>
                         
                         {isObtained ? (
@@ -568,7 +568,7 @@ export default function Benefits({ token, me }) {
                           </button>
                         ) : (
                           <button
-                            className="btn btn-primary btn-sm"
+                            className="btn btn-outline-custom btn-sm"
                             onClick={() => handleObtainBenefit(benefit)}
                             disabled={userPoints < pointsCost}
                           >
@@ -639,7 +639,7 @@ export default function Benefits({ token, me }) {
                           className="btn btn-outline-primary btn-sm"
                           onClick={() => handleShowPublication(benefit.publication)}
                         >
-                          Ver detalle de publicación
+                          Ver detalle de la publicación
                         </button>
                         <button
                           className="btn btn-success btn-sm"
@@ -757,7 +757,7 @@ export default function Benefits({ token, me }) {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-outline-custom"
                   onClick={() => redeemBenefit(selectedBenefit.id)}
                   disabled={loading}
                 >
@@ -784,7 +784,7 @@ export default function Benefits({ token, me }) {
               </div>
               <div className="modal-body text-center">
                 <div className="border rounded p-4 bg-light">
-                  <h4 className="text-primary mb-3">Plan&Go Premium</h4>
+                  <h4 className="mb-3" style={{color: '#3A92B5'}}>Plan&Go Premium</h4>
                   
                   {selectedVoucher.benefit.discount_percentage && (
                     <div className="badge bg-success fs-6 mb-3">
@@ -895,7 +895,7 @@ export default function Benefits({ token, me }) {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-outline-custom"
                   onClick={() => window.print()}
                 >
                   📱 Imprimir/Guardar

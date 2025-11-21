@@ -392,7 +392,7 @@ export default function TravelerProfile({ me }) {
                           
                           <button
                             type="button"
-                            className="btn btn-sm btn-outline-primary"
+                            className="btn btn-sm btn-outline-custom"
                             onClick={() => {
                               setSelectedItineraryDetail(it);
                               setOpenItineraryDetail(true);

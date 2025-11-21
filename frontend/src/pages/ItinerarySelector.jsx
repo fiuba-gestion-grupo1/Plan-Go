@@ -20,7 +20,7 @@ export default function ItinerarySelector({ onNavigate }) {
                   <div className="mb-4" style={{ fontSize: '4rem' }}>
                     ✏️
                   </div>
-                  <h4 className="card-title text-primary mb-3">Personalizado</h4>
+                  <h4 className="card-title mb-3" style={{color: '#3A92B5'}}>Personalizado</h4>
                   <p className="card-text text-muted mb-4">
                     Crea tu itinerario paso a paso, agregando lugares específicos y 
                     organizando tu viaje según tus preferencias personales.
@@ -39,7 +39,7 @@ export default function ItinerarySelector({ onNavigate }) {
                     </small>
                   </div>
                   <button 
-                    className="btn btn-outline-primary btn-lg"
+                    className="btn btn-outline-custom btn-lg"
                     onClick={() => onNavigate('itinerary-custom')}
                   >
                     Crear Personalizado

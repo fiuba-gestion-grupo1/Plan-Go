@@ -439,7 +439,7 @@ export default function ExpensesPage({ token, me }) {
                   </div>
 
                   <div className="col-md-2 d-grid">
-                    <button className="btn btn-primary fw-semibold" onClick={createTrip}>
+                    <button className="btn btn-outline-custom fw-semibold" onClick={createTrip}>
                       Crear viaje
                     </button>
                   </div>
@@ -492,7 +492,7 @@ export default function ExpensesPage({ token, me }) {
                         <td className="text-center">
                           <div className="btn-group btn-group-sm" role="group">
                             <button
-                              className="btn btn-outline-primary"
+                              className="btn btn-outline-custom"
                               onClick={() => openTrip(t.id)}
                             >
                               Abrir
@@ -586,7 +586,7 @@ export default function ExpensesPage({ token, me }) {
                         </button>
                         <button
                           type="button"
-                          className="btn btn-primary"
+                          className="btn btn-outline-custom"
                           onClick={handleUpdateTrip}
                         >
                           Guardar Cambios
@@ -666,7 +666,7 @@ export default function ExpensesPage({ token, me }) {
               Calcular saldos
             </button>
           )}
-          <button className="btn btn-outline-primary" onClick={exportToPDF}>
+          <button className="btn btn-outline-custom" onClick={exportToPDF}>
             📄 Exportar PDF
           </button>
           <button
@@ -697,7 +697,7 @@ export default function ExpensesPage({ token, me }) {
               />
             </div>
             <div className="col-md-3 d-grid">
-              <button className="btn btn-outline-primary" onClick={sendInvitation}>
+              <button className="btn btn-outline-custom" onClick={sendInvitation}>
                 Enviar invitación
               </button>
             </div>
@@ -992,7 +992,7 @@ export default function ExpensesPage({ token, me }) {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-outline-custom"
                     onClick={handleUpdateExpense}
                   >
                     Guardar Cambios

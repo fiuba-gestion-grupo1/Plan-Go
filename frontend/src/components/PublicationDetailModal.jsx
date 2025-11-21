@@ -246,7 +246,7 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
 
                         {/* Ubicación */}
                         <div className="mb-3">
-                            <h6 className="text-primary mb-2">📍 Ubicación</h6>
+                            <h6 className="mb-2" style={{color: '#3A92B5'}}>📍 Ubicación</h6>
                             <p className="mb-2">
                                 {pub.address ? `${pub.address}, ` : ''}{pub.city}{pub.province ? `, ${pub.province}` : ''}{pub.country ? `, ${pub.country}` : ''}
                             </p>
@@ -255,7 +255,7 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                         {/* Descripción */}
                         {pub.description && (
                             <div className="mb-3">
-                                <h6 className="text-primary mb-2">📋 Descripción</h6>
+                                <h6 className="mb-2" style={{color: '#3A92B5'}}>📋 Descripción</h6>
                                 <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
                             </div>
                         )}
