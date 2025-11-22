@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { request } from '../utils/api';
 import { PublicationAvailability, DurationBadge } from '../components/shared/AvailabilityComponents';
+import PublicationCard from '../components/shared/PublicationCard';
 
 export default function CustomItinerary({ me, token }) {
   console.log('\ud83c\udfa8 [COMPONENT] CustomItinerary renderizado');
@@ -15,6 +16,8 @@ export default function CustomItinerary({ me, token }) {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [cantPersons, setCantPersons] = useState(1);
+  const [budget, setBudget] = useState(0);
   const [itineraryData, setItineraryData] = useState(null);
 
   // Estados para la construcción del itinerario
@@ -29,18 +32,18 @@ export default function CustomItinerary({ me, token }) {
   const [loadingAiItineraries, setLoadingAiItineraries] = useState(false);
   const [convertedFrom, setConvertedFrom] = useState(null);
 
-  // Estado para actividades expandidas
-  const [expandedActivities, setExpandedActivities] = useState(new Set());
+  // Estado para modal de detalle de publicación
+  const [showPublicationDetailModal, setShowPublicationDetailModal] = useState(false);
+  const [selectedPublication, setSelectedPublication] = useState(null);
+  
+  // Estados para modal de error
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Función para alternar detalles de actividad
-  const toggleActivityDetails = (activityKey) => {
-    const newExpanded = new Set(expandedActivities);
-    if (newExpanded.has(activityKey)) {
-      newExpanded.delete(activityKey);
-    } else {
-      newExpanded.add(activityKey);
-    }
-    setExpandedActivities(newExpanded);
+  // Función para mostrar el detalle de la publicación
+  const showPublicationDetail = (publication) => {
+    setSelectedPublication(publication);
+    setShowPublicationDetailModal(true);
   };
 
   // Horarios predefinidos
@@ -68,21 +71,45 @@ export default function CustomItinerary({ me, token }) {
   // Generar días entre fechas
   const generateDays = (start, end) => {
     const days = [];
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    // Usar fecha local sin problemas de zona horaria
+    const startDate = new Date(start + 'T12:00:00');
+    const endDate = new Date(end + 'T12:00:00');
     
-    for (let d = startDate; d <= endDate; d.setDate(d.getDate() + 1)) {
-      days.push(new Date(d));
+    console.log('📅 [DEBUG] generateDays INPUT:', { start, end });
+    console.log('📅 [DEBUG] generateDays PARSED:', { startDate, endDate });
+    
+    // Crear una copia de la fecha para cada iteración
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      days.push(new Date(d)); // Crear nueva instancia para evitar referencia compartida
     }
+    
+    console.log('📅 [DEBUG] generateDays OUTPUT:', { daysGenerated: days.length });
+    console.log('📅 [DEBUG] Primera fecha:', days[0]?.toLocaleDateString());
+    console.log('📅 [DEBUG] Última fecha:', days[days.length - 1]?.toLocaleDateString());
+    
     return days;
   };
 
-  // Buscar publicaciones del destino
-  async function fetchPublications(destination) {
+  // Buscar publicaciones del destino con filtros de disponibilidad
+  async function fetchPublications(destination, selectedDate = null, selectedTime = null) {
     console.log('🔍 Buscando publicaciones para destino:', destination);
+    console.log('📅 Fecha seleccionada:', selectedDate);
+    console.log('🕐 Horario seleccionado:', selectedTime);
     setLoading(true);
     try {
-      const url = `/api/publications/search?destination=${encodeURIComponent(destination)}`;
+      // Extraer solo la ciudad del destino completo
+      const cityName = destination.includes(',') ? destination.split(',')[0].trim() : destination;
+      console.log('🏙️ Ciudad extraída para búsqueda:', cityName);
+      
+      // Construir URL con filtros de disponibilidad
+      let url = `/api/publications/search?destination=${encodeURIComponent(cityName)}`;
+      
+      // Agregar filtros de disponibilidad si están disponibles
+      if (selectedDate && selectedTime) {
+        url += `&date=${selectedDate}&time=${selectedTime}&persons=${cantPersons}`;
+        console.log('✅ Aplicando filtros de disponibilidad');
+      }
+      
       console.log('🔍 URL de búsqueda:', url);
       console.log('🔍 Token:', localStorage.getItem('token') ? 'Presente' : 'Ausente');
       
@@ -93,7 +120,54 @@ export default function CustomItinerary({ me, token }) {
       console.log('🔍 Respuesta de publicaciones:', data);
       console.log('🔍 Cantidad de publicaciones encontradas:', data ? data.length : 0);
       
-      setAvailablePublications(data || []);
+      // Si tenemos fecha y hora seleccionadas, filtrar por disponibilidad
+      let filteredData = data || [];
+      if (selectedDate && selectedTime && filteredData.length > 0) {
+        console.log('🔍 Aplicando filtro de disponibilidad en frontend...');
+        const dayOfWeek = new Date(selectedDate + 'T00:00:00').getDay();
+        const dayNamesShort = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const dayName = dayNamesShort[dayOfWeek];
+        console.log('📅 Día de la semana:', dayName);
+        
+        filteredData = filteredData.filter(pub => {
+          // Verificar días disponibles
+          const availableDays = pub.available_days || [];
+          console.log(`🔍 ${pub.place_name} - Días disponibles:`, availableDays);
+          const isDayAvailable = availableDays.length === 0 || availableDays.includes(dayName);
+          
+          // Verificar horarios disponibles
+          const availableHours = pub.available_hours || [];
+          console.log(`🔍 ${pub.place_name} - Horarios disponibles:`, availableHours);
+          const isTimeAvailable = availableHours.length === 0 || availableHours.some(timeRange => {
+            const [start, end] = timeRange.split('-');
+            const selectedTimeNumber = parseInt(selectedTime.replace(':', ''));
+            const startNumber = parseInt(start.replace(':', ''));
+            const endNumber = parseInt(end.replace(':', ''));
+            return selectedTimeNumber >= startNumber && selectedTimeNumber <= endNumber;
+          });
+          
+          const isAvailable = isDayAvailable && isTimeAvailable;
+          
+          if (!isAvailable) {
+            console.log(`❌ ${pub.place_name} no disponible:`, {
+              dayAvailable: isDayAvailable,
+              timeAvailable: isTimeAvailable,
+              availableDays,
+              availableHours,
+              searchingFor: dayName,
+              searchingTime: selectedTime
+            });
+          } else {
+            console.log(`✅ ${pub.place_name} disponible`);
+          }
+          
+          return isAvailable;
+        });
+        
+        console.log(`🔍 Publicaciones después del filtro: ${filteredData.length} de ${data.length}`);
+      }
+      
+      setAvailablePublications(filteredData);
     } catch (e) {
       console.error('❌ Error en búsqueda de publicaciones:', e);
       setError('Error al cargar publicaciones del destino');
@@ -129,9 +203,14 @@ export default function CustomItinerary({ me, token }) {
     
     // Generar estructura del itinerario
     const itinerary = {};
-    days.forEach(day => {
-      const dayKey = day.toISOString().split('T')[0];
-      itinerary[dayKey] = {
+    const daysWithKeys = days.map((day, index) => ({
+      date: day,
+      key: `day_${index + 1}`, // Usar la misma clave que en el rendering
+      index
+    }));
+    
+    daysWithKeys.forEach(dayObj => {
+      itinerary[dayObj.key] = {
         morning: {},
         afternoon: {},
         evening: {}
@@ -140,12 +219,12 @@ export default function CustomItinerary({ me, token }) {
       // Inicializar todos los slots vacíos
       Object.keys(timeSlots).forEach(period => {
         timeSlots[period].forEach(time => {
-          itinerary[dayKey][period][time] = null;
+          itinerary[dayObj.key][period][time] = null;
         });
       });
     });
 
-    setItineraryData({ days, itinerary });
+    setItineraryData({ days: daysWithKeys, itinerary });
     await fetchPublications(destination);
     setStep('building');
   }
@@ -235,22 +314,82 @@ export default function CustomItinerary({ me, token }) {
 
   // Agregar publicación a un slot (actualizado para usar duración inteligente)
   function addPublicationToSlot(publication) {
-    if (!selectedSlot) return;
+    try {
+      console.log('🎯 [DEBUG] ==========================================');
+      console.log('🎯 [DEBUG] addPublicationToSlot INICIADO!!!');
+      console.log('🎯 [DEBUG] ==========================================');
+      console.log('🎯 [DEBUG] addPublicationToSlot llamado con:', {
+        publicationName: publication?.place_name,
+        publicationId: publication?.id,
+        selectedSlot: selectedSlot
+      });
+      
+      // Cerrar el modal de actividades inmediatamente
+      console.log('🚪 [DEBUG] Cerrando modal de actividades...');
+      setShowPublicationModal(false);
+      
+      if (!selectedSlot) {
+        console.error('❌ [ERROR] selectedSlot es null/undefined:', selectedSlot);
+        alert('Error: No se ha seleccionado un horario. Por favor, intenta de nuevo.');
+        return;
+      }
 
     const { dayKey, period, time } = selectedSlot;
+    console.log('🎯 [DEBUG] Slot seleccionado:', { dayKey, period, time });
     
     // Calcular duración usando lógica inteligente
     const durationMinutes = getSmartDuration(publication);
+    console.log('⏱️ [DEBUG] Duración calculada:', durationMinutes, 'minutos');
+    
     const occupiedSlots = calculateOccupiedSlots(time, durationMinutes);
+    console.log('📍 [DEBUG] Slots ocupados:', occupiedSlots);
     
     // Verificar si hay conflictos con actividades existentes
+    console.log('🔍 [DEBUG] Verificando conflictos para slots:', occupiedSlots);
+    const conflictDetails = [];
+    
     const hasConflict = occupiedSlots.some(slotTime => {
       const slotPeriod = getPeriodForTime(slotTime);
-      return itineraryData.itinerary[dayKey][slotPeriod][slotTime] !== null;
+      const existingActivity = itineraryData.itinerary[dayKey][slotPeriod][slotTime];
+      console.log(`🔍 [CONFLICT CHECK] ${slotTime} en ${slotPeriod}:`, existingActivity);
+      
+      const isConflict = existingActivity !== null && existingActivity !== undefined;
+      
+      if (isConflict) {
+        console.log(`❌ [CONFLICT FOUND] Slot ${slotTime} está ocupado:`, existingActivity);
+        conflictDetails.push({slot: slotTime, period: slotPeriod, activity: existingActivity});
+      } else {
+        console.log(`✅ [FREE SLOT] ${slotTime} está libre`);
+      }
+      
+      return isConflict;
     });
+    
+    console.log('📋 [DEBUG] Detalles de conflictos:', conflictDetails);
 
+    console.log('⚠️ [DEBUG] ¿Hay conflicto?', hasConflict);
+    
     if (hasConflict) {
-      alert('Esta actividad se superpone con otra ya programada. Por favor, elige otro horario.');
+      console.error('❌ [ERROR] Conflicto detectado - mostrando alerta detallada');
+      
+      // Crear mensaje de error detallado
+      const conflictSlots = conflictDetails.map(c => `${c.slot} (${c.activity.place_name || 'Actividad'})`).join(', ');
+      const duration = Math.round(durationMinutes / 60 * 10) / 10; // Redondear a 1 decimal
+      
+      const detailedErrorMessage = `❌ Error al agregar actividad
+      
+📍 Actividad: ${publication.place_name}
+⏱️ Duración: ${duration} horas (${durationMinutes} minutos)
+🕐 Horario solicitado: ${time}
+📅 Slots necesarios: ${occupiedSlots.join(', ')}
+
+⚠️ CONFLICTOS DETECTADOS:
+${conflictDetails.map(c => `• ${c.slot}: ocupado por "${c.activity.place_name || c.activity}"`).join('\n')}
+
+💡 Sugerencia: Elige un horario donde todos los slots estén libres o selecciona una actividad más corta.`;
+
+      setErrorMessage(detailedErrorMessage);
+      setShowErrorModal(true);
       return;
     }
 
@@ -262,12 +401,17 @@ export default function CustomItinerary({ me, token }) {
       is_main_slot: true
     };
 
+    console.log('📝 [DEBUG] Datos de actividad creados:', activityData);
+
     // Marcar todos los slots ocupados
+    console.log('🔄 [DEBUG] Iniciando actualización de itineraryData...');
     setItineraryData(prev => {
+      console.log('📊 [DEBUG] Estado anterior:', prev);
       const newItinerary = { ...prev.itinerary };
       
       occupiedSlots.forEach(slotTime => {
         const slotPeriod = getPeriodForTime(slotTime);
+        console.log(`🔧 [DEBUG] Procesando slot ${slotTime} en periodo ${slotPeriod}`);
         newItinerary[dayKey] = {
           ...newItinerary[dayKey],
           [slotPeriod]: {
@@ -283,7 +427,10 @@ export default function CustomItinerary({ me, token }) {
         };
       });
       
-      return { ...prev, itinerary: newItinerary };
+      console.log('✅ [DEBUG] Nuevo itinerario creado:', newItinerary);
+      const result = { ...prev, itinerary: newItinerary };
+      console.log('📤 [DEBUG] Retornando estado actualizado:', result);
+      return result;
     });
 
     // Actualizar selected publications para todos los slots ocupados
@@ -297,19 +444,48 @@ export default function CustomItinerary({ me, token }) {
           main_slot_time: time
         };
       });
+      console.log('📋 [DEBUG] selectedPublications actualizado:', newSelected);
       return newSelected;
     });
 
-    setShowPublicationModal(false);
+    // Limpiar estado
     setSelectedSlot(null);
+    
+    console.log('🎉 [SUCCESS] Actividad agregada exitosamente:', publication.place_name);
+    } catch (error) {
+      console.error('💥 [ERROR] Error en addPublicationToSlot:', error);
+      setErrorMessage(`Error al agregar actividad: ${error.message}`);
+      setShowErrorModal(true);
+    }
   }
 
   // Remover publicación de un slot
   function removePublicationFromSlot(dayKey, period, time) {
     try {
-      console.log('🗑️ Intentando eliminar actividad:', { dayKey, period, time });
+      console.log('🗑️ [DEBUG] Intentando eliminar actividad:', { dayKey, period, time });
+      
+      // Verificar que itineraryData existe
+      if (!itineraryData || !itineraryData.itinerary) {
+        console.error('❌ itineraryData no disponible');
+        return;
+      }
+      
+      // Verificar que el día existe
+      if (!itineraryData.itinerary[dayKey]) {
+        console.error('❌ Día no encontrado:', dayKey);
+        console.log('🔍 Días disponibles:', Object.keys(itineraryData.itinerary));
+        return;
+      }
+      
+      // Verificar que el período existe
+      if (!itineraryData.itinerary[dayKey][period]) {
+        console.error('❌ Período no encontrado:', period);
+        return;
+      }
+      
       const currentActivity = itineraryData.itinerary[dayKey][period][time];
-      console.log('🗑️ Actividad actual:', currentActivity);
+      console.log('🗑️ [DEBUG] Actividad actual:', currentActivity);
+      
       if (!currentActivity) {
         console.log('❌ No se encontró actividad para eliminar');
         return;
@@ -336,12 +512,12 @@ export default function CustomItinerary({ me, token }) {
       
       // Limpiar todos los slots ocupados
       setItineraryData(prev => {
-        console.log('🗑️ Actualizando itineraryData...');
+        console.log('🗑️ [DEBUG] Actualizando itineraryData...');
         const newItinerary = { ...prev.itinerary };
         
         occupiedSlots.forEach(slotTime => {
           const slotPeriod = getPeriodForTime(slotTime);
-          console.log(`🗑️ Limpiando slot ${slotTime} en período ${slotPeriod}`);
+          console.log(`🗑️ [DEBUG] Limpiando slot ${slotTime} en período ${slotPeriod}`);
           newItinerary[dayKey] = {
             ...newItinerary[dayKey],
             [slotPeriod]: {
@@ -351,7 +527,7 @@ export default function CustomItinerary({ me, token }) {
           };
         });
         
-        console.log('🗑️ ¡Actividad eliminada exitosamente!');
+        console.log('🗑️ ✅ Actividad eliminada exitosamente!');
         return { ...prev, itinerary: newItinerary };
       });
 
@@ -364,6 +540,10 @@ export default function CustomItinerary({ me, token }) {
         });
         return newSelected;
       });
+      
+      // Mostrar confirmación visual
+      console.log(`🎉 Actividad "${mainActivity.place_name || 'Sin nombre'}" eliminada correctamente`);
+      
     } else {
       console.log('🗑️ ❌ Actividad no tiene duration_min, eliminando solo este slot');
       // Remover solo el slot actual (actividad sin duración)
@@ -483,6 +663,10 @@ export default function CustomItinerary({ me, token }) {
       console.log('\ud83d\udd04 Estableciendo convertedFrom...');
       setConvertedFrom(aiItinerary);
       
+      // 🔧 SOLUCIÓN: Cargar publicaciones para el destino convertido
+      console.log('🔍 Cargando publicaciones para destino:', result.destination);
+      await fetchPublications(result.destination);
+      
       // Cerrar modal y cambiar a modo building
       console.log('\ud83d\udd04 Cerrando modal y cambiando a building...');
       setShowPasteModal(false);
@@ -509,35 +693,121 @@ export default function CustomItinerary({ me, token }) {
 
   // Guardar itinerario
   async function saveItinerary() {
+    console.log('💾 [DEBUG] Iniciando guardado del itinerario...');
+    console.log('💾 [DEBUG] Estado actual:');
+    console.log('  - Destino:', destination);
+    console.log('  - Fechas:', startDate, 'a', endDate);
+    console.log('  - Personas:', cantPersons, '(tipo:', typeof cantPersons, ')');
+    console.log('  - Presupuesto:', budget, '(tipo:', typeof budget, ')');
+    
     setLoading(true);
+    setError(''); // Limpiar errores previos
+    
     try {
       const payload = {
         destination,
         start_date: startDate,
         end_date: endDate,
+        cant_persons: cantPersons,
+        budget: budget,
         itinerary_data: itineraryData.itinerary,
         type: 'custom'
       };
 
-      await request('/api/itineraries/custom', {
+      console.log('💾 [DEBUG] Payload completo:', JSON.stringify(payload, null, 2));
+      console.log('💾 [DEBUG] Token:', localStorage.getItem('token') ? 'Presente' : 'No encontrado');
+      console.log('💾 [DEBUG] URL del endpoint: /api/itineraries/custom');
+
+      const response = await request('/api/itineraries/custom', {
         method: 'POST',
         token: localStorage.getItem('token'),
         body: payload
       });
 
+      console.log('✅ [DEBUG] Respuesta del servidor:', response);
+
       alert('¡Itinerario personalizado guardado exitosamente!');
       
-      // Resetear para comenzar un nuevo itinerario o navegar
-      setStep('setup');
-      setDestination('');
-      setStartDate('');
-      setEndDate('');
-      setItineraryData(null);
-      setSelectedPublications({});
-      setError('');
+      // Guardar el ID del itinerario en localStorage para mostrarlo automáticamente
+      if (response && response.id) {
+        console.log('💾 [DEBUG] Guardando ID del itinerario para mostrar:', response.id);
+        localStorage.setItem('showItineraryId', response.id.toString());
+        // Redirigir directamente a la página de mis itinerarios con el parámetro
+        console.log('🔗 [DEBUG] Redirigiendo a mis itinerarios con ID:', response.id);
+        window.location.href = `/?view=my-itineraries&showId=${response.id}`;
+      } else {
+        console.log('🔗 [DEBUG] Sin ID de respuesta, redirigiendo a mis itinerarios');
+        window.location.href = '/?view=my-itineraries';
+      }
     } catch (e) {
-      setError('Error al guardar el itinerario');
-      console.error(e);
+      console.error('❌ [ERROR] Error completo:', e);
+      console.error('❌ [ERROR] Stack trace:', e.stack);
+      console.error('❌ [ERROR] Message:', e.message);
+      
+      // Manejar errores de validación específicos del backend
+      let errorMessage = 'Error al guardar el itinerario';
+      
+      if (e.message && e.message.includes('NO ES POSIBLE GUARDAR EL ITINERARIO')) {
+        // Error de validación del backend - mostrar mensaje detallado
+        errorMessage = e.message;
+        setError(errorMessage);
+        
+        // Crear un modal más detallado para errores de validación
+        const validationModal = document.createElement('div');
+        validationModal.className = 'modal fade';
+        validationModal.style.zIndex = '2000';
+        validationModal.innerHTML = `
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">❌ Error de Validación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <div style="white-space: pre-line; font-family: monospace; background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto;">
+                  ${errorMessage}
+                </div>
+                <div class="mt-3">
+                  <h6>📋 Para resolver estos problemas:</h6>
+                  <ul>
+                    <li>Verifica que todas las actividades estén disponibles en los días seleccionados</li>
+                    <li>Revisa los horarios de disponibilidad de cada actividad</li>
+                    <li>Asegúrate de que el presupuesto cubra todos los costos</li>
+                    <li>Elimina actividades problemáticas y vuelve a agregarlas</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                  🔧 Entendido, voy a corregir
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(validationModal);
+        const modal = new window.bootstrap.Modal(validationModal);
+        modal.show();
+        
+        // Limpiar modal después de cerrarse
+        validationModal.addEventListener('hidden.bs.modal', () => {
+          document.body.removeChild(validationModal);
+        });
+        
+        return; // No mostrar alert adicional
+      } else {
+        // Error genérico
+        if (e.message) {
+          errorMessage += ': ' + e.message;
+        }
+        if (e.status) {
+          errorMessage += ` (HTTP ${e.status})`;
+        }
+        
+        setError(errorMessage);
+        alert(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -612,6 +882,48 @@ export default function CustomItinerary({ me, token }) {
                       </div>
                     </div>
                   </div>
+                  
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">
+                          <strong>👥 Cantidad de personas</strong>
+                        </label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={cantPersons}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 1;
+                            console.log('👥 [DEBUG] Cambiando personas a:', value);
+                            setCantPersons(value);
+                          }}
+                          min="1"
+                          max="20"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">
+                          <strong>💰 Presupuesto estimado (USD)</strong>
+                        </label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={budget}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            console.log('💰 [DEBUG] Cambiando presupuesto a:', value);
+                            setBudget(value);
+                          }}
+                          min="0"
+                          placeholder="Presupuesto en USD"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="d-grid gap-2">
                     <button
@@ -642,7 +954,7 @@ export default function CustomItinerary({ me, token }) {
                       }}
                       disabled={loading}
                     >
-                      📋 Pegar itinerario de IA existente
+                      📋 Modifica un itinerario existente
                     </button>
                   </div>
                 </form>
@@ -811,6 +1123,7 @@ export default function CustomItinerary({ me, token }) {
           }
 
           const dayData = itineraryData.itinerary[`day_${dayIndex + 1}`] || itineraryData.itinerary[dayKey] || {};
+          const actualDayKey = `day_${dayIndex + 1}`; // Clave que realmente se usa en itineraryData
 
           return (
             <div key={dayKey} className="mb-5">
@@ -829,7 +1142,7 @@ export default function CustomItinerary({ me, token }) {
                       <div className="row g-2">
                         {timeSlots[period].map(time => {
                           const publication = dayData[period][time];
-                          const slotKey = `${dayKey}-${period}-${time}`;
+                          const slotKey = `${actualDayKey}-${period}-${time}`;
                           
                           return (
                             <div key={time} className="col-md-6 col-lg-4">
@@ -840,7 +1153,7 @@ export default function CustomItinerary({ me, token }) {
                                     {publication && !publication.is_continuation && (
                                       <button
                                         className="btn btn-sm btn-outline-danger"
-                                        onClick={() => removePublicationFromSlot(dayKey, period, time)}
+                                        onClick={() => removePublicationFromSlot(actualDayKey, period, time)}
                                         title="Remover actividad completa"
                                       >
                                         ×
@@ -878,42 +1191,12 @@ export default function CustomItinerary({ me, token }) {
                                           </div>
 
                                           {/* Botón Ver detalle */}
-                                          {(publication.description || publication.address) && (
-                                            <button
-                                              className="btn btn-sm btn-outline-custom w-100"
-                                              onClick={() => toggleActivityDetails(slotKey)}
-                                            >
-                                              {expandedActivities.has(slotKey) ? '🔼 Ocultar detalle' : '🔽 Ver detalle'}
-                                            </button>
-                                          )}
-
-                                          {/* Detalles expandidos */}
-                                          {expandedActivities.has(slotKey) && (
-                                            <div className="mt-3 p-2 bg-light rounded">
-                                              {publication.description && (
-                                                <div className="mb-2">
-                                                  <small className="text-muted d-block"><strong>Descripción:</strong></small>
-                                                  <small>{publication.description}</small>
-                                                </div>
-                                              )}
-                                              {publication.address && (
-                                                <div className="mb-2">
-                                                  <small className="text-muted">
-                                                    📍 {publication.address}
-                                                  </small>
-                                                </div>
-                                              )}
-                                              {publication.categories && publication.categories.length > 0 && (
-                                                <div>
-                                                  {publication.categories.slice(0, 3).map(cat => (
-                                                    <span key={cat} className="badge bg-secondary me-1 small">
-                                                      {cat}
-                                                    </span>
-                                                  ))}
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
+                                          <button
+                                            className="btn btn-sm btn-outline-info w-100"
+                                            onClick={() => showPublicationDetail(publication)}
+                                          >
+                                            🔍 Ver detalle
+                                          </button>
                                         </>
                                       )}
                                     </div>
@@ -921,8 +1204,27 @@ export default function CustomItinerary({ me, token }) {
                                     <div className="text-center">
                                       <button
                                         className="btn btn-sm btn-outline-custom"
-                                        onClick={() => {
-                                          setSelectedSlot({ dayKey, period, time });
+                                        onClick={async () => {
+                                          console.log('🎯 Abriendo modal para agregar actividad');
+                                          setSelectedSlot({ dayKey: actualDayKey, period, time });
+                                          
+                                          // Calcular la fecha real del día seleccionado
+                                          const dayDate = itineraryData.days.find(d => d.key === actualDayKey)?.date;
+                                          const dayDateString = dayDate ? dayDate.toISOString().split('T')[0] : null;
+                                          console.log('📅 Fecha del slot:', dayDate);
+                                          console.log('📅 Fecha como string:', dayDateString);
+                                          console.log('🕐 Horario del slot:', time);
+                                          console.log('👥 Personas:', cantPersons);
+                                          
+                                          // Buscar publicaciones CON filtros de disponibilidad
+                                          if (dayDateString && time) {
+                                            console.log('🔍 Buscando con filtros de disponibilidad...');
+                                            await fetchPublications(destination, dayDateString, time);
+                                          } else {
+                                            console.log('⚠️ Sin filtros de disponibilidad - búsqueda general');
+                                            await fetchPublications(destination);
+                                          }
+                                          
                                           setShowPublicationModal(true);
                                         }}
                                       >
@@ -943,6 +1245,111 @@ export default function CustomItinerary({ me, token }) {
             </div>
           );
         })}
+
+        {/* Modal para mostrar detalle de publicación */}
+        {showPublicationDetailModal && selectedPublication && (
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+            <div className="modal-dialog modal-lg modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <div>
+                    <h5 className="modal-title mb-1">
+                      📍 {selectedPublication.place_name}
+                    </h5>
+                    <small className="text-muted">
+                      {selectedPublication.start_time && selectedPublication.end_time ? (
+                        `🕐 ${selectedPublication.start_time} - ${selectedPublication.end_time}`
+                      ) : (
+                        `⏱️ ${Math.floor(selectedPublication.duration_min / 60)}h ${selectedPublication.duration_min % 60}m`
+                      )}
+                    </small>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => {
+                      setShowPublicationDetailModal(false);
+                      setSelectedPublication(null);
+                    }}
+                  />
+                </div>
+                <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                  <PublicationCard
+                    publication={selectedPublication}
+                    carouselPrefix={`detail-${selectedPublication.id}`}
+                    showRating={true}
+                    showDetails={true}
+                    footer={
+                      <div className="mt-3">
+                        {selectedPublication.converted_from_ai && selectedPublication.original_text && (
+                          <div className="alert alert-info mb-3">
+                            <div className="d-flex align-items-center mb-2">
+                              <span className="me-2">🤖</span>
+                              <strong>Descripción generada por IA:</strong>
+                            </div>
+                            <em>"{selectedPublication.original_text}"</em>
+                          </div>
+                        )}
+                        {selectedPublication.description && selectedPublication.description !== selectedPublication.original_text && (
+                          <div className="mb-3">
+                            <strong>📝 Descripción completa:</strong>
+                            <p className="mb-0 mt-1" style={{ lineHeight: 1.5 }}>
+                              {selectedPublication.description}
+                            </p>
+                          </div>
+                        )}
+                        <div className="row">
+                          {selectedPublication.cost_per_day && (
+                            <div className="col-md-6 mb-2">
+                              <strong>💰 Costo estimado:</strong>
+                              <br />
+                              <span className="badge bg-success">
+                                ${selectedPublication.cost_per_day} por día
+                              </span>
+                            </div>
+                          )}
+                          {selectedPublication.duration_min && (
+                            <div className="col-md-6 mb-2">
+                              <strong>⏱️ Duración programada:</strong>
+                              <br />
+                              <span className="badge bg-info">
+                                {Math.floor(selectedPublication.duration_min / 60)}h {selectedPublication.duration_min % 60}m
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {selectedPublication.categories && selectedPublication.categories.length > 0 && (
+                          <div className="mt-3">
+                            <strong>🏷️ Categorías:</strong>
+                            <div className="mt-1">
+                              {selectedPublication.categories.map((cat, idx) => (
+                                <span key={idx} className="badge bg-secondary me-1 mb-1">
+                                  {typeof cat === 'string' ? cat : cat.name || cat.slug}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    }
+                  />
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowPublicationDetailModal(false);
+                      setSelectedPublication(null);
+                    }}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal para seleccionar publicación */}
         {showPublicationModal && (
@@ -977,11 +1384,7 @@ export default function CustomItinerary({ me, token }) {
                     <div className="row g-3">
                       {availablePublications.map(pub => (
                         <div key={pub.id} className="col-md-6">
-                          <div 
-                            className="card h-100 border-primary hover-card"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => addPublicationToSlot(pub)}
-                          >
+                          <div className="card h-100 border-primary">
                             {pub.photos && pub.photos.length > 0 && (
                               <img 
                                 src={pub.photos[0]} 
@@ -1014,13 +1417,39 @@ export default function CustomItinerary({ me, token }) {
                                   ))}
                                 </div>
                               )}
+                              {/* Mostrar precio si existe */}
+                              {pub.cost_per_day && (
+                                <div className="mb-2">
+                                  <span className="badge bg-success">
+                                    💰 ${pub.cost_per_day} por día
+                                  </span>
+                                </div>
+                              )}
                               {/* Información de disponibilidad */}
                               <PublicationAvailability publication={pub} />
                             </div>
-                            <div className="card-footer text-center">
-                              <small style={{color: '#3A92B5'}}>
-                                Haz clic para agregar
-                              </small>
+                            <div className="card-footer">
+                              <div className="d-grid gap-2">
+                                <button
+                                  className="btn btn-outline-info btn-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    showPublicationDetail(pub);
+                                  }}
+                                >
+                                  🔍 Ver detalle
+                                </button>
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    console.log('🎯 [DEBUG] Publicación seleccionada para agregar:', pub.place_name);
+                                    addPublicationToSlot(pub);
+                                  }}
+                                >
+                                  ➕ Agregar actividad
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1075,6 +1504,38 @@ export default function CustomItinerary({ me, token }) {
           </div>
         </div>
       </div>
+
+      {/* Modal de Error */}
+      {showErrorModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title">❌ Error al Agregar Actividad</h5>
+                <button 
+                  type="button" 
+                  className="btn-close btn-close-white"
+                  onClick={() => setShowErrorModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div style={{whiteSpace: 'pre-line', fontFamily: 'monospace', fontSize: '14px'}}>
+                  {errorMessage}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-danger"
+                  onClick={() => setShowErrorModal(false)}
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

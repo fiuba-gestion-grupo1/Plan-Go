@@ -491,6 +491,9 @@ def list_my_submissions(db: Session = Depends(get_db), current_user: models.User
 def search_publications(
     q: str = "",
     destination: str = "",
+    date: str = None,
+    time: str = None,
+    persons: int = 1,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -601,6 +604,37 @@ def search_publications(
     else:
         # Es un query, ordenar en SQL
         pubs = pubs.order_by(models.Publication.created_at.desc()).all()
+
+    # Filtrar por disponibilidad si se proporcionan fecha y hora
+    if date and time:
+        try:
+            # Convertir fecha y hora a datetime para validar disponibilidad
+            from datetime import datetime, time as time_obj
+            
+            # Parsear fecha
+            target_date = datetime.fromisoformat(date).date()
+            
+            # Parsear hora
+            hour, minute = map(int, time.split(':'))
+            target_time = time_obj(hour, minute)
+            
+            # Filtrar publicaciones por disponibilidad
+            available_pubs = []
+            for pub in pubs:
+                # Verificar si la publicación tiene disponibilidad configurada
+                if hasattr(pub, 'availability') and pub.availability:
+                    # Si tiene disponibilidad específica, verificar
+                    # (aquí iría la lógica específica de disponibilidad según tu modelo)
+                    available_pubs.append(pub)
+                else:
+                    # Si no tiene restricciones de disponibilidad, está disponible
+                    available_pubs.append(pub)
+            
+            pubs = available_pubs
+            
+        except (ValueError, AttributeError) as e:
+            # Si hay error en el parsing, ignorar filtros de disponibilidad
+            print(f"Error parsing availability filters: {e}")
 
     # Obtener IDs de favoritos del usuario actual
     favorite_ids = {

@@ -64,7 +64,22 @@ function AppWithRouter() {
           setMe(meResp);
           const isAdminUser =
             meResp?.role === "admin" || meResp?.username === "admin";
-          setAuthView(isAdminUser ? "approved-publications" : "publications");
+          
+          // Verificar si hay parámetros URL para vista específica
+          const urlParams = new URLSearchParams(window.location.search);
+          const viewParam = urlParams.get('view');
+          const showIdParam = urlParams.get('showId');
+          
+          if (viewParam) {
+            console.log('🔗 [URL] Vista desde URL:', viewParam);
+            setAuthView(viewParam);
+            if (showIdParam) {
+              console.log('🔗 [URL] ID para mostrar:', showIdParam);
+              localStorage.setItem('showItineraryId', showIdParam);
+            }
+          } else {
+            setAuthView(isAdminUser ? "approved-publications" : "publications");
+          }
         } catch {
           localStorage.removeItem("token");
           setToken("");

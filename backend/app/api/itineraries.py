@@ -6,7 +6,7 @@ from ..db import get_db
 from .. import models, schemas
 from .auth import get_current_user
 from ..models import Itinerary, SavedItinerary
-from datetime import datetime
+from datetime import datetime, timedelta
 import google.generativeai as genai
 import re
 from ..utils.mailer import send_email_html
@@ -15,6 +15,7 @@ import html
 from datetime import datetime, date
 from ..validation.itinerary_validator import ItineraryValidator
 from ..utils.itinerary_parser import parse_ai_itinerary_to_custom_structure, generate_custom_itinerary_preview, validate_custom_structure
+from typing import Dict, List
 
 router = APIRouter(prefix="/api/itineraries", tags=["itineraries"])
 
@@ -804,6 +805,8 @@ def get_my_itineraries(
             created_at=it.created_at.isoformat(),
             publications=publication_list
         ))
+        
+        print(f"📊 [DEBUG] Itinerario {it.id} desde BD: budget={it.budget}, cant_persons={it.cant_persons}")
     
     # Procesar itinerarios guardados
     for saved in saved_itineraries:
@@ -1122,10 +1125,16 @@ def convert_ai_to_custom_itinerary(
                     "id": pub_id,
                     "place_name": publication_data.place_name if publication_data else description,
                     "address": publication_data.address if publication_data else "",
+                    "city": publication_data.city if publication_data else destination.split(",")[0].strip(),
+                    "province": publication_data.province if publication_data else "",
+                    "country": publication_data.country if publication_data else "",
                     "description": publication_data.description if publication_data else description,
                     "duration_min": actual_duration,  # Usar duración real de la IA
                     "categories": [cat.slug for cat in (publication_data.categories or [])] if publication_data else [],
                     "cost_per_day": publication_data.cost_per_day if publication_data else None,
+                    "photos": [photo.url for photo in (publication_data.photos or [])] if publication_data else [],
+                    "rating_avg": publication_data.rating_avg if publication_data else None,
+                    "rating_count": publication_data.rating_count if publication_data else 0,
                     "converted_from_ai": True,
                     "original_text": description,
                     "start_time": start_time,
@@ -1167,6 +1176,10 @@ def convert_ai_to_custom_itinerary(
                                     continuation_entry = {
                                         "id": pub_id,
                                         "place_name": publication_data.place_name if publication_data else description,
+                                        "city": publication_data.city if publication_data else destination.split(",")[0].strip(),
+                                        "province": publication_data.province if publication_data else "",
+                                        "country": publication_data.country if publication_data else "",
+                                        "address": publication_data.address if publication_data else "",
                                         "is_continuation": True,
                                         "main_slot_time": start_time,
                                         "start_time": start_time,
@@ -1195,6 +1208,10 @@ def convert_ai_to_custom_itinerary(
                                             continuation_entry = {
                                                 "id": pub_id,
                                                 "place_name": publication_data.place_name if publication_data else description,
+                                                "city": publication_data.city if publication_data else destination.split(",")[0].strip(),
+                                                "province": publication_data.province if publication_data else "",
+                                                "country": publication_data.country if publication_data else "",
+                                                "address": publication_data.address if publication_data else "",
                                                 "is_continuation": True,
                                                 "main_slot_time": start_time,
                                                 "start_time": start_time,
@@ -1250,10 +1267,16 @@ def convert_ai_to_custom_itinerary(
                             "id": pub.id,
                             "place_name": pub.place_name,
                             "address": pub.address or "",
+                            "city": pub.city or destination.split(",")[0].strip(),
+                            "province": pub.province or "",
+                            "country": pub.country or "",
                             "description": pub.description or "",
                             "duration_min": pub.duration_min or 120,
                             "categories": [cat.slug for cat in (pub.categories or [])],
                             "cost_per_day": pub.cost_per_day,
+                            "photos": [photo.url for photo in (pub.photos or [])] if pub.photos else [],
+                            "rating_avg": pub.rating_avg,
+                            "rating_count": pub.rating_count or 0,
                             "converted_from_ai": True
                         }
                         
@@ -1817,8 +1840,36 @@ class CustomItineraryRequest(BaseModel):
     destination: str
     start_date: str
     end_date: str
+    cant_persons: int = 1
+    budget: int = 0
     itinerary_data: dict
     type: str = "custom"
+
+
+def _extract_publication_ids(itinerary_data: Dict) -> List[int]:
+    """Extrae todos los IDs de publicaciones del itinerary_data"""
+    publication_ids = []
+    
+    for day_key, day_data in itinerary_data.items():
+        if not day_key.startswith('day_'):
+            continue
+            
+        for period in ['morning', 'afternoon', 'evening']:
+            if period in day_data:
+                for time_slot, activity in day_data[period].items():
+                    if activity and activity.get('id'):
+                        publication_ids.append(activity.get('id'))
+    
+    return list(set(publication_ids))  # Eliminar duplicados
+
+
+def _time_to_minutes(time_str: str) -> int:
+    """Convierte una hora en formato HH:MM a minutos desde medianoche"""
+    try:
+        hours, minutes = map(int, time_str.split(':'))
+        return hours * 60 + minutes
+    except:
+        return 0
 
 
 @router.post("/custom", response_model=schemas.ItineraryOut)
@@ -1832,25 +1883,148 @@ async def create_custom_itinerary(
     manualmente las actividades para cada horario
     """
     try:
+        print(f"🔍 [DEBUG] Datos recibidos:")
+        print(f"  - Destino: {request.destination}")
+        print(f"  - Personas: {request.cant_persons} (tipo: {type(request.cant_persons)})")
+        print(f"  - Presupuesto: {request.budget} (tipo: {type(request.budget)})")
+        print(f"  - Fechas: {request.start_date} a {request.end_date}")
+        
+        # VALIDACIONES ESTRICTAS ANTES DE GUARDAR
+        validation_errors = []
+        
+        # Extraer IDs de publicaciones del itinerary_data
+        publication_ids = _extract_publication_ids(request.itinerary_data)
+        
+        # Validar presupuesto si hay actividades
+        total_cost = 0
+        budget_validation = []
+        
+        if publication_ids:
+            publications = db.query(models.Publication).filter(
+                models.Publication.id.in_(publication_ids)
+            ).all()
+            
+            # Validar disponibilidad de cada publicación
+            start_date_obj = datetime.fromisoformat(request.start_date).date()
+            
+            for pub in publications:
+                # Calcular costo
+                if pub.cost_per_day and pub.cost_per_day > 0:
+                    activity_cost = pub.cost_per_day * request.cant_persons
+                    total_cost += activity_cost
+                    budget_validation.append({
+                        "name": pub.place_name,
+                        "cost_per_person": pub.cost_per_day,
+                        "total_cost": activity_cost
+                    })
+                
+                # Validar disponibilidad por día
+                for day_key, day_data in request.itinerary_data.items():
+                    if not day_key.startswith('day_'):
+                        continue
+                        
+                    day_number = int(day_key.split('_')[1])
+                    from datetime import timedelta
+                    current_date = start_date_obj + timedelta(days=day_number - 1)
+                    day_name = current_date.strftime("%A").lower()
+                    
+                    # Traducir día al español
+                    day_names_es = {
+                        'monday': 'lunes', 'tuesday': 'martes', 'wednesday': 'miércoles',
+                        'thursday': 'jueves', 'friday': 'viernes', 'saturday': 'sábado', 'sunday': 'domingo'
+                    }
+                    day_name_es = day_names_es.get(day_name, day_name)
+                    
+                    # Verificar si esta publicación está en este día
+                    pub_in_day = False
+                    for period in ['morning', 'afternoon', 'evening']:
+                        if period in day_data:
+                            for time_slot, activity in day_data[period].items():
+                                if activity and activity.get('id') == pub.id:
+                                    pub_in_day = True
+                                    
+                                    # Verificar disponibilidad del día
+                                    available_days = pub.available_days or []
+                                    if available_days and day_name_es not in available_days:
+                                        validation_errors.append(
+                                            f"❌ {pub.place_name} no está disponible los {day_name_es} "
+                                            f"(día {day_number} - {current_date.strftime('%d/%m/%y')}). "
+                                            f"Días disponibles: {', '.join(available_days)}"
+                                        )
+                                    
+                                    # Verificar disponibilidad del horario
+                                    available_hours = pub.available_hours or []
+                                    if available_hours:
+                                        time_available = False
+                                        for time_range in available_hours:
+                                            start_time, end_time = time_range.split('-')
+                                            start_minutes = _time_to_minutes(start_time)
+                                            end_minutes = _time_to_minutes(end_time)
+                                            slot_minutes = _time_to_minutes(time_slot)
+                                            
+                                            if start_minutes <= slot_minutes <= end_minutes:
+                                                time_available = True
+                                                break
+                                        
+                                        if not time_available:
+                                            validation_errors.append(
+                                                f"❌ {pub.place_name} no está disponible a las {time_slot}. "
+                                                f"Horarios disponibles: {', '.join(available_hours)}"
+                                            )
+        
+        # Validar presupuesto
+        if request.budget > 0 and total_cost > request.budget:
+            validation_errors.append(
+                f"💰 Presupuesto excedido: Costo total ${total_cost:.2f} USD > Presupuesto ${request.budget:.2f} USD. "
+                f"Exceso: ${total_cost - request.budget:.2f} USD"
+            )
+        elif request.budget <= 0 and total_cost > 0:
+            validation_errors.append(
+                f"💰 Presupuesto requerido: El itinerario tiene un costo de ${total_cost:.2f} USD pero no se especificó presupuesto"
+            )
+        
+        # Si hay errores de validación, devolver error detallado
+        if validation_errors:
+            error_message = "❌ NO ES POSIBLE GUARDAR EL ITINERARIO\n\nProblemas encontrados:\n\n" + "\n\n".join(validation_errors)
+            error_message += f"\n\n💡 Por favor corrige estos problemas y vuelve a intentar guardar el itinerario."
+            
+            raise HTTPException(
+                status_code=400,
+                detail=error_message
+            )
+            
+            # Si el costo excede el presupuesto, incluir advertencia en el itinerario
+            if total_cost > request.budget:
+                budget_warning = f"\n⚠️ ADVERTENCIA DE PRESUPUESTO:\nCosto estimado: ${total_cost:.2f} USD\nPresupuesto: ${request.budget:.2f} USD\nExceso: ${total_cost - request.budget:.2f} USD\n"
+            else:
+                budget_warning = f"\n✅ PRESUPUESTO VALIDADO:\nCosto estimado: ${total_cost:.2f} USD\nPresupuesto: ${request.budget:.2f} USD\nDisponible: ${request.budget - total_cost:.2f} USD\n"
+        else:
+            budget_warning = ""
+        
         # Crear el itinerario en la base de datos
         itinerary = models.Itinerary(
             destination=request.destination,
             start_date=datetime.fromisoformat(request.start_date).date(),
             end_date=datetime.fromisoformat(request.end_date).date(),
-            budget=0,  # No aplica para itinerarios personalizados
-            cant_persons=1,  # Valor por defecto
+            budget=request.budget,
+            cant_persons=request.cant_persons,
             trip_type="personalizado",
             user_id=current_user.id,
             status="completed",  # Ya está listo
-            generated_itinerary=_format_custom_itinerary(request.itinerary_data)
+            generated_itinerary=_format_custom_itinerary(request.itinerary_data, request.start_date) + budget_warning
         )
         
         db.add(itinerary)
         db.commit()
         db.refresh(itinerary)
         
-        # Extraer IDs de publicaciones del itinerary_data
-        publication_ids = _extract_publication_ids(request.itinerary_data)
+        print(f"✅ [DEBUG] Itinerario guardado en BD:")
+        print(f"  - ID: {itinerary.id}")
+        print(f"  - Personas en BD: {itinerary.cant_persons}")
+        print(f"  - Presupuesto en BD: {itinerary.budget}")
+        print(f"  - Destino en BD: {itinerary.destination}")
+        
+        # Usar los publication_ids ya calculados
         publications = []
         
         # Obtener las publicaciones y actualizar publication_ids
@@ -1863,7 +2037,8 @@ async def create_custom_itinerary(
         
         db.commit()
         
-        return schemas.ItineraryOut(
+        # Crear objeto de respuesta
+        response_obj = schemas.ItineraryOut(
             id=itinerary.id,
             destination=itinerary.destination,
             start_date=itinerary.start_date.isoformat(),
@@ -1902,6 +2077,13 @@ async def create_custom_itinerary(
             ]
         )
         
+        print(f"📤 [DEBUG] Respuesta enviada:")
+        print(f"  - ID: {response_obj.id}")
+        print(f"  - Personas en respuesta: {response_obj.cant_persons}")
+        print(f"  - Presupuesto en respuesta: {response_obj.budget}")
+        
+        return response_obj
+        
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -1910,26 +2092,41 @@ async def create_custom_itinerary(
         )
 
 
-def _format_custom_itinerary(itinerary_data: dict) -> str:
+def _format_custom_itinerary(itinerary_data: dict, start_date: str) -> str:
     """
     Formatea los datos del itinerario personalizado en un texto legible
     con horarios reales de inicio y fin de actividades
     """
     result = []
     
-    for day_key in sorted(itinerary_data.keys()):
+    # Calcular las fechas reales basadas en la fecha de inicio
+    start_date_obj = datetime.fromisoformat(start_date).date()
+    
+    # Ordenar las claves de día (day_1, day_2, etc.)
+    day_keys = sorted([k for k in itinerary_data.keys() if k.startswith('day_')], 
+                     key=lambda x: int(x.split('_')[1]))
+    
+    for day_counter, day_key in enumerate(day_keys, 1):
         day_data = itinerary_data[day_key]
         
-        # Convertir fecha a formato legible
-        try:
-            date_obj = datetime.fromisoformat(day_key).date()
-            day_counter = len([line for line in result if line.startswith("DÍA")]) + 1
-            result.append(f"═══════════════════════════════════════════════════")
-            result.append(f"DÍA {day_counter} - {date_obj.strftime('%Y-%m-%d')}")
-            result.append(f"═══════════════════════════════════════════════════")
-            result.append("")
-        except:
-            continue
+        # Calcular la fecha real para este día
+        from datetime import timedelta
+        current_date = start_date_obj + timedelta(days=day_counter - 1)
+        date_formatted = current_date.strftime("%d/%m/%y")
+        day_name = current_date.strftime("%A")  # Nombre del día en inglés
+        
+        # Traducir días al español
+        day_names_es = {
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+        }
+        day_name_es = day_names_es.get(day_name, day_name)
+        
+        # Crear encabezado del día
+        result.append(f"═══════════════════════════════════════════════════")
+        result.append(f"DÍA {day_counter} - {day_name_es}, {date_formatted}")
+        result.append(f"═══════════════════════════════════════════════════")
+        result.append("")
         
         # Recopilar todas las actividades del día con sus horarios
         daily_activities = []

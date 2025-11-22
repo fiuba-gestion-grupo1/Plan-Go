@@ -383,6 +383,37 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, view, JSON.stringify(cats)]);
 
+  // Detectar si hay un itinerario recién creado para mostrar
+  useEffect(() => {
+    const showItineraryId = localStorage.getItem('showItineraryId');
+    if (showItineraryId && view === 'my-itineraries') {
+      console.log('🔄 [DEBUG] Vista my-itineraries activa, buscando itinerario recién creado:', showItineraryId);
+      // Esperar un poco más a que se carguen los itinerarios antes de buscar
+      setTimeout(() => {
+        const targetItinerary = myItineraries.find(it => it.id.toString() === showItineraryId);
+        if (targetItinerary) {
+          console.log('🔄 [DEBUG] Itinerario encontrado, abriendo automáticamente:', targetItinerary);
+          setSelectedItinerary(targetItinerary);
+          setSubView('view-itinerary');
+          // Limpiar el localStorage después de usar
+          localStorage.removeItem('showItineraryId');
+        } else {
+          console.log('🔄 [DEBUG] Itinerario no encontrado, puede que aún no esté cargado');
+          // Si no se encuentra, intentar de nuevo en 2 segundos
+          setTimeout(() => {
+            const targetItinerary2 = myItineraries.find(it => it.id.toString() === showItineraryId);
+            if (targetItinerary2) {
+              console.log('🔄 [DEBUG] Itinerario encontrado en segundo intento:', targetItinerary2);
+              setSelectedItinerary(targetItinerary2);
+              setSubView('view-itinerary');
+              localStorage.removeItem('showItineraryId');
+            }
+          }, 2000);
+        }
+      }, 1000);
+    }
+  }, [view, myItineraries]);
+
   // Si viene ?pub=ID en la URL, abre automáticamente esa publicación cuando hay datos
   useEffect(() => {
     if (!paramPubId) return;
@@ -516,6 +547,26 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     try {
       const data = await request("/api/itineraries/my-itineraries", { token });
       setMyItineraries(data);
+      
+      // Verificar si hay un itinerario recién creado para mostrar
+      const showItineraryId = localStorage.getItem('showItineraryId');
+      if (showItineraryId && data.length > 0) {
+        console.log('🎯 [DEBUG] Buscando itinerario recién creado ID:', showItineraryId);
+        
+        // Buscar el itinerario en la lista
+        const newItinerary = data.find(it => it.id.toString() === showItineraryId);
+        if (newItinerary) {
+          console.log('✅ [DEBUG] Itinerario encontrado, mostrando automáticamente:', newItinerary.destination);
+          
+          // Abrir automáticamente el itinerario
+          setSelectedItinerary(newItinerary);
+          
+          // Limpiar el localStorage para no mostrarlo de nuevo
+          localStorage.removeItem('showItineraryId');
+        } else {
+          console.log('⚠️ [DEBUG] Itinerario no encontrado en la lista');
+        }
+      }
     } catch (e) {
       setError(e.message);
     } finally {
