@@ -1,9 +1,9 @@
-# backend/app/api/debug.py
 from fastapi import APIRouter
 from sqlalchemy import inspect
 from ..db import engine
 
 router = APIRouter(prefix="/api/debug", tags=["debug"])
+
 
 @router.get("/db")
 def debug_db():

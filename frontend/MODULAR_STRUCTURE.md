@@ -30,7 +30,9 @@ frontend/src/
 ## 🔧 Componentes Reutilizables Creados
 
 ### 1. **UIComponents.jsx**
+
 Componentes básicos de interfaz:
+
 - `Stars({ value })` - Estrellas de rating
 - `RatingBadge({ avg, count })` - Badge con rating
 - `StatusBadge({ status })` - Badge de estado (approved/pending/rejected/deleted)
@@ -40,24 +42,29 @@ Componentes básicos de interfaz:
 - `EmptyState({ message, icon })` - Estado vacío
 
 ### 2. **PhotoCarousel.jsx**
+
 Carrusel de fotos reutilizable con:
+
 - Múltiples fotos con navegación
 - Indicadores y controles
 - Altura configurable
 - Prefijo de ID personalizable
 
 **Props:**
+
 ```jsx
-<PhotoCarousel 
-  photos={[]} 
-  publicationId={id} 
+<PhotoCarousel
+  photos={[]}
+  publicationId={id}
   height={260}
   carouselPrefix="carousel"
 />
 ```
 
 ### 3. **PublicationCard.jsx**
+
 Tarjeta de publicación completa y configurable:
+
 - Muestra fotos, título, ubicación
 - Status badges opcionales
 - Rating opcional
@@ -66,6 +73,7 @@ Tarjeta de publicación completa y configurable:
 - Footer customizable
 
 **Props:**
+
 ```jsx
 <PublicationCard
   publication={pub}
@@ -82,13 +90,16 @@ Tarjeta de publicación completa y configurable:
 ```
 
 ### 4. **PublicationsGrid.jsx**
+
 Grid completo para listar publicaciones:
+
 - Manejo de loading
 - Manejo de estado vacío
 - Grid responsive (1/2/3 columnas)
 - Integra PublicationCard
 
 **Props:**
+
 ```jsx
 <PublicationsGrid
   publications={pubs}
@@ -107,13 +118,16 @@ Grid completo para listar publicaciones:
 ```
 
 ### 5. **MultiCategoryDropdown.jsx**
+
 Dropdown multiselect para filtrar categorías:
+
 - Checkboxes múltiples
 - Botón de limpiar
 - Recarga de categorías
 - Click fuera para cerrar
 
 **Props:**
+
 ```jsx
 <MultiCategoryDropdown
   allCats={categories}
@@ -124,17 +138,20 @@ Dropdown multiselect para filtrar categorías:
 ```
 
 ### 6. **StatsSidebar.jsx**
+
 Sidebar con estadísticas:
+
 - Tarjetas de estadísticas
 - Iconos y colores personalizables
 - Sticky positioning
 
 **Props:**
+
 ```jsx
-<StatsSidebar 
+<StatsSidebar
   stats={[
     { icon: "📝", label: "Publicaciones", value: 10, color: "primary" },
-    { icon: "⏳", label: "Pendientes", value: 5, color: "warning" }
+    { icon: "⏳", label: "Pendientes", value: 5, color: "warning" },
   ]}
 />
 ```
@@ -142,23 +159,25 @@ Sidebar con estadísticas:
 ## 🔨 Utilidades
 
 ### **api.js**
-```javascript
-import { request, useToken } from '../utils/api';
 
-// Hacer peticiones
-const data = await request('/api/endpoint', { 
-  method: 'POST', 
-  token, 
-  body: { key: 'value' } 
+```javascript
+import { request, useToken } from "../utils/api";
+
+// Hacer peticiones.
+const data = await request("/api/endpoint", {
+  method: "POST",
+  token,
+  body: { key: "value" },
 });
 
-// Obtener token
+// Obtener token.
 const token = useToken();
 ```
 
 ### **useOnClickOutside.js**
+
 ```javascript
-import { useOnClickOutside } from '../hooks/useOnClickOutside';
+import { useOnClickOutside } from "../hooks/useOnClickOutside";
 
 const ref = useRef();
 useOnClickOutside(ref, () => setOpen(false));
@@ -176,12 +195,14 @@ useOnClickOutside(ref, () => setOpen(false));
 ## 📝 Próximos Pasos para Refactorizar
 
 ### Home.jsx
+
 - Reemplazar código duplicado con componentes compartidos
 - Usar `PublicationsGrid` en lugar de código repetitivo
 - Importar utilidades de `utils/api.js`
 - Usar `StatusBadge` y otros componentes de UI
 
 ### Backoffice.jsx
+
 - Aplicar los mismos cambios que Home.jsx
 - Usar `StatsSidebar` para las estadísticas
 - Simplificar vistas con componentes modulares
@@ -189,17 +210,19 @@ useOnClickOutside(ref, () => setOpen(false));
 ## 🔄 Ejemplo de Migración
 
 ### Antes:
+
 ```jsx
-{pubs.map((p) => (
-  <div className="col" key={p.id}>
-    <div className="card">
-      {/* 50+ líneas de código repetido */}
+{
+  pubs.map((p) => (
+    <div className="col" key={p.id}>
+      <div className="card">{/* 50+ líneas de código repetido */}</div>
     </div>
-  </div>
-))}
+  ));
+}
 ```
 
 ### Después:
+
 ```jsx
 <PublicationsGrid
   publications={pubs}

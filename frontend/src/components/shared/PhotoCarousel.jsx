@@ -1,13 +1,10 @@
 import React from "react";
 
-/**
- * Componente de carrusel de fotos reutilizable
- */
-export default function PhotoCarousel({ 
-  photos = [], 
-  publicationId, 
+export default function PhotoCarousel({
+  photos = [],
+  publicationId,
   height = 260,
-  carouselPrefix = "carousel"
+  carouselPrefix = "carousel",
 }) {
   if (!photos || photos.length === 0) {
     return (
@@ -23,7 +20,10 @@ export default function PhotoCarousel({
     <div id={carouselId} className="carousel slide" data-bs-ride="false">
       <div className="carousel-inner">
         {photos.map((url, idx) => (
-          <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+          <div
+            className={`carousel-item ${idx === 0 ? "active" : ""}`}
+            key={url}
+          >
             <img
               src={url}
               className="d-block w-100"

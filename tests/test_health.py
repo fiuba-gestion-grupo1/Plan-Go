@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+
 def test_health_check(client: TestClient):
     """Verifica que el endpoint de salud responda correctamente."""
     response = client.get("/api/health")

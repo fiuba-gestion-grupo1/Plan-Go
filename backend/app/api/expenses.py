@@ -6,35 +6,40 @@ from .. import models, schemas
 
 router = APIRouter(prefix="/api/expenses", tags=["expenses"])
 
-# Crear un nuevo gasto
+
 @router.post("", response_model=schemas.ExpenseOut)
-def create_expense(payload: schemas.ExpenseIn, 
-                   db: Session = Depends(get_db), 
-                   user=Depends(get_current_user)):
+def create_expense(
+    payload: schemas.ExpenseIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
     expense = models.Expense(
         user_id=user.id,
         trip_name=payload.trip_name,
         name=payload.name,
         category=payload.category,
         amount=payload.amount,
-        date=payload.date
+        date=payload.date,
     )
     db.add(expense)
     db.commit()
     db.refresh(expense)
     return schemas.ExpenseOut.model_validate(expense.__dict__)
 
-# Obtener todos los gastos del usuario
+
 @router.get("", response_model=list[schemas.ExpenseOut])
 def get_my_expenses(db: Session = Depends(get_db), user=Depends(get_current_user)):
     expenses = db.query(models.Expense).filter_by(user_id=user.id).all()
     return [schemas.ExpenseOut.model_validate(e.__dict__) for e in expenses]
 
-# Editar un gasto
+
 @router.put("/{expense_id}", response_model=schemas.ExpenseOut)
-def update_expense(expense_id: int, payload: schemas.ExpenseIn,
-                   db: Session = Depends(get_db),
-                   user=Depends(get_current_user)):
+def update_expense(
+    expense_id: int,
+    payload: schemas.ExpenseIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
     expense = db.query(models.Expense).filter_by(id=expense_id, user_id=user.id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -46,11 +51,11 @@ def update_expense(expense_id: int, payload: schemas.ExpenseIn,
     db.refresh(expense)
     return schemas.ExpenseOut.model_validate(expense.__dict__)
 
-# Eliminar un gasto
+
 @router.delete("/{expense_id}")
-def delete_expense(expense_id: int, 
-                   db: Session = Depends(get_db), 
-                   user=Depends(get_current_user)):
+def delete_expense(
+    expense_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)
+):
     expense = db.query(models.Expense).filter_by(id=expense_id, user_id=user.id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")

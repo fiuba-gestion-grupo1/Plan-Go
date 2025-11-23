@@ -1,4 +1,3 @@
-# backend/app/seed_users.py
 import json
 from sqlalchemy.orm import Session
 
@@ -52,7 +51,10 @@ def create_or_update_user(
             user.hashed_password = new_hashed
             changed = True
 
-        if travel_preferences_str is not None and user.travel_preferences != travel_preferences_str:
+        if (
+            travel_preferences_str is not None
+            and user.travel_preferences != travel_preferences_str
+        ):
             user.travel_preferences = travel_preferences_str
             changed = True
 
@@ -65,7 +67,6 @@ def create_or_update_user(
             print(f"Sin cambios: {email}")
         return user
 
-    # Crear nuevo
     new_user = models.User(
         email=email,
         username=username,
@@ -90,12 +91,6 @@ def create_or_update_user(
 
 def seed_users(db: Session):
     print("--- Iniciando Seeding de Usuarios ---")
-
-    # -------------------------
-    # Usuarios base / sistema
-    # -------------------------
-
-    # Admin: tipo “viajó por todo”
     create_or_update_user(
         db,
         email="admin@fi.uba.ar",
@@ -113,7 +108,6 @@ def seed_users(db: Session):
         },
     )
 
-    # Usuario normal: perfil tranqui
     create_or_update_user(
         db,
         email="normal@fi.uba.ar",
@@ -132,7 +126,6 @@ def seed_users(db: Session):
         },
     )
 
-    # premium: le gusta viajar cómodo
     create_or_update_user(
         db,
         email="premium@fi.uba.ar",
@@ -151,7 +144,6 @@ def seed_users(db: Session):
         },
     )
 
-    # premium2: más aventurero
     create_or_update_user(
         db,
         email="premium2@fi.uba.ar",
@@ -170,7 +162,6 @@ def seed_users(db: Session):
         },
     )
 
-    # premium3: más urbano
     create_or_update_user(
         db,
         email="premium3@fi.uba.ar",
@@ -189,11 +180,6 @@ def seed_users(db: Session):
         },
     )
 
-    # -------------------------
-    # VIAJEROS “lindos” de la grilla
-    # -------------------------
-
-    # 1) Agustina (@agus.viajes)
     create_or_update_user(
         db,
         email="agus.viajes@fi.uba.ar",
@@ -211,7 +197,6 @@ def seed_users(db: Session):
         },
     )
 
-    # 2) Nicolás (@viajero.nomade)
     create_or_update_user(
         db,
         email="viajero.nomade@fi.uba.ar",
@@ -229,7 +214,6 @@ def seed_users(db: Session):
         },
     )
 
-    # 3) Valen (@city.breaks)
     create_or_update_user(
         db,
         email="city.breaks@fi.uba.ar",
@@ -247,7 +231,6 @@ def seed_users(db: Session):
         },
     )
 
-    # 4) Mariana (@familia.onboard)
     create_or_update_user(
         db,
         email="familia.onboard@fi.uba.ar",
@@ -265,7 +248,6 @@ def seed_users(db: Session):
         },
     )
 
-    # 5) Sofi (@solo.traveler)
     create_or_update_user(
         db,
         email="solo.traveler@fi.uba.ar",

@@ -1,17 +1,15 @@
 from pydantic import BaseModel, EmailStr, validator, Field
 from typing import List, Optional
 from datetime import date, datetime
-# Compatibilidad Pydantic v1/v2
+
 try:
     from pydantic import ConfigDict
+
     _V2 = True
-except Exception:  # pragma: no cover
+except Exception:
     _V2 = False
 
 
-# -------------------------------------------------
-# Auth / Users
-# -------------------------------------------------
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
@@ -20,10 +18,10 @@ class UserCreate(BaseModel):
     security_answer_1: str
     security_question_2: str
     security_answer_2: str
+    invitation_code: str | None = None
 
 
 class UserLogin(BaseModel):
-    # Puede ser username o email
     identifier: str
     password: str
 
@@ -36,14 +34,15 @@ class UserUpdate(BaseModel):
 
     @validator("birth_date", pre=True)
     def parse_birth_date(cls, v):
-        # Acepta "", None, "YYYY-MM-DD" o date
         if v == "" or v is None:
             return None
         if isinstance(v, str):
             try:
                 return datetime.strptime(v, "%Y-%m-%d").date()
             except ValueError:
-                raise ValueError(f"'{v}' no es una fecha válida. Usar formato AAAA-MM-DD.")
+                raise ValueError(
+                    f"'{v}' no es una fecha válida. Usar formato AAAA-MM-DD."
+                )
         return v
 
 
@@ -53,7 +52,7 @@ class PasswordUpdate(BaseModel):
 
 
 class RequestQuestions(BaseModel):
-    identifier: str  # Email o Username
+    identifier: str
 
 
 class QuestionsOut(BaseModel):
@@ -86,6 +85,7 @@ class UserOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -95,17 +95,15 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
-# -------------------------------------------------
-# Publications
-# -------------------------------------------------
 class PublicationCreate(BaseModel):
     place_name: str = Field(..., min_length=2, max_length=200)
     country: str = Field(..., min_length=2, max_length=100)
     province: str = Field(..., min_length=2, max_length=100)
     city: str = Field(..., min_length=1, max_length=100)
     address: str = Field(..., min_length=3, max_length=200)
-    # Para endpoints JSON (si se usan). En multipart llega como CSV y se parsea en el router.
-    categories: Optional[List[str]] = None  # slugs
+    categories: Optional[List[str]] = None
+    available_days: Optional[List[str]] = None
+    available_hours: Optional[List[str]] = None
 
 
 class PublicationOut(BaseModel):
@@ -117,12 +115,11 @@ class PublicationOut(BaseModel):
     address: str
     description: Optional[str] = None
     status: str = "approved"
-    rejection_reason: Optional[str] = None  # Razón de rechazo si status=rejected
+    rejection_reason: Optional[str] = None
     created_by_user_id: int | None = None
     created_at: str
     photos: List[str] = []
 
-    # Enriquecimiento / ratings / taxonomía
     rating_avg: float = 0.0
     rating_count: int = 0
     categories: List[str] = []
@@ -132,23 +129,22 @@ class PublicationOut(BaseModel):
     activities: Optional[List[str]] = None
     cost_per_day: Optional[float] = None
     duration_min: Optional[int] = None
+    available_days: Optional[List[str]] = None
+    available_hours: Optional[List[str]] = None
 
     favorite_status: Optional[str] = "pending"
 
-    # Flags opcionales que algunos endpoints setean
     is_favorite: bool = False
     has_pending_deletion: bool = False
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
 
-# -------------------------------------------------
-# Reviews
-# -------------------------------------------------
 class ReviewCommentCreate(BaseModel):
     comment: str = Field(..., min_length=1, max_length=1000)
 
@@ -162,6 +158,7 @@ class ReviewCommentOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -187,13 +184,11 @@ class ReviewOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
 
-# -------------------------------------------------
-# Review Reports
-# -------------------------------------------------
 class ReviewReportCreate(BaseModel):
     reason: str = Field(..., min_length=1, max_length=100)
     comments: Optional[str] = Field(None, max_length=500)
@@ -209,14 +204,13 @@ class ReviewReportOut(BaseModel):
     created_at: str
     resolved_at: Optional[str] = None
 
-    # Información de la reseña reportada
     review: ReviewOut
-    # Información de la publicación
     publication: "PublicationOut"
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -225,9 +219,6 @@ class ReviewReportReject(BaseModel):
     reason: Optional[str] = Field(None, max_length=500)
 
 
-# -------------------------------------------------
-# User Preferences (IA / filtros futuros)
-# -------------------------------------------------
 class UserPreferenceIn(BaseModel):
     budget_min: Optional[float] = None
     budget_max: Optional[float] = None
@@ -240,13 +231,9 @@ class UserPreferenceIn(BaseModel):
 
 
 class UserPreferenceOut(UserPreferenceIn):
-    # Por ahora la salida es igual a la entrada
     pass
 
 
-# -------------------------------------------------
-# Deletion Requests (admin)
-# -------------------------------------------------
 class DeletionRequestCreate(BaseModel):
     reason: Optional[str] = None
 
@@ -256,21 +243,19 @@ class DeletionRequestOut(BaseModel):
     publication_id: int
     requested_by_user_id: int
     status: str
-    reason: Optional[str] = None  # Motivo de la solicitud de eliminación
-    rejection_reason: Optional[str] = None  # Razón de rechazo si status=rejected
+    reason: Optional[str] = None
+    rejection_reason: Optional[str] = None
     created_at: str
     publication: PublicationOut
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
 
-# -------------------------------------------------
-# Itineraries
-# -------------------------------------------------
 class ItineraryRequest(BaseModel):
     destination: str = Field(..., min_length=2, max_length=200)
     start_date: date
@@ -297,12 +282,43 @@ class ItineraryOut(BaseModel):
     comments: Optional[str] = None
     generated_itinerary: Optional[str] = None
     status: str
-    created_at: datetime  # 👈 CAMBIO: datetime en vez de str
-    publications: List[PublicationOut] = []  # Lista de publicaciones utilizadas
+    created_at: datetime
+    publications: List[PublicationOut] = []
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
+        class Config:
+            orm_mode = True
+
+
+class SavedItineraryRequest(BaseModel):
+    original_itinerary_id: int
+
+
+class SavedItineraryOut(BaseModel):
+    id: int
+    user_id: int
+    original_itinerary_id: int
+    destination: str
+    start_date: date
+    end_date: date
+    budget: int
+    cant_persons: int
+    trip_type: str
+    arrival_time: Optional[str] = None
+    departure_time: Optional[str] = None
+    comments: Optional[str] = None
+    generated_itinerary: Optional[str] = None
+    original_author_id: Optional[int] = None
+    saved_at: datetime
+    publications: List[PublicationOut] = []
+
+    if _V2:
+        model_config = ConfigDict(from_attributes=True)
+    else:
+
         class Config:
             orm_mode = True
 
@@ -334,9 +350,6 @@ class TripOut(BaseModel):
         from_attributes = True
 
 
-# -------------------------------------------------
-# Points System
-# -------------------------------------------------
 class UserPointsOut(BaseModel):
     user_id: int
     points: int
@@ -345,6 +358,7 @@ class UserPointsOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -361,6 +375,7 @@ class PointsTransactionOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -368,20 +383,18 @@ class PointsTransactionOut(BaseModel):
 class AddPointsRequest(BaseModel):
     user_id: int
     points: int
-    transaction_type: str = Field(..., pattern='^(review_earned|bonus|redeemed)$')
+    transaction_type: str = Field(..., pattern="^(review_earned|bonus|redeemed)$")
     description: Optional[str] = None
     reference_id: Optional[int] = None
 
 
-# -------------------------------------------------
-# Viajeros (búsqueda y perfiles públicos)
-# -------------------------------------------------
 class TravelerCardOut(BaseModel):
     """
     Datos resumidos para la grilla de 'Buscar otros viajeros'.
     Todos los campos tienen default para no romper si el endpoint
     no los completa.
     """
+
     id: int = 0
     username: str = ""
     first_name: Optional[str] = None
@@ -390,14 +403,14 @@ class TravelerCardOut(BaseModel):
     travel_preferences: Optional[str] = None
     profile_picture_url: Optional[str] = None
 
-    # info opcional para las tarjetas
     favorite_destinations: Optional[list[str]] = None
     favorite_categories: Optional[list[str]] = None
-    match_percent: Optional[float] = None  # coincidencia %
+    match_percent: Optional[float] = None
 
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -407,6 +420,7 @@ class TravelerProfileOut(BaseModel):
     Detalle de un viajero para el perfil público.
     Si tu endpoint /api/users/{id} no usa este modelo, no molesta.
     """
+
     id: int
     username: str
     first_name: Optional[str] = None
@@ -415,7 +429,6 @@ class TravelerProfileOut(BaseModel):
     travel_preferences: Optional[str] = None
     profile_picture_url: Optional[str] = None
 
-    # Secciones que mostramos en el perfil
     itineraries: list[ItineraryOut] = []
     favorites_to_visit: list[PublicationOut] = []
     favorites_visited: list[PublicationOut] = []
@@ -423,6 +436,7 @@ class TravelerProfileOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -433,7 +447,7 @@ class TravelerCard(BaseModel):
     full_name: Optional[str] = None
     profile_description: Optional[str] = None
     favorites_count: int
-    match_percentage: int  # 0–100
+    match_percentage: int
 
     class Config:
         orm_mode = True
@@ -452,4 +466,4 @@ class TravelerCardOut(BaseModel):
     matches_with_you: int | None = None
 
     class Config:
-        from_attributes = True   # en vez de orm_mode en Pydantic v2
+        from_attributes = True

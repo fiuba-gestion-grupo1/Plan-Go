@@ -1,4 +1,3 @@
-# backend/app/utils/match.py
 from typing import Iterable, Optional
 
 
@@ -33,7 +32,6 @@ def compute_match_percentage(
     me_set = _normalize_keywords(me_keywords)
     other_set = _normalize_keywords(other_keywords)
 
-    # Si yo o el otro no tienen preferencias, devolvemos 0
     if not me_set or not other_set:
         return 0
 
@@ -41,7 +39,6 @@ def compute_match_percentage(
     if not overlap:
         return 0
 
-    # 👇 AHORA DIVIDIMOS POR MIS PREFERENCIAS (me_set)
     pct = int(round(len(overlap) / len(me_set) * 100))
 
     if pct < 0:

@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from "react"; // Importamos React y hooks
-import { request } from "../utils/api"; // Importamos el helper de requests
-import PublicationDetailModal from "../components/PublicationDetailModal"; // Componente del modal de detalles
-import { RatingBadge, Stars } from "../components/shared/UIComponents"; // Componente de badge de rating
+import React, { useEffect, useState } from "react";
+import { request } from "../utils/api";
+import PublicationDetailModal from "../components/PublicationDetailModal";
+import { RatingBadge, Stars } from "../components/shared/UIComponents";
 
-
-/* --- COMPONENTE PRINCIPAL DE SUGERENCIAS --- */
 export default function Suggestions({ token, me }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,27 +18,25 @@ export default function Suggestions({ token, me }) {
     setOpenDetailModal(true);
   }
 
-  /* ... (la función toggleFavorite no cambia) ... */
   async function toggleFavorite(pubId) {
     try {
       const data = await request(`/api/publications/${pubId}/favorite`, {
         method: "POST",
-        token
+        token,
       });
-      setItems(prevPubs =>
-        prevPubs.map(p =>
-          p.id === pubId ? { ...p, is_favorite: data.is_favorite } : p
-        )
+      setItems((prevPubs) =>
+        prevPubs.map((p) =>
+          p.id === pubId ? { ...p, is_favorite: data.is_favorite } : p,
+        ),
       );
       if (currentPub && currentPub.id === pubId) {
-        setCurrentPub(p => ({ ...p, is_favorite: data.is_favorite }));
+        setCurrentPub((p) => ({ ...p, is_favorite: data.is_favorite }));
       }
     } catch (e) {
       setErr(e.message);
     }
   }
 
-  // --- Carga de datos (Original de Suggestions) ---
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -50,7 +46,7 @@ export default function Suggestions({ token, me }) {
 
         const res = await fetch(`/api/suggestions?sort=${sortOrder}`, {
           headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store" // <-- Añadido para evitar caché del navegador
+          cache: "no-store",
         });
 
         if (!res.ok) {
@@ -65,26 +61,31 @@ export default function Suggestions({ token, me }) {
         if (!cancel) setLoading(false);
       }
     })();
-    return () => { cancel = true; };
+    return () => {
+      cancel = true;
+    };
   }, [token, sortOrder]);
 
   return (
     <div className="container py-3">
-
-      {/* --- INICIO DE LA CORRECCIÓN DE ALINEACIÓN --- */}
       <div className="d-flex justify-content-between align-items-center mb-4">
-        {/* Título */}
-        <h2 className="mb-0">💡 Sugerencias para {me?.first_name || me?.username}</h2>
+        <h2 className="mb-0">
+          💡 Sugerencias para {me?.first_name || me?.username}
+        </h2>
 
-        {/* Filtro (solo se muestra si hay items) */}
         {!loading && items.length > 0 && !err && (
-          <div style={{ maxWidth: '250px' }}>
-            <label htmlFor="sort-select" className="form-label small text-muted mb-1">Ordenar por</label>
+          <div style={{ maxWidth: "250px" }}>
+            <label
+              htmlFor="sort-select"
+              className="form-label small text-muted mb-1"
+            >
+              Ordenar por
+            </label>
             <select
               id="sort-select"
               className="form-select form-select-sm"
               value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)} // Actualiza el estado
+              onChange={(e) => setSortOrder(e.target.value)}
             >
               <option value="desc">Mayor Coincidencia</option>
               <option value="asc">Menor Coincidencia</option>
@@ -92,12 +93,11 @@ export default function Suggestions({ token, me }) {
           </div>
         )}
       </div>
-      {/* --- FIN DE LA CORRECCIÓN DE ALINEACIÓN --- */}
-
 
       <div className="alert alert-info mb-4">
-        <strong>Tip:</strong> Estas sugerencias se basan en tus preferencias de viaje.
-        Asegúrate de tener tus preferencias actualizadas para obtener mejores recomendaciones.
+        <strong>Tip:</strong> Estas sugerencias se basan en tus preferencias de
+        viaje. Asegúrate de tener tus preferencias actualizadas para obtener
+        mejores recomendaciones.
       </div>
 
       {loading && <div className="alert alert-info">Cargando sugerencias…</div>}
@@ -105,18 +105,16 @@ export default function Suggestions({ token, me }) {
 
       {!loading && items.length === 0 && !err && (
         <div className="alert alert-secondary">
-          No hay sugerencias aún. Completá tus preferencias para ver resultados personalizados.
+          No hay sugerencias aún. Completá tus preferencias para ver resultados
+          personalizados.
         </div>
       )}
 
-      {/* El div del filtro ya no está aquí */}
       {!loading && items.length > 0 && !err && (
         <>
-          {/* --- GRILLA DE PUBLICACIONES (el div.row original) --- */}
           <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mt-2">
             {items.map((pub) => (
               <div className="col" key={pub.id}>
-                {/* ... (El código de la tarjeta no cambia) ... */}
                 <div
                   className="card shadow-sm h-100"
                   onClick={() => openPublicationDetail(pub)}
@@ -126,32 +124,60 @@ export default function Suggestions({ token, me }) {
                     <div className="d-flex justify-content-between align-items-start">
                       <div className="flex-grow-1">
                         <h5 className="card-title mb-1">{pub.place_name}</h5>
-                        <small className="text-muted">📍 {pub.address ? `${pub.address}, ` : ""}{pub.city}, {pub.province}{pub.country ? `, ${pub.country}` : ""}</small>
+                        <small className="text-muted">
+                          📍 {pub.address ? `${pub.address}, ` : ""}
+                          {pub.city}, {pub.province}
+                          {pub.country ? `, ${pub.country}` : ""}
+                        </small>
                         <div className="mt-2 d-flex flex-wrap gap-2">
-                          <RatingBadge avg={pub.rating_avg} count={pub.rating_count} />
+                          <RatingBadge
+                            avg={pub.rating_avg}
+                            count={pub.rating_count}
+                          />
                           {(pub.categories || []).map((c) => (
-                            <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                            <span
+                              key={c}
+                              className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                            >
+                              {c}
+                            </span>
                           ))}
                         </div>
                         <p className="card-text mt-2 mb-0">
-                          <span className="text-success fw-bold">${pub.cost_per_day}</span>
+                          <span className="text-success fw-bold">
+                            ${pub.cost_per_day}
+                          </span>
                         </p>
                       </div>
                       <button
                         className="btn btn-link p-0 ms-2"
-                        onClick={(e) => { e.stopPropagation(); toggleFavorite(pub.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(pub.id);
+                        }}
                         style={{ fontSize: "1.5rem", textDecoration: "none" }}
-                        title={pub.is_favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+                        title={
+                          pub.is_favorite
+                            ? "Quitar de favoritos"
+                            : "Agregar a favoritos"
+                        }
                       >
                         {pub.is_favorite ? "❤️" : "🤍"}
                       </button>
                     </div>
                   </div>
                   {pub.photos?.length ? (
-                    <div id={`home-carousel-${pub.id}`} className="carousel slide" data-bs-ride="false">
+                    <div
+                      id={`home-carousel-${pub.id}`}
+                      className="carousel slide"
+                      data-bs-ride="false"
+                    >
                       <div className="carousel-inner">
                         {pub.photos.map((url, idx) => (
-                          <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                          <div
+                            className={`carousel-item ${idx === 0 ? "active" : ""}`}
+                            key={url}
+                          >
                             <img
                               src={url}
                               className="d-block w-100"
@@ -163,11 +189,27 @@ export default function Suggestions({ token, me }) {
                       </div>
                       {pub.photos.length > 1 && (
                         <>
-                          <button className="carousel-control-prev" type="button" data-bs-target={`#home-carousel-${pub.id}`} data-bs-slide="prev">
-                            <span className="carousel-control-prev-icon" aria-hidden="true" />
+                          <button
+                            className="carousel-control-prev"
+                            type="button"
+                            data-bs-target={`#home-carousel-${pub.id}`}
+                            data-bs-slide="prev"
+                          >
+                            <span
+                              className="carousel-control-prev-icon"
+                              aria-hidden="true"
+                            />
                           </button>
-                          <button className="carousel-control-next" type="button" data-bs-target={`#home-carousel-${pub.id}`} data-bs-slide="next">
-                            <span className="carousel-control-next-icon" aria-hidden="true" />
+                          <button
+                            className="carousel-control-next"
+                            type="button"
+                            data-bs-target={`#home-carousel-${pub.id}`}
+                            data-bs-slide="next"
+                          >
+                            <span
+                              className="carousel-control-next-icon"
+                              aria-hidden="true"
+                            />
                           </button>
                         </>
                       )}
@@ -176,10 +218,15 @@ export default function Suggestions({ token, me }) {
                     <div className="p-4 text-center text-muted">Sin fotos</div>
                   )}
                   <div className="card-footer bg-white d-flex justify-content-between align-items-center">
-                    <small className="text-muted">Creado: {new Date(pub.created_at).toLocaleString()}</small>
+                    <small className="text-muted">
+                      Creado: {new Date(pub.created_at).toLocaleString()}
+                    </small>
                     <button
                       className="btn btn-sm btn-celeste"
-                      onClick={(e) => { e.stopPropagation(); openPublicationDetail(pub); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openPublicationDetail(pub);
+                      }}
                     >
                       Ver Detalles
                     </button>
@@ -191,7 +238,6 @@ export default function Suggestions({ token, me }) {
         </>
       )}
 
-      {/* --- El modal de detalles no cambia --- */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}

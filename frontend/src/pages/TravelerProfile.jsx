@@ -1,4 +1,3 @@
-// src/pages/TravelerProfile.jsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { request } from "../utils/api";
@@ -6,23 +5,18 @@ import { RatingBadge } from "../components/shared/UIComponents";
 import PublicationDetailModal from "../components/PublicationDetailModal";
 
 export default function TravelerProfile({ me }) {
-  const { userId } = useParams(); // undefined cuando es "mi perfil" dentro del hub
+  const { userId } = useParams();
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
 
-  const isMyProfile =
-    !userId || (me && String(me.id) === String(userId || ""));
+  const isMyProfile = !userId || (me && String(me.id) === String(userId || ""));
 
-  // --- usuario cuyo perfil se está viendo ---
   const [profileUser, setProfileUser] = useState(me || null);
 
-  // datos de cabecera
   const displayName =
     profileUser?.first_name || profileUser?.username || "Viajero";
   const username = profileUser?.username || "usuario";
-  const bio =
-    profileUser?.bio ||
-    ".";
+  const bio = profileUser?.bio || ".";
 
   const initials = displayName
     .split(" ")
@@ -32,32 +26,104 @@ export default function TravelerProfile({ me }) {
     .slice(0, 1)
     .toUpperCase();
 
-  // estados datos reales
   const [publishedItineraries, setPublishedItineraries] = useState([]);
-  const [favoritesToVisit, setFavoritesToVisit] = useState([]); // pending
-  const [favoritesVisited, setFavoritesVisited] = useState([]); // done
+  const [favoritesToVisit, setFavoritesToVisit] = useState([]);
+  const [favoritesVisited, setFavoritesVisited] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // modal publicación
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
 
-  // modal itinerario
   const [selectedItineraryDetail, setSelectedItineraryDetail] = useState(null);
   const [openItineraryDetail, setOpenItineraryDetail] = useState(false);
+  const [savingItinerary, setSavingItinerary] = useState(null);
+  const [convertingItinerary, setConvertingItinerary] = useState(null);
 
   function openPublicationDetail(p) {
     setCurrentPub(p);
     setOpenDetailModal(true);
   }
 
-  // 1) cargar datos del usuario cuyo perfil se ve
+  async function saveItinerary(itineraryId) {
+    if (isMyProfile) return;
+
+    setSavingItinerary(itineraryId);
+    try {
+      await request("/api/itineraries/save", {
+        method: "POST",
+        token,
+        body: {
+          original_itinerary_id: itineraryId,
+        },
+      });
+
+      alert("¡Itinerario guardado exitosamente!");
+    } catch (e) {
+      console.error("Error al guardar itinerario:", e);
+      if (e.message.includes("Ya tienes este itinerario guardado")) {
+        alert("Ya tienes este itinerario guardado");
+      } else {
+        alert("Error al guardar el itinerario: " + e.message);
+      }
+    } finally {
+      setSavingItinerary(null);
+    }
+  }
+
+  async function convertItineraryToCustom(itineraryId) {
+    if (!isMyProfile) return;
+
+    setConvertingItinerary(itineraryId);
+    try {
+      console.log(
+        "🔄 Convirtiendo itinerario",
+        itineraryId,
+        "a personalizado...",
+      );
+
+      const result = await request(
+        `/api/itineraries/${itineraryId}/convert-to-custom`,
+        {
+          method: "POST",
+          token,
+        },
+      );
+
+      console.log("✅ Conversión exitosa:", result);
+
+      if (result.success) {
+        alert(
+          `¡Conversión exitosa! ${result.validation.total_days} días con ${result.validation.total_activities} actividades convertidas.`,
+        );
+
+        localStorage.setItem(
+          "convertedItinerary",
+          JSON.stringify({
+            custom_structure: result.custom_structure,
+            original_info: result.original_itinerary,
+            conversion_metadata: result.conversion_metadata,
+          }),
+        );
+
+        window.location.href = "/itinerary-custom";
+      } else {
+        alert(
+          "Error en la conversión: " + (result.error || "Error desconocido"),
+        );
+      }
+    } catch (e) {
+      console.error("Error al convertir itinerario:", e);
+      alert("Error al convertir itinerario: " + e.message);
+    } finally {
+      setConvertingItinerary(null);
+    }
+  }
+
   useEffect(() => {
     if (!token) return;
 
-    // si es mi propio perfil, usamos "me"
     if (isMyProfile) {
       setProfileUser(me || null);
       return;
@@ -75,9 +141,7 @@ export default function TravelerProfile({ me }) {
       } catch (e) {
         if (!cancelled) {
           console.error("Error cargando usuario", e);
-          setError(
-            e.message || "Error cargando el perfil de este viajero."
-          );
+          setError(e.message || "Error cargando el perfil de este viajero.");
         }
       }
     }
@@ -89,7 +153,6 @@ export default function TravelerProfile({ me }) {
     };
   }, [userId, token, isMyProfile, me]);
 
-  // 2) cargar itinerarios + favoritos del usuario cuyo perfil se ve
   useEffect(() => {
     if (!token) {
       setLoading(false);
@@ -109,7 +172,6 @@ export default function TravelerProfile({ me }) {
       setError("");
 
       try {
-        // itinerarios
         const itsEndpoint = isMyProfile
           ? "/api/itineraries/my-itineraries"
           : `/api/itineraries/by-user/${targetUserId}`;
@@ -117,8 +179,6 @@ export default function TravelerProfile({ me }) {
         const its = await request(itsEndpoint, { token });
         const visibleIts = Array.isArray(its) ? its : [];
 
-        // favoritos (por visitar / visitados)
-        // para otros usuarios usamos query param user_id
         const favsEndpoint = isMyProfile
           ? "/api/publications/favorites"
           : `/api/publications/favorites?user_id=${targetUserId}`;
@@ -127,10 +187,10 @@ export default function TravelerProfile({ me }) {
         const favArray = Array.isArray(favs) ? favs : [];
 
         const toVisit = favArray.filter(
-          (p) => (p.favorite_status || "pending") === "pending"
+          (p) => (p.favorite_status || "pending") === "pending",
         );
         const visited = favArray.filter(
-          (p) => (p.favorite_status || "pending") === "done"
+          (p) => (p.favorite_status || "pending") === "done",
         );
 
         if (!cancelled) {
@@ -173,10 +233,8 @@ export default function TravelerProfile({ me }) {
 
   return (
     <div className="container-fluid py-4">
-      {/* Cabecera */}
       <div className="card border-0 shadow-sm rounded-4 mb-4">
         <div className="card-body d-flex flex-column flex-md-row align-items-md-center">
-          {/* Avatar */}
           <div
             className="d-flex align-items-center justify-content-center me-md-4 mb-3 mb-md-0"
             style={{
@@ -209,7 +267,6 @@ export default function TravelerProfile({ me }) {
             )}
           </div>
 
-          {/* Info básica */}
           <div className="flex-grow-1">
             <h1 className="h4 fw-bold mb-1">{displayName}</h1>
             <div className="text-muted small mb-1">@{username}</div>
@@ -223,7 +280,6 @@ export default function TravelerProfile({ me }) {
       )}
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* Itinerarios publicados */}
       <div
         className="card shadow-sm rounded-4 mb-4"
         style={{
@@ -272,9 +328,7 @@ export default function TravelerProfile({ me }) {
 
                       <div className="small text-muted mb-2">
                         {it.budget && (
-                          <>
-                            💰 Presupuesto estimado: US${it.budget} ·{" "}
-                          </>
+                          <>💰 Presupuesto estimado: US${it.budget} · </>
                         )}
                         {it.cant_persons && (
                           <>
@@ -299,16 +353,45 @@ export default function TravelerProfile({ me }) {
                             <span className="badge bg-danger">Error</span>
                           )}
                         </span>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => {
-                            setSelectedItineraryDetail(it);
-                            setOpenItineraryDetail(true);
-                          }}
-                        >
-                          Ver detalle
-                        </button>
+                        <div className="d-flex gap-2">
+                          {!isMyProfile && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success"
+                              onClick={() => saveItinerary(it.id)}
+                              disabled={savingItinerary === it.id}
+                              title="Guardar itinerario"
+                            >
+                              {savingItinerary === it.id ? "⏳" : "💾"} Guardar
+                            </button>
+                          )}
+
+                          {isMyProfile &&
+                            (it.status === "completed" ||
+                              it.status === "completed_with_warnings") && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-warning"
+                                onClick={() => convertItineraryToCustom(it.id)}
+                                disabled={convertingItinerary === it.id}
+                                title="Convertir a itinerario personalizado para editar"
+                              >
+                                {convertingItinerary === it.id ? "⏳" : "✏️"}{" "}
+                                Modificar itinerario
+                              </button>
+                            )}
+
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-custom"
+                            onClick={() => {
+                              setSelectedItineraryDetail(it);
+                              setOpenItineraryDetail(true);
+                            }}
+                          >
+                            Ver detalle
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -319,9 +402,7 @@ export default function TravelerProfile({ me }) {
         </div>
       </div>
 
-      {/* Favoritos: Por visitar / Visitados */}
       <div className="row g-4">
-        {/* Por visitar */}
         <div className="col-12 col-lg-6">
           <div
             className="card shadow-sm rounded-4 h-100"
@@ -343,14 +424,16 @@ export default function TravelerProfile({ me }) {
             <div className="card-body">
               {!loading && favoritesToVisit.length === 0 ? (
                 <div className="alert alert-light border mb-0 small">
-                  {isOther
-                    ? "Este viajero todavía no tiene lugares marcados como 'Por visitar'."
-                    : <>
-                        Aún no agregaste lugares a <strong>Por visitar</strong>.
-                        <br />
-                        Desde la sección de favoritos podés marcar los lugares
-                        que querés guardar para más adelante.
-                      </>}
+                  {isOther ? (
+                    "Este viajero todavía no tiene lugares marcados como 'Por visitar'."
+                  ) : (
+                    <>
+                      Aún no agregaste lugares a <strong>Por visitar</strong>.
+                      <br />
+                      Desde la sección de favoritos podés marcar los lugares que
+                      querés guardar para más adelante.
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="row row-cols-1 row-cols-md-2 g-3">
@@ -481,7 +564,6 @@ export default function TravelerProfile({ me }) {
           </div>
         </div>
 
-        {/* Visitados */}
         <div className="col-12 col-lg-6">
           <div
             className="card shadow-sm rounded-4 h-100"
@@ -503,14 +585,16 @@ export default function TravelerProfile({ me }) {
             <div className="card-body">
               {!loading && favoritesVisited.length === 0 ? (
                 <div className="alert alert-light border mb-0 small">
-                  {isOther
-                    ? "Este viajero todavía no tiene lugares marcados como 'Visitados'."
-                    : <>
-                        Aún no agregaste lugares a <strong>Visitados</strong>.
-                        <br />
-                        Cuando marques favoritos como realizados, van a
-                        aparecer acá.
-                      </>}
+                  {isOther ? (
+                    "Este viajero todavía no tiene lugares marcados como 'Visitados'."
+                  ) : (
+                    <>
+                      Aún no agregaste lugares a <strong>Visitados</strong>.
+                      <br />
+                      Cuando marques favoritos como realizados, van a aparecer
+                      acá.
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="row row-cols-1 row-cols-md-2 g-3">
@@ -642,7 +726,6 @@ export default function TravelerProfile({ me }) {
         </div>
       </div>
 
-      {/* Modal detalle itinerario */}
       {openItineraryDetail && selectedItineraryDetail && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -667,7 +750,6 @@ export default function TravelerProfile({ me }) {
               </button>
             </div>
 
-            {/* info básica */}
             <div className="p-3">
               <div className="card shadow-sm mb-4">
                 <div className="card-body">
@@ -686,8 +768,8 @@ export default function TravelerProfile({ me }) {
                       )}
                       {selectedItineraryDetail.budget && (
                         <p>
-                          <strong>💰 Presupuesto:</strong>{" "}
-                          US${selectedItineraryDetail.budget}
+                          <strong>💰 Presupuesto:</strong> US$
+                          {selectedItineraryDetail.budget}
                         </p>
                       )}
                       {selectedItineraryDetail.cant_persons && (
@@ -729,7 +811,6 @@ export default function TravelerProfile({ me }) {
                 </div>
               </div>
 
-              {/* itinerario generado por IA, si existe */}
               {selectedItineraryDetail.generated_itinerary && (
                 <div className="card shadow-sm mb-4">
                   <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
@@ -738,7 +819,7 @@ export default function TravelerProfile({ me }) {
                       className="btn btn-sm btn-light"
                       onClick={() =>
                         navigator.clipboard.writeText(
-                          selectedItineraryDetail.generated_itinerary || ""
+                          selectedItineraryDetail.generated_itinerary || "",
                         )
                       }
                     >
@@ -763,7 +844,6 @@ export default function TravelerProfile({ me }) {
         </div>
       )}
 
-      {/* Modal de detalles de publicación */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
