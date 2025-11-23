@@ -6,10 +6,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 from .db import Base
 
-
-# ---------------------------
-# User
-# ---------------------------
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -28,10 +24,6 @@ class User(Base):
     profile_picture_url = Column(String, nullable=True)
     role = Column(String(20), nullable=False, server_default="user", default="user", index=True)
 
-
-# ---------------------------
-# Categories (N-N)
-# ---------------------------
 publication_categories = Table(
     "publication_categories",
     Base.metadata,
@@ -42,17 +34,13 @@ publication_categories = Table(
 class Category(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True)
-    slug = Column(String(50), unique=True, index=True, nullable=False)  # ej: aventura|cultura|gastronomia
+    slug = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(String(100), nullable=False)
 
 
-# ---------------------------
-# Publications
-# ---------------------------
 class Publication(Base):
     __tablename__ = "publications"
 
-    # Legacy
     name   = Column(String, nullable=True)
     street = Column(String, nullable=True)
     number = Column(String, nullable=True)
@@ -65,26 +53,22 @@ class Publication(Base):
     address    = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 
-    # Workflow / autoría
     status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)
-    rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
+    rejection_reason = Column(Text, nullable=True)
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), default=func.now())
 
-    # Enriquecimiento (opcionales)
-    continent     = Column(String, nullable=True)   # ej: "américa", "europa"
-    climate       = Column(String, nullable=True)   # ej: "templado", "tropical"
-    activities    = Column(JSON, nullable=True)     # ej: ["playa", "gastronomía"]
+    continent     = Column(String, nullable=True)
+    climate       = Column(String, nullable=True)
+    activities    = Column(JSON, nullable=True)
     cost_per_day  = Column(Float, nullable=True)
     duration_min = Column(Integer, nullable=True)
-    available_days = Column(JSON, nullable=True)    # ej: ["lunes", "martes", "miércoles"]
-    available_hours = Column(JSON, nullable=True)   # ej: ["19:00", "23:00"]
+    available_days = Column(JSON, nullable=True)
+    available_hours = Column(JSON, nullable=True)
 
-    # Ratings (US-5.1)
     rating_avg   = Column(Float,  nullable=False, server_default="0")
     rating_count = Column(Integer, nullable=False, server_default="0")
 
-    # Rels
     created_by = relationship("User", foreign_keys=[created_by_user_id])
     photos = relationship(
         "PublicationPhoto",
@@ -103,8 +87,6 @@ class PublicationPhoto(Base):
     index_order = Column(Integer, nullable=False, server_default="0", default=0)
     publication = relationship("Publication", back_populates="photos")
 
-# Review Comments
-# ---------------------------
 class ReviewComment(Base):
     __tablename__ = "review_comments"
 
@@ -117,9 +99,6 @@ class ReviewComment(Base):
     review = relationship("Review", back_populates="comments")
     author = relationship("User")
 
-# ---------------------------
-# Review Likes (N-N)
-# ---------------------------
 class ReviewLike(Base):
     __tablename__ = "review_likes"
 
@@ -135,17 +114,14 @@ class ReviewLike(Base):
         UniqueConstraint("review_id", "user_id", name="uq_review_like"),
     )
 
-# ---------------------------
-# Reviews
-# ---------------------------
 class Review(Base):
     __tablename__ = "reviews"
     id = Column(Integer, primary_key=True)
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
     author_id      = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    rating   = Column(Integer, nullable=False)  # 1..5
+    rating   = Column(Integer, nullable=False)
     comment  = Column(Text, nullable=True)
-    status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)  # approved|under_review|hidden
+    status = Column(String(20), nullable=False, server_default="approved", default="approved", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     publication = relationship("Publication", backref="reviews")
@@ -155,19 +131,16 @@ class Review(Base):
     comments = relationship("ReviewComment", back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
 
 
-# ---------------------------
-# Review Reports
-# ---------------------------
 class ReviewReport(Base):
     __tablename__ = "review_reports"
 
     id = Column(Integer, primary_key=True, index=True)
     review_id = Column(Integer, ForeignKey("reviews.id", ondelete="CASCADE"), nullable=False, index=True)
     reporter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    reason = Column(String(100), nullable=False)  # spam, inappropriate, fake, etc.
-    comments = Column(Text, nullable=True)  # Comentarios adicionales del usuario que reporta
-    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|approved|rejected
-    rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
+    reason = Column(String(100), nullable=False)
+    comments = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)
+    rejection_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -179,9 +152,6 @@ class ReviewReport(Base):
     )
 
 
-# ---------------------------
-# User Preferences (1-1)
-# ---------------------------
 class UserPreference(Base):
     __tablename__ = "user_preferences"
     id = Column(Integer, primary_key=True)
@@ -189,19 +159,15 @@ class UserPreference(Base):
 
     budget_min = Column(Float, nullable=True)
     budget_max = Column(Float, nullable=True)
-    climates   = Column(JSON, nullable=True)        # ["templado","frio","tropical"]
-    activities = Column(JSON, nullable=True)        # ["playa","montaña","gastronomía"]
-    continents = Column(JSON, nullable=True)        # ["europa","américa"]
+    climates   = Column(JSON, nullable=True)
+    activities = Column(JSON, nullable=True)
+    continents = Column(JSON, nullable=True)
     duration_min_days = Column(Integer, nullable=True)
     duration_max_days = Column(Integer, nullable=True)
 
-    publication_type = Column(String(20), nullable=True, server_default="all", default="all") # all | hotel | actividad
+    publication_type = Column(String(20), nullable=True, server_default="all", default="all")
     user = relationship("User", backref="preference", uselist=False)
 
-
-# ---------------------------
-# Favorites (UNIQUE user_id, publication_id)
-# ---------------------------
 class Favorite(Base):
     __tablename__ = "favorites"
 
@@ -219,28 +185,21 @@ class Favorite(Base):
     )
 
 
-# ---------------------------
-# Deletion Requests
-# ---------------------------
 class DeletionRequest(Base):
     __tablename__ = "deletion_requests"
 
     id = Column(Integer, primary_key=True, index=True)
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
     requested_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|approved|rejected
-    reason = Column(Text, nullable=True)  # Motivo por el cual el usuario solicita la eliminación
-    rejection_reason = Column(Text, nullable=True)  # Razón de rechazo si status=rejected
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)
+    reason = Column(Text, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
     publication = relationship("Publication")
     requested_by = relationship("User")
 
-
-# ---------------------------
-# Itineraries
-# ---------------------------
 class Itinerary(Base):
     __tablename__ = "itineraries"
 
@@ -256,9 +215,9 @@ class Itinerary(Base):
     departure_time = Column(String, nullable=True)
     comments = Column(Text, nullable=True)
     generated_itinerary = Column(Text, nullable=True)
-    publication_ids = Column(JSON, nullable=True)  # Lista de IDs de publicaciones utilizadas
-    validation_metadata = Column(JSON, nullable=True)  # Metadatos de validación del itinerario
-    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)  # pending|completed|failed|completed_with_warnings
+    publication_ids = Column(JSON, nullable=True)
+    validation_metadata = Column(JSON, nullable=True)
+    status = Column(String(20), nullable=False, server_default="pending", default="pending", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="itineraries")
@@ -268,9 +227,9 @@ class SavedItinerary(Base):
     __tablename__ = "saved_itineraries"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)  # Usuario que guarda
-    original_itinerary_id = Column(Integer, ForeignKey("itineraries.id", ondelete="CASCADE"), nullable=False, index=True)  # Itinerario original
-    destination = Column(String, nullable=False)  # Copia de los datos principales
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    original_itinerary_id = Column(Integer, ForeignKey("itineraries.id", ondelete="CASCADE"), nullable=False, index=True)
+    destination = Column(String, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     budget = Column(Integer, nullable=False)
@@ -281,7 +240,7 @@ class SavedItinerary(Base):
     comments = Column(Text, nullable=True)
     generated_itinerary = Column(Text, nullable=True)
     publication_ids = Column(JSON, nullable=True)
-    original_author_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # Autor original
+    original_author_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     saved_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", foreign_keys=[user_id], backref="saved_itineraries")
@@ -310,11 +269,11 @@ class PremiumBenefit(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     publication_id = Column(Integer, ForeignKey("publications.id", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String, nullable=False)  # "10% descuento en consumos"
-    description = Column(Text, nullable=True)  # "Aplica en bebidas y comidas del menú principal"
-    discount_percentage = Column(Integer, nullable=True)  # 10, 15, 20, etc.
-    benefit_type = Column(String, nullable=False)  # "discount", "free_item", "upgrade", etc.
-    terms_conditions = Column(Text, nullable=True)  # "Válido solo de lunes a viernes"
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    discount_percentage = Column(Integer, nullable=True)
+    benefit_type = Column(String, nullable=False)
+    terms_conditions = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -327,9 +286,9 @@ class UserBenefit(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     benefit_id = Column(Integer, ForeignKey("premium_benefits.id", ondelete="CASCADE"), nullable=False, index=True)
-    points_cost = Column(Integer, nullable=False)  # Puntos que costó el beneficio
-    voucher_code = Column(String, unique=True, nullable=False, index=True)  # Código QR único
-    is_used = Column(Boolean, default=False, nullable=False)  # Si ya fue utilizado
+    points_cost = Column(Integer, nullable=False)
+    voucher_code = Column(String, unique=True, nullable=False, index=True)
+    is_used = Column(Boolean, default=False, nullable=False)
     obtained_at = Column(DateTime(timezone=True), server_default=func.now())
     used_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -380,17 +339,13 @@ class TripInvitation(Base):
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
     invited_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(20), nullable=False, server_default="pending", default="pending")  # pending|accepted|rejected
+    status = Column(String(20), nullable=False, server_default="pending", default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     invited_user = relationship("User", foreign_keys=[invited_user_id])
     invited_by_user = relationship("User", foreign_keys=[invited_by_user_id])
     trip = relationship("Trip", backref="invitations")
 
-
-# ---------------------------
-# Points System
-# ---------------------------
 class UserPoints(Base):
     """Tabla para el balance actual de puntos de cada usuario"""
     __tablename__ = "user_points"
@@ -408,10 +363,10 @@ class PointsTransaction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    points = Column(Integer, nullable=False)  # Positivo para ganar, negativo para gastar
-    transaction_type = Column(String, nullable=False)  # 'review_earned', 'rating_earned', 'bonus', 'redeemed'
-    description = Column(String, nullable=True)  # Descripción del movimiento
-    reference_id = Column(Integer, nullable=True)  # ID de referencia (ej: review_id, publication_id)
+    points = Column(Integer, nullable=False)
+    transaction_type = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    reference_id = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user = relationship("User", backref="points_transactions")

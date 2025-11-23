@@ -11,7 +11,6 @@ from typing import Optional
 
 def award_invitation_points(inviter_id: int, invited_username: str, db: Session):
     """Otorga 50 puntos al usuario que invitó por invitación exitosa."""
-    # Verificar o crear registro de puntos del invitador
     user_points = db.query(models.UserPoints).filter(
         models.UserPoints.user_id == inviter_id
     ).first()
@@ -21,19 +20,16 @@ def award_invitation_points(inviter_id: int, invited_username: str, db: Session)
         db.add(user_points)
         db.flush()
     
-    # Agregar 50 puntos
     user_points.total_points += 50
-    
-    # Crear transacción de puntos
     transaction = models.PointsTransaction(
         user_id=inviter_id,
         points=50,
         transaction_type="invitation_bonus",
         description=f"Invitación exitosa de {invited_username}"
     )
+
     db.add(transaction)
     db.commit()
-
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -59,7 +55,6 @@ def get_current_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
 
-# --- LIST PUBLIC (con auth opcional, con filtro de categorías) ---
 def get_optional_user(
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
@@ -88,7 +83,6 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="El nombre de usuario ya existe")
 
-    # Verificar código de invitación si se proporcionó
     invitation = None
     if payload.invitation_code:
         invitation = db.query(models.Invitation).filter(
@@ -99,7 +93,6 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
         if not invitation:
             raise HTTPException(status_code=400, detail="Código de invitación inválido o ya utilizado.")
         
-        # Verificar que el email coincida
         if invitation.invitee_email != payload.email:
             raise HTTPException(status_code=400, detail="El código de invitación no corresponde a este email.")
 
@@ -118,18 +111,15 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
         hashed_answer_1=hashed_answer_1,
         security_question_2=payload.security_question_2,
         hashed_answer_2=hashed_answer_2,
-        role="user",  # 👈 nuevo
+        role="user",
     )
     db.add(user)
-    db.flush()  # Para obtener el ID del usuario
+    db.flush()
     
-    # Si hay invitación, marcarla como usada y otorgar puntos al invitador
     if invitation:
         invitation.used = True
         invitation.used_at = datetime.now(timezone.utc)
         invitation.invited_user_id = user.id
-        
-        # Otorgar 50 puntos al invitador
         award_invitation_points(invitation.inviter_id, user.username, db)
     
     db.commit()
@@ -139,19 +129,16 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=schemas.Token)
 def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
-#Nuevo schema de userLogin con identifier generico
     user = db.query(models.User).filter(
         or_(models.User.email == payload.identifier, models.User.username == payload.identifier)
     ).first()
 
-    #se busca al usuario por email o username primero para ver si se tiene que registrar o no
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no registrado. Por favor crea una cuenta."
         )
 
-    #Si el usuario existe pero la contraseña es incorrecta, devolvemos un unauthorized
     if not security.verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -171,8 +158,8 @@ def me(user: models.User = Depends(get_current_user)):
 
 @router.put("/me", response_model=schemas.UserOut)
 def update_me(
-    payload: schemas.UserUpdate, # Recibe el nuevo esquema
-    user: models.User = Depends(get_current_user), # Obtiene el usuario actual
+    payload: schemas.UserUpdate,
+    user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     user.first_name = payload.first_name
@@ -182,7 +169,6 @@ def update_me(
     db.add(user)
     db.commit()
     db.refresh(user)
-    
     return user
 
 
@@ -211,7 +197,6 @@ def change_password(
     
     return {"message": "Contraseña actualizada con éxito"}
 
-# PASO 1: El usuario pone su email/username y le devolvemos sus preguntas
 @router.post("/forgot-password/get-questions", response_model=schemas.QuestionsOut)
 def get_security_questions(payload: schemas.RequestQuestions, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
@@ -227,7 +212,6 @@ def get_security_questions(payload: schemas.RequestQuestions, db: Session = Depe
         security_question_2=user.security_question_2
     )
 
-# PASO 2: El usuario responde. Verificamos y le damos un token temporal
 @router.post("/forgot-password/verify-answers", response_model=schemas.Token)
 def verify_security_answers(payload: schemas.VerifyAnswers, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
@@ -237,28 +221,23 @@ def verify_security_answers(payload: schemas.VerifyAnswers, db: Session = Depend
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
 
-    # Verificamos las respuestas hasheadas
     is_answer_1_correct = security.verify_password(payload.security_answer_1, user.hashed_answer_1)
     is_answer_2_correct = security.verify_password(payload.security_answer_2, user.hashed_answer_2)
-
     if not is_answer_1_correct or not is_answer_2_correct:
         raise HTTPException(status_code=401, detail="Una o ambas respuestas son incorrectas.")
 
-    # Las respuestas son correctas. Generamos un token de 5 minutos.
     expires_delta = timedelta(minutes=5)
     token_data = {"sub": str(user.id), "scope": "password-reset-granted"}
     token = security.create_access_token(token_data, expires_delta=expires_delta)
     
     return {"access_token": token, "token_type": "bearer"}
 
-# PASO 3: Con el token del Paso 2, el usuario crea la nueva contraseña
 @router.post("/forgot-password/set-new-password", response_model=dict)
 def set_new_password_with_token(
     payload: schemas.ResetPasswordWithToken,
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db)
 ):
-    # (Esta lógica es la misma que teníamos en el flujo de email/código)
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Token faltante")
     token = authorization.split()[1]

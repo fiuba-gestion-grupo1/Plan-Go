@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script para diagnosticar el problema de búsqueda de publicaciones
 """
@@ -13,12 +12,10 @@ def diagnose_publication_search():
     print("🔍 DIAGNÓSTICO: Búsqueda de Publicaciones en Itinerario Pegado")
     print("=" * 65)
     
-    # 1. Login
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     
-    # 2. Obtener itinerario de IA
     ai_list_response = requests.get(f"{BASE_URL}/api/itineraries/ai-list", headers=headers)
     itineraries = ai_list_response.json()["itineraries"]
     
@@ -31,7 +28,6 @@ def diagnose_publication_search():
     print(f"   ID: {ai_itinerary['id']}")
     print(f"   Destination: \"{ai_itinerary['destination']}\"")
     
-    # 3. Convertir a personalizado
     print(f"\n🔄 Convirtiendo a personalizado...")
     conversion_data = {
         "ai_itinerary_id": ai_itinerary["id"],
@@ -55,7 +51,6 @@ def diagnose_publication_search():
     print(f"✅ Conversión exitosa")
     print(f"   Destination convertido: \"{converted_destination}\"")
     
-    # 4. Probar búsquedas de publicaciones con diferentes formatos
     print(f"\n🔍 Probando búsquedas de publicaciones:")
     
     test_destinations = [
@@ -80,7 +75,6 @@ def diagnose_publication_search():
                 print(f"   {i}. \"{dest}\": {status} {count} publicaciones")
                 
                 if count > 0 and i == 1:
-                    # Mostrar ejemplos de las primeras publicaciones
                     print(f"      Ejemplos:")
                     for j, pub in enumerate(publications[:3], 1):
                         print(f"        {j}. {pub.get('place_name', 'Sin nombre')} - {pub.get('city', 'Sin ciudad')}")
@@ -90,10 +84,8 @@ def diagnose_publication_search():
         except Exception as e:
             print(f"   {i}. \"{dest}\": ❌ EXCEPCIÓN {str(e)}")
     
-    # 5. Verificar publicaciones existentes en la BD
     print(f"\n📊 Verificando publicaciones en la base de datos:")
     try:
-        # Obtener todas las publicaciones para ver qué ciudades hay disponibles
         all_pubs_response = requests.get(f"{BASE_URL}/api/publications", headers=headers)
         if all_pubs_response.status_code == 200:
             all_publications = all_pubs_response.json()
@@ -110,7 +102,6 @@ def diagnose_publication_search():
             print(f"   Ciudades disponibles: {sorted(list(cities))[:5]}...")
             print(f"   Países disponibles: {sorted(list(countries))}")
             
-            # Buscar publicaciones que contengan "Buenos Aires"
             ba_publications = [p for p in all_publications if "buenos aires" in p.get("city", "").lower()]
             print(f"   Publicaciones con 'Buenos Aires': {len(ba_publications)}")
             
@@ -120,7 +111,6 @@ def diagnose_publication_search():
     except Exception as e:
         print(f"   ❌ Error verificando BD: {str(e)}")
     
-    # 6. Conclusiones
     print(f"\n🎯 CONCLUSIONES:")
     print(f"   • Destination original: \"{ai_itinerary['destination']}\"")
     print(f"   • Destination convertido: \"{converted_destination}\"")

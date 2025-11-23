@@ -4,7 +4,6 @@ from ..db import get_db
 from .auth import get_current_user
 from .. import models
 from fastapi.responses import FileResponse
-
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -14,17 +13,11 @@ from datetime import datetime
 
 router = APIRouter(prefix="/api/trips", tags=["trips"])
 
-
 @router.get("")
 def get_my_trips(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    # viajes que el usuario creó
     own_trips = db.query(models.Trip).filter_by(user_id=user.id).all()
-    
-    # viajes donde es participante
-    participant_links = db.query(models.TripParticipant).filter_by(user_id=user.id).all()
+        participant_links = db.query(models.TripParticipant).filter_by(user_id=user.id).all()
     participant_trips = [p.trip for p in participant_links if p.trip is not None]
-
-    # combinar y evitar duplicados
     all_trips = {t.id: t for t in (own_trips + participant_trips)}.values()
 
     return [
@@ -40,7 +33,6 @@ def get_my_trips(db: Session = Depends(get_db), user=Depends(get_current_user)):
     ]
 
 
-# --- Crear viaje (agrega automáticamente al creador como participante) ---
 from datetime import datetime
 
 @router.post("")
@@ -52,11 +44,9 @@ def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_c
     if not name:
         raise HTTPException(status_code=400, detail="El nombre del viaje es obligatorio")
 
-    # ✅ Convertir strings a fechas (si existen)
     start_date = datetime.strptime(start, "%Y-%m-%d").date() if start else None
     end_date = datetime.strptime(end, "%Y-%m-%d").date() if end else None
 
-    # ✅ Crear viaje
     trip = models.Trip(
         user_id=user.id,
         name=name,
@@ -64,11 +54,10 @@ def create_trip(payload: dict, db: Session = Depends(get_db), user=Depends(get_c
         end_date=end_date,
     )
     db.add(trip)
-    db.flush()  # 👈 asegura que trip.id exista sin commit todavía
+    db.flush()
 
-    # ✅ Agregar creador como participante (mismo flush)
     db.add(models.TripParticipant(trip_id=trip.id, user_id=user.id))
-    db.commit()  # 👈 commit único, sincronizado
+    db.commit()
 
     db.refresh(trip)
 
@@ -88,7 +77,6 @@ def invite_user_to_trip(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    # ✅ Solo usuarios premium pueden invitar
     if user.role != "premium":
         raise HTTPException(status_code=403, detail="Solo los usuarios premium pueden enviar invitaciones.")
 
@@ -96,21 +84,18 @@ def invite_user_to_trip(
     if not username_to_invite:
         raise HTTPException(status_code=400, detail="Debe indicar el nombre de usuario a invitar")
 
-    # 🔍 Buscar el viaje
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # ✅ El invitador debe ser participante o el creador
     inviter_participant = db.query(models.TripParticipant).filter_by(
         trip_id=trip_id, user_id=user.id
     ).first()
 
-    # 🔹 Si no figura como participante pero es el creador, lo agregamos implícitamente
     if not inviter_participant and trip.user_id == user.id:
         inviter_participant = models.TripParticipant(trip_id=trip_id, user_id=user.id)
         db.add(inviter_participant)
-        db.commit()  # 👈 asegura persistencia inmediata
+        db.commit()
 
     if not inviter_participant:
         raise HTTPException(
@@ -118,27 +103,22 @@ def invite_user_to_trip(
             detail="Solo los participantes del viaje pueden invitar a otros usuarios."
         )
 
-    # 🔍 Buscar usuario a invitar
     invited_user = db.query(models.User).filter_by(username=username_to_invite).first()
     if not invited_user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    # 🚫 No puede invitarse a sí mismo
     if invited_user.id == user.id:
         raise HTTPException(status_code=400, detail="No podés invitarte a vos mismo")
 
-    # ✅ Solo se pueden invitar usuarios premium
     if invited_user.role != "premium":
         raise HTTPException(status_code=403, detail="Solo se pueden invitar usuarios premium")
 
-    # 🚫 Si ya es participante del viaje, no se lo puede invitar de nuevo
     already_participant = db.query(models.TripParticipant).filter_by(
         trip_id=trip_id, user_id=invited_user.id
     ).first()
     if already_participant:
         raise HTTPException(status_code=400, detail="El usuario ya es participante de este viaje")
 
-    # 🚫 Si ya existió una invitación (en cualquier estado), no se lo puede invitar otra vez
     any_invitation = db.query(models.TripInvitation).filter_by(
         trip_id=trip_id,
         invited_user_id=invited_user.id
@@ -146,7 +126,6 @@ def invite_user_to_trip(
     if any_invitation:
         raise HTTPException(status_code=400, detail="Ya existe una invitación registrada para este usuario en este viaje")
 
-    # ✅ Crear nueva invitación
     invitation = models.TripInvitation(
         trip_id=trip_id,
         invited_user_id=invited_user.id,
@@ -158,8 +137,6 @@ def invite_user_to_trip(
     db.commit()
 
     return {"message": f"Invitación enviada a {username_to_invite}"}
-
-
 
 @router.get("/invitations")
 def get_my_invitations(db: Session = Depends(get_db), user=Depends(get_current_user)):
@@ -183,7 +160,7 @@ def respond_to_invitation(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    action = payload.get("action")  # "accept" o "reject"
+    action = payload.get("action")
     if action not in ["accept", "reject"]:
         raise HTTPException(status_code=400, detail="Acción inválida")
 
@@ -194,15 +171,12 @@ def respond_to_invitation(
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitación no encontrada")
 
-    # Si ya fue respondida, no permitir re-responder (y mantenemos la unicidad de intentos)
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="Esta invitación ya fue respondida previamente")
 
     if action == "accept":
-        # Marcar aceptada
         invitation.status = "accepted"
 
-        # ✅ Agregar participante solo si no existe
         existing_participant = db.query(models.TripParticipant).filter_by(
             trip_id=invitation.trip_id, user_id=user.id
         ).first()
@@ -212,29 +186,24 @@ def respond_to_invitation(
         db.commit()
         return {"message": "Invitación aceptada correctamente"}
 
-    # Rechazo
     invitation.status = "rejected"
     db.commit()
     return {"message": "Invitación rechazada correctamente"}
 
 
-# --- Editar un viaje ---
 @router.put("/{trip_id}")
 def update_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # 🔒 Permisos: el creador o cualquier participante aceptado pueden editar
     if trip.user_id != user.id:
         is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not is_participant:
             raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
-    # Actualizar campos
     trip.name = payload.get("name", trip.name)
     
-    # Convertir fechas si vienen en el payload
     if "start_date" in payload:
         start = payload.get("start_date")
         trip.start_date = datetime.strptime(start, "%Y-%m-%d").date() if start else None
@@ -253,48 +222,37 @@ def update_trip(trip_id: int, payload: dict, db: Session = Depends(get_db), user
         "end_date": trip.end_date
     }
 
-# --- Eliminar un viaje (y todos sus gastos/participantes asociados) ---
 @router.delete("/{trip_id}")
 def delete_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # 🔒 Permisos: el creador o cualquier participante aceptado pueden eliminar
     if trip.user_id != user.id:
         is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not is_participant:
             raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
-    # 🔽 Eliminar todas las entidades relacionadas con este viaje
     db.query(models.Expense).filter(models.Expense.trip_id == trip_id).delete()
     db.query(models.TripParticipant).filter(models.TripParticipant.trip_id == trip_id).delete()
-    db.query(models.TripInvitation).filter(models.TripInvitation.trip_id == trip_id).delete()  # 👈 ESTA ES LA CLAVE
+    db.query(models.TripInvitation).filter(models.TripInvitation.trip_id == trip_id).delete()
 
     db.delete(trip)
     db.commit()
 
     return {"message": "Viaje eliminado correctamente"}
 
-
-
-# --- Obtener gastos de un viaje ---
 @router.get("/{trip_id}/expenses")
 def get_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    # Buscar el viaje sin filtrar por usuario todavía
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # 🔒 Verificar permisos de acceso:
-    # El creador siempre puede ver los gastos.
-    # Los participantes aceptados también pueden verlos.
     if trip.user_id != user.id:
         is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not is_participant:
             raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
-    # Si pasa la validación, devolver los gastos
     return [
         {
             "id": e.id,
@@ -307,14 +265,12 @@ def get_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(
     ]
 
 
-# --- Agregar gasto ---
 @router.post("/{trip_id}/expenses")
 def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # 🔒 Permisos: el creador o cualquier participante aceptado pueden agregar gastos
     if trip.user_id != user.id:
         is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not is_participant:
@@ -326,7 +282,6 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
     except Exception:
         raise HTTPException(status_code=400, detail="Formato de fecha inválido (use YYYY-MM-DD)")
 
-    # --- VALIDACIÓN DE FECHAS ---
     if trip.start_date and date_obj < trip.start_date:
         raise HTTPException(
             status_code=400, 
@@ -339,7 +294,6 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
             detail=f"La fecha del gasto ({date_obj}) no puede ser posterior al fin del viaje ({trip.end_date})."
         )
 
-    # --- VALIDACIÓN DE MONTO ---
     try:
         amount_val = float(payload.get("amount", 0))
         if amount_val < 0:
@@ -368,32 +322,25 @@ def add_expense(trip_id: int, payload: dict, db: Session = Depends(get_db), user
         "date": str(exp.date),
     }
 
-# --- Eliminar un gasto ---
 @router.delete("/{trip_id}/expenses/{expense_id}")
 def delete_expense(trip_id: int, expense_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    # Buscar el gasto
     expense = db.query(models.Expense).filter_by(id=expense_id, trip_id=trip_id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    # Buscar el viaje
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # 🔒 Permisos:
-    # El creador o cualquier participante aceptado pueden eliminar cualquier gasto.
     if trip.user_id != user.id:
         is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not is_participant:
             raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
-    # Si pasa la validación, eliminar el gasto
     db.delete(expense)
     db.commit()
     return {"message": "Gasto eliminado correctamente"}
 
-# --- Editar un gasto ---
 @router.put("/{trip_id}/expenses/{expense_id}")
 def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
     
@@ -409,22 +356,17 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-
-    # 🔒 Permisos:
-    # El creador o cualquier participante aceptado pueden editar cualquier gasto.
     if trip.user_id != user.id:
         is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not is_participant:
             raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
-
-
     expense.name = payload.get("name", expense.name)
     expense.category = payload.get("category", expense.category)
     
-    new_amount_val = expense.amount  # Valor por defecto es el actual
+    new_amount_val = expense.amount
     
-    if "amount" in payload: # Solo validamos si se está intentando cambiar el monto
+    if "amount" in payload:
         try:
             new_amount_val = float(payload.get("amount"))
             if new_amount_val < 0:
@@ -432,9 +374,9 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="El monto debe ser un número válido.")
     
-    expense.amount = new_amount_val # Asignamos el monto validado (o el original si no cambió)
+    expense.amount = new_amount_val
     
-    new_date_obj = expense.date  # Por defecto, la fecha que ya tiene
+    new_date_obj = expense.date
     
     if payload.get("date"):
         try:
@@ -442,7 +384,6 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
         except Exception:
             raise HTTPException(status_code=400, detail="Formato de fecha inválido (use YYYY-MM-DD)")
 
-    # --- VALIDACIÓN DE FECHAS ---
     if trip.start_date and new_date_obj < trip.start_date:
         raise HTTPException(
             status_code=400, 
@@ -467,17 +408,14 @@ def update_expense(trip_id: int, expense_id: int, payload: dict, db: Session = D
         "date": str(expense.date),
     }
 
-# --- Exportar gastos como PDF ---
 @router.get("/{trip_id}/expenses/export", response_class=FileResponse)
 def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
 
 
-# Buscar el viaje sin limitar por user_id
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # 🔒 Permisos: creador o participante aceptado pueden exportar
     if trip.user_id != user.id:
         is_participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not is_participant:
@@ -487,7 +425,6 @@ def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depen
     if not expenses:
         raise HTTPException(status_code=404, detail="No hay gastos registrados")
 
-    # Crear archivo temporal
     tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     doc = SimpleDocTemplate(tmpfile.name, pagesize=A4)
     elements = []
@@ -521,7 +458,6 @@ def export_trip_expenses(trip_id: int, db: Session = Depends(get_db), user=Depen
     return FileResponse(tmpfile.name, filename=f"Gastos_{trip.name}.pdf", media_type="application/pdf")
 
 
-# --- Unirse a un viaje (solo premium) ---
 @router.post("/{trip_id}/participants")
 def join_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     trip = db.query(models.Trip).filter_by(id=trip_id).first()
@@ -541,7 +477,6 @@ def join_trip(trip_id: int, db: Session = Depends(get_db), user=Depends(get_curr
     return {"message": f"Te uniste al viaje '{trip.name}'"}
 
 
-# --- Calcular saldos ---
 @router.get("/{trip_id}/balances")
 def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     """
@@ -553,18 +488,13 @@ def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends
     if not trip:
         raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # Asegurar que el usuario esté agregado como participante
     participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
 
-    # --- Validar acceso al cálculo de saldos ---
-    # El creador del viaje siempre puede ver y calcular
     if trip.user_id != user.id:
         participant = db.query(models.TripParticipant).filter_by(trip_id=trip_id, user_id=user.id).first()
         if not participant:
             raise HTTPException(status_code=403, detail="No sos participante de este viaje")
 
-
-    # --- Obtener participantes y gastos ---
     participants = db.query(models.TripParticipant).filter_by(trip_id=trip_id).all()
     if not participants:
         raise HTTPException(status_code=400, detail="No hay participantes en este viaje")
@@ -573,7 +503,6 @@ def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends
     if not expenses:
         return {"total": 0, "balances": []}
 
-    # --- Calcular total por usuario ---
     total_gastos = sum(float(e.amount or 0) for e in expenses)
     aportes_por_usuario = {}
 
@@ -582,20 +511,18 @@ def calculate_balances(trip_id: int, db: Session = Depends(get_db), user=Depends
         total_user = sum(float(e.amount or 0) for e in user_gastos)
         aportes_por_usuario[p.user_id] = total_user
 
-    # --- Calcular cuánto debería haber aportado cada uno ---
     share = round(total_gastos / len(participants), 2)
 
     balances = []
     for p in participants:
         pagado = aportes_por_usuario.get(p.user_id, 0)
-        balance = round(pagado - share, 2)  # positivo = le deben, negativo = debe
+        balance = round(pagado - share, 2)
 
-        # 🔹 Traer el username asociado a este user_id
         user_obj = db.query(models.User).filter_by(id=p.user_id).first()
         username = user_obj.username if user_obj else f"usuario_{p.user_id}"
 
         balances.append({
-            "username": username,        # 👈 mostramos username en lugar del user_id
+            "username": username,
             "pagado": pagado,
             "debe_o_recibe": balance
         })

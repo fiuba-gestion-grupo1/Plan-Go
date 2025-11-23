@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script para corregir los campos available_days y available_hours que están como diccionarios vacíos.
 """
@@ -18,13 +17,11 @@ def fix_availability_fields():
         for pub in pubs:
             needs_fix = False
             
-            # Verificar available_days
             if pub.available_days == {} or pub.available_days is None:
                 pub.available_days = []
                 needs_fix = True
                 print(f"  ✅ {pub.place_name}: available_days fijado")
             
-            # Verificar available_hours  
             if pub.available_hours == {} or pub.available_hours is None:
                 pub.available_hours = []
                 needs_fix = True

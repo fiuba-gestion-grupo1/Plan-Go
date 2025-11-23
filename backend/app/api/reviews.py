@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 from typing import List, Dict, Any
-
 from ..db import get_db
 from ..models import Review, ReviewReport, User, PublicationPhoto
 from .. import models
 from .auth import get_current_user
 
 def require_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
-    # Permití admin por rol o por username "admin" (como venías usando)
     if current_user.role != "admin" and current_user.username != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores")
     return current_user
@@ -21,18 +19,14 @@ async def get_pending_review_reports(
     _: models.User = Depends(require_admin)
 ):
     """Obtener reportes de reseñas pendientes (solo admin)"""
-    # Obtener reportes pendientes
     reports = db.query(ReviewReport).filter(
         ReviewReport.status == "pending"
     ).all()
     
     result = []
     for report in reports:
-        # Obtener datos relacionados manualmente
         review = db.query(Review).filter(Review.id == report.review_id).first()
         reporter = db.query(User).filter(User.id == report.reporter_id).first()
-        
-        # Cargar fotos explícitamente si hay una publicación
         photos_data = []
         if review and review.publication:
             photos = db.query(PublicationPhoto).filter(
@@ -40,7 +34,6 @@ async def get_pending_review_reports(
             ).order_by(PublicationPhoto.index_order).all()
             photos_data = [photo.url for photo in photos]
         
-        # Datos básicos sin relaciones complejas
         report_data = {
             "id": report.id,
             "review_id": report.review_id,
@@ -61,7 +54,7 @@ async def get_pending_review_reports(
             "publication": {
                 "id": review.publication.id if review and review.publication else None,
                 "place_name": review.publication.place_name if review and review.publication else "Unknown",
-                "title": review.publication.place_name if review and review.publication else "Unknown",  # Mantenemos compatibilidad
+                "title": review.publication.place_name if review and review.publication else "Unknown",
                 "address": review.publication.address if review and review.publication else "",
                 "city": review.publication.city if review and review.publication else "",
                 "province": review.publication.province if review and review.publication else "",
@@ -85,7 +78,6 @@ async def approve_review_report(
     _: models.User = Depends(require_admin)
 ):
     """Aprobar un reporte (ocultar la reseña)"""
-    # Buscar el reporte
     report = db.query(ReviewReport).filter(ReviewReport.id == report_id).first()
     if not report:
         raise HTTPException(
@@ -93,7 +85,6 @@ async def approve_review_report(
             detail="Report not found"
         )
     
-    # Buscar la reseña
     review = db.query(Review).filter(Review.id == report.review_id).first()
     if not review:
         raise HTTPException(
@@ -101,7 +92,6 @@ async def approve_review_report(
             detail="Review not found"
         )
     
-    # Actualizar estados
     report.status = "approved"
     review.status = "hidden"
     
@@ -117,7 +107,6 @@ async def reject_review_report(
     _: models.User = Depends(require_admin)
 ):
     """Rechazar un reporte (mantener la reseña visible)"""
-    # Buscar el reporte
     report = db.query(ReviewReport).filter(ReviewReport.id == report_id).first()
     if not report:
         raise HTTPException(
@@ -125,7 +114,6 @@ async def reject_review_report(
             detail="Report not found"
         )
     
-    # Buscar la reseña
     review = db.query(Review).filter(Review.id == report.review_id).first()
     if not review:
         raise HTTPException(
@@ -133,7 +121,6 @@ async def reject_review_report(
             detail="Review not found"
         )
     
-    # Actualizar estados
     report.status = "rejected"
     report.rejection_reason = reject_data.get("reason", "") if reject_data else ""
     review.status = "approved"

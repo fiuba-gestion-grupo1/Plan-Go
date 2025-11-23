@@ -12,18 +12,15 @@ def migrate_add_availability_fields():
     db = next(get_db())
     
     try:
-        # Verificar si las columnas ya existen
         result = db.execute(text("PRAGMA table_info(publications)")).fetchall()
         existing_columns = [col[1] for col in result]
         
-        # Agregar available_days si no existe
         if 'available_days' not in existing_columns:
             db.execute(text("ALTER TABLE publications ADD COLUMN available_days TEXT"))
             print("✅ Columna available_days agregada")
         else:
             print("ℹ️ Columna available_days ya existe")
             
-        # Agregar available_hours si no existe  
         if 'available_hours' not in existing_columns:
             db.execute(text("ALTER TABLE publications ADD COLUMN available_hours TEXT"))
             print("✅ Columna available_hours agregada")

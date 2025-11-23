@@ -13,7 +13,6 @@ router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 class InvitationPayload(BaseModel):
     email: EmailStr
 
-
 def _build_email_html(invitee_email: str, inviter_name: str | None, app_url: str, invitation_code: str) -> str:
     inviter = inviter_name or "un amigo"
     register_url = f"{app_url}/register?invitation_code={invitation_code}"
@@ -55,22 +54,18 @@ def _build_email_html(invitee_email: str, inviter_name: str | None, app_url: str
 </html>
 """.strip()
 
-
-
 @router.post("/send")
 def send_invitation(
     payload: InvitationPayload,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # 🔒 Solo premium
     if current_user.role != "premium":
         raise HTTPException(
             status_code=403,
             detail="Función disponible solo para usuarios premium."
         )
 
-    # Verificar si ya existe una invitación pendiente para este email
     existing_invitation = db.query(models.Invitation).filter(
         models.Invitation.invitee_email == payload.email,
         models.Invitation.used == False
@@ -82,7 +77,6 @@ def send_invitation(
             detail="Ya existe una invitación pendiente para este email."
         )
     
-    # Verificar si el email ya está registrado
     existing_user = db.query(models.User).filter(
         models.User.email == payload.email
     ).first()
@@ -93,10 +87,8 @@ def send_invitation(
             detail="Este email ya está registrado en la aplicación."
         )
 
-    # Generar código único de invitación
     invitation_code = str(uuid.uuid4()).replace('-', '')[:12].upper()
     
-    # Crear registro de invitación en la base de datos
     invitation = models.Invitation(
         inviter_id=current_user.id,
         invitee_email=payload.email,

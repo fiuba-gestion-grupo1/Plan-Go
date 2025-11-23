@@ -1,14 +1,12 @@
 import os
 import shutil
 from sqlalchemy.orm import Session
-from sqlalchemy import func  # <-- AÑADIDO
-from datetime import datetime, timedelta  # <-- AÑADIDO
+from sqlalchemy import func
+from datetime import datetime, timedelta
 
-# Ajusta las importaciones para que funcione como un script
 try:
     from backend.app.db import SessionLocal
     from backend.app import models
-    # vvv AÑADIDO Review vvv
     from backend.app.models import User, Publication, PublicationPhoto, Category, Review
 except ImportError:
     print("Error: Ejecuta este script como un módulo desde la raíz del proyecto.")
@@ -16,10 +14,8 @@ except ImportError:
     exit(1)
 
 
-# Define la carpeta de destino de las imágenes (la misma que en publications.py)
 UPLOAD_DIR = os.path.join("backend", "app", "static", "uploads", "publications")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
 
 def get_author_user(db: Session) -> User | None:
     """Busca un usuario admin o el primer usuario para usarlo como autor."""
@@ -38,7 +34,6 @@ def get_author_user(db: Session) -> User | None:
     return None
 
 
-# --- NUEVA FUNCIÓN ---
 def get_review_authors(db: Session, default_author: User) -> list[User]:
     """Busca todos los usuarios para usarlos como autores de reseñas."""
     all_users = db.query(User).all()
@@ -50,21 +45,17 @@ def get_review_authors(db: Session, default_author: User) -> list[User]:
     return all_users
 
 
-# --- NUEVA FUNCIÓN ---
 def update_publication_ratings(db: Session, pub_id: int):
     """
     Recalcula y actualiza el rating_avg y rating_count de una publicación.
     (Lógica copiada de publications.py/_update_publication_rating)
     """
     try:
-        # Calcula el promedio (avg) y el conteo (count) de las reseñas
         avg_, count_ = db.query(func.avg(models.Review.rating), func.count(models.Review.id)) \
             .filter(models.Review.publication_id == pub_id).one()
         
-        # Busca la publicación
         pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
         if pub:
-            # Actualiza los campos en el modelo Publication
             pub.rating_avg = round(float(avg_ or 0.0), 1)
             pub.rating_count = int(count_ or 0)
             db.add(pub)
@@ -94,7 +85,6 @@ def seed_publications(db: Session):
     if not author:
         return
 
-    # --- NUEVO: Obtener autores para reseñas ---
     review_authors = get_review_authors(db, author)
 
     cat_hotel = get_or_create_category(db, "hotel", "Hotel")
@@ -104,9 +94,7 @@ def seed_publications(db: Session):
     cat_gastro = get_or_create_category(db, "gastronomia", "Gastronomía")
     
     
-    # 3. Definir datos de prueba (CON RESEÑAS)
     data_to_seed = [
-        # --- Hoteles (4) ---
         {
             "place_name": "Hotel Continental",
             "country": "Argentina", "province": "Buenos Aires", "city": "CABA",
@@ -117,7 +105,7 @@ def seed_publications(db: Session):
             "activities": ["cultura", "gastronomia", "ciudad", "noche"],
             "cost_per_day": None, "duration_min": None,
             "images": ["hotel_continental_1.jpg", "hotel_continental_2.jpg"],
-             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["00:00-23:59"],
             "reviews": [
                 (5, "Excelente ubicación, pleno centro. La habitación muy cómoda y el personal amable."),
@@ -136,7 +124,7 @@ def seed_publications(db: Session):
             "activities": ["cultura", "gastronomia", "lujo", "romance", "ciudad"],
             "cost_per_day": None, "duration_min": None,
             "images": ["ritz_paris_1.jpg", "ritz_paris_2.jpg"],
-             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["00:00-23:59"],
             "reviews": [
                 (5, "Insuperable. Cada detalle es perfecto. El servicio es de otro nivel."),
@@ -154,7 +142,7 @@ def seed_publications(db: Session):
             "continent": "asia", "climate": "templado",
             "activities": ["cultura", "relax", "naturaleza", "historia"],
             "cost_per_day": None, "duration_min": None,
-             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["00:00-23:59"],
             "images": ["four_seasons_kyoto_1.jpg", "four_seasons_kyoto_2.jpg"],
             "reviews": [
@@ -174,7 +162,7 @@ def seed_publications(db: Session):
             "activities": ["show", "casino", "gastronomia", "noche"],
             "cost_per_day": None, "duration_min": None,
             "images": ["palms_casino_1.jpg", "palms_casino_2.jpg"],
-             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["00:00-23:59"],
             "reviews": [
                 (4, "Habitaciones modernas y muy limpias. Buenas opciones de comida."),
@@ -184,7 +172,6 @@ def seed_publications(db: Session):
             ]
         },
         
-        # --- Actividades (4) ---
         {
             "place_name": "Tour de Vinos en Mendoza",
             "country": "Argentina", "province": "Mendoza", "city": "Luján de Cuyo",
@@ -262,7 +249,6 @@ def seed_publications(db: Session):
             ]
         },
 
-        # --- NUEVAS PUBLICACIONES (12) ---
         {
             "place_name": "The Palms Resort Zanzíbar",
             "country": "Tanzania", "province": "Zanzíbar", "city": "Bwejuu",
@@ -531,17 +517,14 @@ def seed_publications(db: Session):
             ]
         },
     ]
-#pruebo otro
-    # 4. Procesar y crear
+
     created_count = 0
     updated_count = 0
     for item in data_to_seed:
-        # Verificar si ya existe
         exists = db.query(Publication).filter_by(place_name=item["place_name"]).first()
         if exists:
             print(f"Actualizando: '{item['place_name']}'...")
             
-            # Actualizar campos de la publicación existente
             exists.country = item["country"]
             exists.province = item["province"]
             exists.city = item["city"]
@@ -560,11 +543,7 @@ def seed_publications(db: Session):
             
             db.flush()
             updated_count += 1
-            
-            # Actualizar fotos si es necesario
-            # (Opcional: podrías eliminar fotos existentes y recrearlas)
-            
-            db.commit() # Commit para la actualización
+            db.commit()
             continue
             
         print(f"Creando: '{item['place_name']}'...")
@@ -589,13 +568,11 @@ def seed_publications(db: Session):
             available_hours=item.get("available_hours", []),
             name=item["place_name"],
             street=item["address"].split(",")[0],
-            # Los campos rating_avg y rating_count se actualizan abajo
         )
         
         db.add(pub)
-        db.flush()  # IMPORTANTE: para obtener pub.id
+        db.flush()
         
-        # --- LÓGICA DE IMÁGENES ACTUALIZADA ---
         image_filenames = item.get("images", [])
         for idx, filename in enumerate(image_filenames):
             absolute_path = os.path.join(UPLOAD_DIR, filename)
@@ -613,12 +590,10 @@ def seed_publications(db: Session):
                 print(f"  > ADVERTENCIA: No se encontró la imagen '{filename}' en {UPLOAD_DIR}")
         
 
-        # --- NUEVO: Crear Reseñas ---
         reviews_to_add = item.get("reviews", [])
         if reviews_to_add:
             print(f"  > Creando {len(reviews_to_add)} reseñas...")
             for i, (rating, comment) in enumerate(reviews_to_add):
-                # Asigna un autor de forma rotativa
                 reviewer = review_authors[i % len(review_authors)]
                 
                 review = Review(
@@ -626,16 +601,14 @@ def seed_publications(db: Session):
                     author_id=reviewer.id,
                     rating=rating,
                     comment=comment,
-                    # Resta días para que no todas tengan la misma fecha
                     created_at=datetime.utcnow() - timedelta(days=len(reviews_to_add) - i) 
                 )
                 db.add(review)
             
-            # --- NUEVO: Actualizar ratings en la publicación ---
-            db.flush() # Asegura que las reseñas estén en la sesión antes de calcular
+            db.flush()
             update_publication_ratings(db, pub.id)
         
-        db.commit() # Commit por cada publicación
+        db.commit()
         created_count += 1
 
     print(f"--- Seeding completado. {created_count} nuevas publicaciones creadas, {updated_count} actualizadas. ---")

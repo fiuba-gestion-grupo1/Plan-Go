@@ -1,4 +1,3 @@
-# backend/app/api/debug.py
 from fastapi import APIRouter
 from sqlalchemy import inspect
 from ..db import engine

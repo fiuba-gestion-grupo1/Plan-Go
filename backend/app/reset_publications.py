@@ -1,4 +1,3 @@
-# backend/app/reset_publications.py
 """
 Script para limpiar y recargar solo las publicaciones y datos relacionados
 """
@@ -21,31 +20,26 @@ def reset_publications_data():
     
     db = SessionLocal()
     try:
-        # 1. Eliminar reseñas (deben ir primero por foreign keys)
         review_count = db.query(models.Review).count()
         if review_count > 0:
             db.query(models.Review).delete()
             print(f"   ✅ Eliminadas {review_count} reseñas")
 
-        # 2. Eliminar comentarios de reseñas
         comment_count = db.query(models.ReviewComment).count()
         if comment_count > 0:
             db.query(models.ReviewComment).delete()
             print(f"   ✅ Eliminados {comment_count} comentarios")
 
-        # 3. Eliminar favoritos
         favorite_count = db.query(models.Favorite).count()
         if favorite_count > 0:
             db.query(models.Favorite).delete()
             print(f"   ✅ Eliminados {favorite_count} favoritos")
 
-        # 4. Eliminar fotos de publicaciones
         photo_count = db.query(models.PublicationPhoto).count()
         if photo_count > 0:
             db.query(models.PublicationPhoto).delete()
             print(f"   ✅ Eliminadas {photo_count} fotos")
 
-        # 5. Eliminar solicitudes de eliminación
         try:
             deletion_count = db.query(models.DeletionRequest).count()
             if deletion_count > 0:
@@ -54,13 +48,11 @@ def reset_publications_data():
         except Exception:
             print("   ⚠️  Tabla deletion_requests no existe o ya está vacía")
 
-        # 6. Eliminar publicaciones
         pub_count = db.query(models.Publication).count()
         if pub_count > 0:
             db.query(models.Publication).delete()
             print(f"   ✅ Eliminadas {pub_count} publicaciones")
 
-        # 7. Resetear IDs de autoincremento (solo para SQLite)
         try:
             db.execute("DELETE FROM sqlite_sequence WHERE name IN ('publications', 'reviews', 'publication_photos', 'favorites')")
             print("   ✅ IDs de autoincremento reseteados")
@@ -85,7 +77,6 @@ def reload_publications():
     print("🌱 Recargando publicaciones desde seeds...")
     
     try:
-        # Importar y ejecutar la función de seed
         from backend.app.seed_db import seed_publications
         
         db = SessionLocal()
@@ -105,12 +96,10 @@ if __name__ == "__main__":
     print("=" * 50)
     
     try:
-        # Paso 1: Limpiar datos existentes
         reset_publications_data()
         
         print()
         
-        # Paso 2: Recargar desde seeds
         reload_publications()
         
         print()

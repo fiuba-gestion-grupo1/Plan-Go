@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
 import sys
 sys.path.append('/app')
 from sqlalchemy import create_engine, text
 from backend.app.db import engine
 
 with engine.connect() as connection:
-    # Verificar si la columna ya existe
     result = connection.execute(text("""
         SELECT COUNT(*) as count 
         FROM pragma_table_info('itineraries') 

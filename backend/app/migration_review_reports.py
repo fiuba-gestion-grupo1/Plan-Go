@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Migración para agregar funcionalidad de reportes de reseñas
 - Agrega columna 'status' a la tabla 'reviews' 
@@ -8,7 +7,6 @@ import sqlite3
 import os
 
 def run_migration():
-    # Buscar la base de datos
     db_path = None
     possible_paths = [
         "plan_go.db",
@@ -40,7 +38,6 @@ def run_migration():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Verificar si la columna 'status' ya existe en reviews
         cursor.execute("PRAGMA table_info(reviews)")
         columns = [col[1] for col in cursor.fetchall()]
         
@@ -51,7 +48,6 @@ def run_migration():
                 ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'approved'
             """)
             
-            # Crear índice para la nueva columna
             cursor.execute("""
                 CREATE INDEX ix_reviews_status ON reviews (status)
             """)
@@ -59,7 +55,6 @@ def run_migration():
         else:
             print("ℹ️  Columna 'status' ya existe en tabla 'reviews'")
         
-        # Verificar si la tabla review_reports ya existe
         cursor.execute("""
             SELECT name FROM sqlite_master 
             WHERE type='table' AND name='review_reports'
@@ -82,7 +77,6 @@ def run_migration():
                 )
             """)
             
-            # Crear índices
             cursor.execute("CREATE INDEX ix_review_reports_review_id ON review_reports (review_id)")
             cursor.execute("CREATE INDEX ix_review_reports_reporter_id ON review_reports (reporter_id)")
             cursor.execute("CREATE INDEX ix_review_reports_status ON review_reports (status)")

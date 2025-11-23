@@ -2,14 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List
-
 from ..db import get_db
 from ..schemas import UserPointsOut, PointsTransactionOut, AddPointsRequest
 from ..models import User, UserPoints, PointsTransaction
 from .auth import get_current_user
 
 router = APIRouter()
-
 
 def get_or_create_user_points(db: Session, user_id: int) -> UserPoints:
     """Obtiene o crea el registro de puntos para un usuario"""
@@ -72,7 +70,6 @@ async def add_points(
     Agrega puntos a un usuario (solo para uso interno del sistema)
     En producción, esto debería estar protegido y solo ser llamado por otros endpoints
     """
-    # Verificar que el usuario existe
     target_user = db.query(User).filter(User.id == request.user_id).first()
     if not target_user:
         raise HTTPException(
@@ -80,10 +77,8 @@ async def add_points(
             detail="Usuario no encontrado"
         )
 
-    # Obtener o crear balance de puntos
     user_points = get_or_create_user_points(db, request.user_id)
 
-    # Crear la transacción
     transaction = PointsTransaction(
         user_id=request.user_id,
         points=request.points,
@@ -93,10 +88,8 @@ async def add_points(
     )
     db.add(transaction)
 
-    # Actualizar balance total
     user_points.total_points += request.points
     
-    # Asegurar que no quede en negativo
     if user_points.total_points < 0:
         user_points.total_points = 0
 
@@ -115,12 +108,11 @@ def award_points_for_review(db: Session, user_id: int, review_id: int, points: i
     Función helper para otorgar puntos por escribir una reseña
     Debe ser llamada cuando se crea una nueva reseña
     """
-    # Verificar que el usuario es premium
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.role != 'premium':
         return False
 
-    # Verificar que no ya haya ganado puntos por esta reseña
     existing = db.query(PointsTransaction).filter(
         PointsTransaction.user_id == user_id,
         PointsTransaction.transaction_type == 'review_earned',
@@ -130,7 +122,6 @@ def award_points_for_review(db: Session, user_id: int, review_id: int, points: i
     if existing:
         return False
 
-    # Obtener información de la reseña y la publicación
     from ..models import Review, Publication
     review = db.query(Review).filter(Review.id == review_id).first()
     publication_name = "Publicación desconocida"
@@ -138,7 +129,6 @@ def award_points_for_review(db: Session, user_id: int, review_id: int, points: i
     if review and review.publication:
         publication_name = review.publication.place_name or review.publication.name or f"Publicación #{review.publication.id}"
     
-    # Crear la transacción de puntos
     transaction = PointsTransaction(
         user_id=user_id,
         points=points,
@@ -148,7 +138,6 @@ def award_points_for_review(db: Session, user_id: int, review_id: int, points: i
     )
     db.add(transaction)
 
-    # Actualizar balance
     user_points = get_or_create_user_points(db, user_id)
     user_points.total_points += points
 

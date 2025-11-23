@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Parser de itinerarios - Convierte texto de itinerario IA a estructura de itinerario personalizado
 """
@@ -22,18 +21,14 @@ def parse_ai_itinerary_to_custom_structure(itinerary_text: str, start_date: str)
     
     print(f"[PARSER] Parseando itinerario de IA desde fecha {start_date}")
     
-    # Estructura base del itinerario personalizado
     custom_itinerary = {}
     
-    # Dividir el texto en líneas para análisis
     lines = itinerary_text.split('\n')
     
-    # Variables de estado
     current_day = None
     current_period = None
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     
-    # Patrones de regex para extraer información
     day_pattern = r'DÍA\s*(\d+)\s*-\s*(\d{4}-\d{2}-\d{2})'
     period_pattern = r'🌅\s*(MAÑANA|MADRUGADA).*\((.*?)\)|🌞\s*(TARDE).*\((.*?)\)|🌙\s*(NOCHE).*\((.*?)\)'
     activity_pattern = r'•\s*(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\s*-\s*(.*?)\s*\(ID:\s*(\d+)\)'
@@ -45,13 +40,11 @@ def parse_ai_itinerary_to_custom_structure(itinerary_text: str, start_date: str)
         if not line or line.startswith('═'):
             continue
             
-        # Detectar día
         day_match = re.search(day_pattern, line)
         if day_match:
             day_number = int(day_match.group(1))
             day_date = day_match.group(2)
             
-            # Calcular el índice del día basado en la fecha de inicio
             day_dt = datetime.strptime(day_date, "%Y-%m-%d")
             day_index = (day_dt - start_dt).days + 1
             
@@ -65,11 +58,10 @@ def parse_ai_itinerary_to_custom_structure(itinerary_text: str, start_date: str)
             print(f"[PARSER] Procesando {current_day} ({day_date})")
             continue
         
-        # Detectar período del día
         period_match = re.search(period_pattern, line)
         if period_match and current_day:
             period_name = None
-            for i in range(1, 7, 2):  # Grupos 1,3,5 contienen el nombre del período
+            for i in range(1, 7, 2):
                 if period_match.group(i):
                     period_name = period_match.group(i).lower()
                     break
@@ -84,7 +76,6 @@ def parse_ai_itinerary_to_custom_structure(itinerary_text: str, start_date: str)
             print(f"[PARSER]   Período: {current_period}")
             continue
         
-        # Detectar actividad
         activity_match = re.search(activity_pattern, line)
         if activity_match and current_day and current_period:
             start_time = activity_match.group(1)
@@ -92,10 +83,8 @@ def parse_ai_itinerary_to_custom_structure(itinerary_text: str, start_date: str)
             activity_name = activity_match.group(3).strip()
             publication_id = int(activity_match.group(4))
             
-            # Generar time slot key
             time_slot = f"{start_time}-{end_time}"
             
-            # Agregar actividad al itinerario
             custom_itinerary[current_day][current_period][time_slot] = {
                 "id": publication_id,
                 "name": activity_name,
@@ -105,7 +94,6 @@ def parse_ai_itinerary_to_custom_structure(itinerary_text: str, start_date: str)
             
             print(f"[PARSER]     Actividad: {time_slot} - {activity_name} (ID: {publication_id})")
     
-    # Agregar metadatos del parsing
     parsing_metadata = {
         "parsed_days": len([k for k in custom_itinerary.keys() if k.startswith("day_")]),
         "total_activities": sum([
@@ -169,7 +157,6 @@ def generate_custom_itinerary_preview(custom_structure: Dict[str, Any]) -> str:
     
     preview_lines = ["📋 PREVIEW DEL ITINERARIO PERSONALIZADO:", "=" * 50]
     
-    # Ordenar días
     day_keys = [k for k in custom_structure.keys() if k.startswith("day_")]
     day_keys.sort(key=lambda x: int(x.split("_")[1]))
     
@@ -193,7 +180,6 @@ def generate_custom_itinerary_preview(custom_structure: Dict[str, Any]) -> str:
                     activity_name = activity.get("name", "Actividad sin nombre")
                     preview_lines.append(f"  • {time_slot} - {activity_name}")
     
-    # Agregar metadatos si existen
     if "_metadata" in custom_structure:
         metadata = custom_structure["_metadata"]
         preview_lines.extend([
@@ -220,7 +206,6 @@ def validate_custom_structure(custom_structure: Dict[str, Any]) -> Dict[str, Any
     errors = []
     warnings = []
     
-    # Verificar estructura básica
     day_keys = [k for k in custom_structure.keys() if k.startswith("day_")]
     if not day_keys:
         errors.append("No se encontraron días en el itinerario")
@@ -232,13 +217,11 @@ def validate_custom_structure(custom_structure: Dict[str, Any]) -> Dict[str, Any
             errors.append(f"Estructura inválida para {day_key}")
             continue
             
-        # Verificar períodos
         for period in ["morning", "afternoon", "evening"]:
             period_data = day_data.get(period, {})
             if isinstance(period_data, dict):
                 total_activities += len(period_data)
                 
-                # Verificar actividades
                 for time_slot, activity in period_data.items():
                     if not isinstance(activity, dict) or "id" not in activity:
                         warnings.append(f"Actividad inválida en {day_key}.{period}.{time_slot}")

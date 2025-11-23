@@ -54,82 +54,12 @@ make restart
 
 La ejecucion de los tests se realiza en un contenedor de docker que contiene todas las dependencias y requerimientos necesarios instalados para correr los tests correctamente.
 
-Ejecutar el comando:
+#### Ejecutar el comando:
 
 ```bash
 
 make test
 
 ```
-Para levantar el contenedor y correr los tests. Automaticamente terminada la ejecucion de los tests, el conetenedor se elimina automaticamente para limpiar los recursos.
 
-## Tutorial de Ejecución de Comandos del Backend para actualizar la BDD
-
-En caso de que se haya hecho una modificación al schema o models de la base de datos, es necesario eliminar el volumen local de docker y volver a generarlo.
-
-### Eliminar el Volumen local de docker y reconstruir la imagen
-```bash
-
-docker volume rm plan-go_plango_data
-
-make up
-
-```
-
-### Abrir el contenedor de docker
-```bash
-
-docker exec -it plan-go-app bash
-
-```
-### Instalar SQLite3 y Salir de la terminar de contenedor
-```bash
-
-apt-get update && apt-get install -y sqlite3
-
-ctrl d
-
-```
-
-### Ejecutar el comando de sql
-```bash
-
-docker exec -it plan-go-app sqlite3 /app/data/plan_go.db "UPDATE users SET role='admin' WHERE username='your_username';"
-
-```
-
-## Tutorial de Ejecución del Script de Publicaciones (Requiere 2 terminales)
-
-### Desde la primera terminal
-
-```bash
-
-make up
-
-```
-
-### Desde la segunda terminal
-
-```bash
-
-docker exec plan-go-app python -m backend.app.seed_db
-
-```
-
-## Tutorial de Ejecución del Script de Usuarios (Requiere 2 terminales)
-
-### Desde la primera terminal
-
-```bash
-
-make up
-
-```
-
-### Desde la segunda terminal
-
-```bash
-
-docker exec plan-go-app python -m backend.app.seed_users
-
-```
+Para levantar el contenedor y correr los tests. Automaticamente terminada la ejecucion de los tests, el contenedor se elimina automaticamente para limpiar los recursos.

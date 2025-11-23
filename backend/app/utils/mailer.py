@@ -1,4 +1,3 @@
-# backend/app/utils/mailer.py
 from __future__ import annotations
 import os, smtplib, socket
 from email.message import EmailMessage

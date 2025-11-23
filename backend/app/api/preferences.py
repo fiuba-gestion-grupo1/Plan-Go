@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..db import get_db
-from .auth import get_current_user  # devuelve el user
+from .auth import get_current_user
 from .. import models, schemas
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
@@ -26,7 +26,7 @@ def upsert_my_preferences(payload: schemas.UserPreferenceIn,
         db.add(pref)
     for k, v in payload.model_dump(exclude_unset=True).items():
         if k == "publication_type" and v not in ["all", "hotel", "actividad"]:
-            continue # Ignorar valores inválidos
+            continue
         setattr(pref, k, v)
     db.commit()
     db.refresh(pref)

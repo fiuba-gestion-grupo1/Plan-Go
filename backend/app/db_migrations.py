@@ -1,7 +1,4 @@
-# backend/app/db_migrations.py
 from sqlalchemy import text
-
-# backend/app/db_migrations.py
 
 PUBLICATIONS_COLUMNS = [
     ("place_name", "TEXT"),
@@ -10,7 +7,6 @@ PUBLICATIONS_COLUMNS = [
     ("city", "TEXT"),
     ("address", "TEXT"),
     ("created_at", "TIMESTAMP"),
-    # Campos de rating / enriquecimiento
     ("rating_avg", "REAL"),
     ("rating_count", "INTEGER"),
     ("continent", "TEXT"),
@@ -18,7 +14,6 @@ PUBLICATIONS_COLUMNS = [
     ("activities", "TEXT"),
     ("cost_per_day", "REAL"),
     ("duration_min", "INTEGER"),
-    # Campos de workflow/autoría
     ("status", "TEXT"),
     ("rejection_reason", "TEXT"),
     ("created_by_user_id", "INTEGER"),
@@ -32,11 +27,9 @@ def ensure_min_schema(engine):
     También crea las tablas auxiliares si no existen (favorites, deletion_requests).
     """
     with engine.begin() as conn:
-        # Obtener columnas existentes de 'publications'
         pragma = conn.exec_driver_sql("PRAGMA table_info(publications)").fetchall()
-        existing = {row[1] for row in pragma}  # nombre de la columna en idx 1
+        existing = {row[1] for row in pragma}
 
-        # Agregar columnas faltantes
         for col, coltype in PUBLICATIONS_COLUMNS:
             if col not in existing:
                 if col == "created_at":
@@ -52,7 +45,6 @@ def ensure_min_schema(engine):
                         f"ALTER TABLE publications ADD COLUMN {col} {coltype}"
                     )
 
-        # --- Tabla de favoritos ---
         conn.exec_driver_sql(
             """
             CREATE TABLE IF NOT EXISTS favorites (
@@ -73,7 +65,6 @@ def ensure_min_schema(engine):
             "CREATE INDEX IF NOT EXISTS idx_favorites_publication_id ON favorites(publication_id)"
         )
 
-        # --- Tabla de solicitudes de eliminación ---
         conn.exec_driver_sql(
             """
             CREATE TABLE IF NOT EXISTS deletion_requests (
@@ -97,36 +88,29 @@ def ensure_min_schema(engine):
             "CREATE INDEX IF NOT EXISTS idx_deletion_requests_status ON deletion_requests(status)"
         )
 
-        # --- Tabla de itinerarios ---
-        # Primero verificar si la tabla existe
         itinerary_check = conn.exec_driver_sql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='itineraries'"
         ).fetchone()
         
         if itinerary_check:
-            # La tabla existe, verificar y agregar columnas faltantes
             pragma_itinerary = conn.exec_driver_sql("PRAGMA table_info(itineraries)").fetchall()
             existing_itinerary = {row[1] for row in pragma_itinerary}
             
-            # Agregar publication_ids si no existe
             if "publication_ids" not in existing_itinerary:
                 conn.exec_driver_sql(
                     "ALTER TABLE itineraries ADD COLUMN publication_ids TEXT"
                 )
             
-            # Agregar cant_persons si no existe
             if "cant_persons" not in existing_itinerary:
                 conn.exec_driver_sql(
                     "ALTER TABLE itineraries ADD COLUMN cant_persons INTEGER DEFAULT 1"
                 )
                 
-            # Agregar comments si no existe
             if "comments" not in existing_itinerary:
                 conn.exec_driver_sql(
                     "ALTER TABLE itineraries ADD COLUMN comments TEXT"
                 )
 
-        # --- Agregar rejection_reason a deletion_requests ---
         pragma_deletion = conn.exec_driver_sql("PRAGMA table_info(deletion_requests)").fetchall()
         existing_deletion = {row[1] for row in pragma_deletion}
         
@@ -140,8 +124,6 @@ def ensure_min_schema(engine):
                 "ALTER TABLE deletion_requests ADD COLUMN reason TEXT"
             )
 
-        # --- Tablas de sistema de puntos ---
-        # Tabla user_points
         user_points_check = conn.exec_driver_sql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='user_points'"
         ).fetchone()
@@ -159,7 +141,6 @@ def ensure_min_schema(engine):
                 "CREATE INDEX IF NOT EXISTS idx_user_points_user_id ON user_points(user_id)"
             )
 
-        # Tabla points_transactions
         points_transactions_check = conn.exec_driver_sql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='points_transactions'"
         ).fetchone()

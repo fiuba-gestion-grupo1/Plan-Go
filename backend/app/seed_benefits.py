@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script para poblar la base de datos con beneficios premium para publicaciones.
 """
@@ -9,7 +8,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
-# Ajusta las importaciones para que funcione como un script
 try:
     from backend.app.db import SessionLocal
     from backend.app import models
@@ -36,14 +34,11 @@ def update_publication_ratings(db: Session, pub_id: int):
     Recalcula y actualiza el rating_avg y rating_count de una publicación.
     """
     try:
-        # Calcula el promedio (avg) y el conteo (count) de las reseñas
         avg_, count_ = db.query(func.avg(models.Review.rating), func.count(models.Review.id)) \
             .filter(models.Review.publication_id == pub_id).one()
         
-        # Busca la publicación
         pub = db.query(models.Publication).filter(models.Publication.id == pub_id).first()
         if pub:
-            # Actualiza los campos en el modelo Publication
             pub.rating_avg = round(float(avg_ or 0.0), 1)
             pub.rating_count = int(count_ or 0)
             db.add(pub)
@@ -56,7 +51,6 @@ def create_premium_benefits(db: Session):
     """Crea beneficios premium para publicaciones existentes."""
     print("🎁 Creando beneficios premium...")
 
-    # Obtener publicaciones por categoría
     restaurants = db.query(Publication).join(Publication.categories).filter(
         models.Category.slug == "gastronomia"
     ).all()
@@ -71,7 +65,6 @@ def create_premium_benefits(db: Session):
 
     benefit_count = 0
 
-    # Beneficios para restaurantes y bares
     restaurant_benefits = [
         {
             "title": "10% descuento en toda la carta",
@@ -110,11 +103,9 @@ def create_premium_benefits(db: Session):
         }
     ]
 
-    # Aplicar beneficios a restaurantes
     for i, restaurant in enumerate(restaurants):
         benefit_data = restaurant_benefits[i % len(restaurant_benefits)]
         
-        # Verificar si ya existe el beneficio
         existing = db.query(PremiumBenefit).filter(
             PremiumBenefit.publication_id == restaurant.id
         ).first()
@@ -128,7 +119,6 @@ def create_premium_benefits(db: Session):
             benefit_count += 1
             print(f"  ✅ {restaurant.place_name}: {benefit_data['title']}")
 
-    # Beneficios para hoteles
     hotel_benefits = [
         {
             "title": "15% descuento en desayuno",
@@ -174,7 +164,6 @@ def create_premium_benefits(db: Session):
         }
     ]
 
-    # Aplicar beneficios a hoteles
     for i, hotel in enumerate(hotels):
         benefit_data = hotel_benefits[i % len(hotel_benefits)]
         
@@ -191,7 +180,6 @@ def create_premium_benefits(db: Session):
             benefit_count += 1
             print(f"  ✅ {hotel.place_name}: {benefit_data['title']}")
 
-    # Beneficios para atracciones y actividades
     attraction_benefits = [
         {
             "title": "20% descuento en gift shop",
@@ -244,7 +232,6 @@ def create_premium_benefits(db: Session):
         }
     ]
 
-    # Aplicar beneficios a atracciones
     for i, attraction in enumerate(attractions):
         benefit_data = attraction_benefits[i % len(attraction_benefits)]
         
@@ -269,7 +256,6 @@ def add_premium_publications(db: Session):
     """Agrega nuevas publicaciones especialmente diseñadas para tener beneficios premium."""
     print("\n🏪 Agregando publicaciones con beneficios premium...")
     
-    # Buscar un usuario para crear las publicaciones
     admin_user = db.query(User).filter(User.role == "admin").first()
     if not admin_user:
         admin_user = db.query(User).first()
@@ -278,14 +264,12 @@ def add_premium_publications(db: Session):
         print("Error: No se encontraron usuarios. Crea al menos un usuario primero.")
         return
 
-    # Obtener categorías
     cat_gastro = db.query(models.Category).filter_by(slug="gastronomia").first()
     cat_hotel = db.query(models.Category).filter_by(slug="hotel").first()
     cat_actividad = db.query(models.Category).filter_by(slug="actividad").first()
     cat_cultura = db.query(models.Category).filter_by(slug="cultura").first()
 
     new_publications = [
-        # Restaurantes y bares con beneficios atractivos
         {
             "place_name": "La Terraza Premium",
             "description": "Restaurante de cocina internacional con vista panorámica y ambiente exclusivo para ocasiones especiales.",
@@ -294,9 +278,9 @@ def add_premium_publications(db: Session):
             "categories": [cat_gastro],
             "continent": "américa", "climate": "templado",
             "activities": ["gastronomia", "ciudad", "romance", "vista_panoramica"],
-            "cost_per_day": None,  # Varía según consumo
+            "cost_per_day": None,
             "duration_min": None,  
-            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["17:30-23:30"],
             "images": ["terraza_prmeium_1.jpg", "terraza_prmeium_2.jpg"],
             "reviews": [
@@ -314,9 +298,9 @@ def add_premium_publications(db: Session):
             "categories": [cat_gastro],
             "continent": "américa", "climate": "seco",
             "activities": ["gastronomia", "vinos", "cultura", "relax"],
-            "cost_per_day": None,  # Varía según consumo
+            "cost_per_day": None,
             "duration_min": None,  
-            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["11:30-23:30"],
             "images": ["wine_club_1.jpg", "wine_club_2.jpg"],
             "reviews": [
@@ -334,9 +318,9 @@ def add_premium_publications(db: Session):
             "categories": [cat_gastro],
             "continent": "américa", "climate": "templado",
             "activities": ["gastronomia", "familia", "tradicion", "carnes"],
-            "cost_per_day": None,  # Varía según consumo
+            "cost_per_day": None,
             "duration_min": None,  
-            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["11:30-23:30"],
             "images": ["asado_porteno_1.jpg", "asado_porteno_2.jpg"],
             "reviews": [
@@ -354,9 +338,9 @@ def add_premium_publications(db: Session):
             "categories": [cat_gastro],
             "continent": "américa", "climate": "templado",
             "activities": ["cafe", "arte", "cultura", "trabajo", "reunion"],
-            "cost_per_day": None,  # Varía según consumo
+            "cost_per_day": None,
             "duration_min": None,  
-            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["08:00-11:30", "14:00-20:00"],
             "images": ["cafe_artistas_1.jpg", "cafe_artistas_2.jpg"],
             "reviews": [
@@ -367,7 +351,6 @@ def add_premium_publications(db: Session):
             ]
         },
 
-        # Hoteles boutique con servicios premium
         {
             "place_name": "Grand Palace Hotel & Spa",
             "description": "Hotel 5 estrellas con spa de lujo, piscina climatizada y servicio personalizado las 24 horas.",
@@ -378,7 +361,7 @@ def add_premium_publications(db: Session):
             "activities": ["spa", "lujo", "relax", "ciudad", "cultura"],
             "cost_per_day": None,
             "duration_min": None, 
-            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+            "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["00:00-23:59"],
             "images": ["grand_palace_1.jpg", "grand_palace_2.jpg"],
             "reviews": [
@@ -398,7 +381,7 @@ def add_premium_publications(db: Session):
             "activities": ["cultura", "historia", "tradicion", "turismo", "relax"],
             "cost_per_day": None,
             "duration_min": None,
-             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["00:00-23:59"],
             "images": ["boutique_pampa_1.jpg", "boutique_pampa_2.jpg"],
             "reviews": [
@@ -418,7 +401,7 @@ def add_premium_publications(db: Session):
             "activities": ["montaña", "naturaleza", "romance", "familia", "aventura", "relax"],
             "cost_per_day": None,
             "duration_min": None,
-             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],  # Cerrado domingos
+             "available_days": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
             "available_hours": ["00:00-23:59"],
             "images": ["mountain_resort_1.jpg", "mountain_resort_2.jpg"],
             "reviews": [
@@ -429,7 +412,6 @@ def add_premium_publications(db: Session):
             ]
         },
 
-        # Atracciones y actividades con experiencias premium
         {
             "place_name": "Museo Interactivo de Ciencias",
             "description": "Museo moderno con exhibiciones interactivas, planetario y talleres para toda la familia.",
@@ -478,8 +460,8 @@ def add_premium_publications(db: Session):
             "categories": [cat_gastro, cat_cultura],
             "continent": "américa", "climate": "templado",
             "activities": ["gastronomia", "cultura", "ciudad", "tour", "enologia"],
-            "cost_per_day": 75,  # Precio fijo del tour incluye todo
-            "duration_min": 240,  # Tour promedio 4 horas
+            "cost_per_day": 75,
+            "duration_min": 240,
             "available_days": ["lunes", "miércoles", "viernes", "sábado"],  
             "available_hours": ["11:00-21:00"],
             "images": ["tour_gastro_1.jpg", "tour_gastro_2.jpg"],
@@ -493,41 +475,35 @@ def add_premium_publications(db: Session):
     ]
 
     publications_added = 0
-    # Obtener autores para reseñas
     review_authors = get_review_authors(db, admin_user)
     
     for pub_data in new_publications:
-        # Verificar si la publicación ya existe
         existing = db.query(Publication).filter(
             Publication.place_name == pub_data["place_name"]
         ).first()
         
         if not existing:
-            # Extraer datos especiales que no van directamente al modelo
             categories = pub_data.pop("categories")
             reviews_data = pub_data.pop("reviews", [])
             images_data = pub_data.pop("images", [])
             
             print(f"  📝 Creando: {pub_data['place_name']}...")
             
-            # Crear la publicación
             publication = Publication(
                 created_by_user_id=admin_user.id,
                 status="approved",
-                name=pub_data["place_name"],  # Agregar campo name
-                street=pub_data["address"].split(",")[0] if pub_data.get("address") else "",  # Agregar campo street
+                name=pub_data["place_name"],
+                street=pub_data["address"].split(",")[0] if pub_data.get("address") else "",
                 created_at=datetime.utcnow(),
                 **pub_data
             )
             db.add(publication)
-            db.flush()  # Para obtener el ID
+            db.flush()
             
-            # Asignar categorías
             for category in categories:
                 if category:
                     publication.categories.append(category)
             
-            # Crear imágenes
             for idx, filename in enumerate(images_data):
                 photo = PublicationPhoto(
                     publication_id=publication.id,
@@ -537,11 +513,9 @@ def add_premium_publications(db: Session):
                 db.add(photo)
                 print(f"    🖼️ Imagen agregada: {filename}")
             
-            # Crear reseñas
             if reviews_data:
                 print(f"    💬 Creando {len(reviews_data)} reseñas...")
                 for i, (rating, comment) in enumerate(reviews_data):
-                    # Asigna un autor de forma rotativa
                     reviewer = review_authors[i % len(review_authors)]
                     
                     review = Review(
@@ -549,13 +523,11 @@ def add_premium_publications(db: Session):
                         author_id=reviewer.id,
                         rating=rating,
                         comment=comment,
-                        # Resta días para que no todas tengan la misma fecha
                         created_at=datetime.utcnow() - timedelta(days=len(reviews_data) - i) 
                     )
                     db.add(review)
                 
-                # Actualizar ratings en la publicación
-                db.flush() # Asegura que las reseñas estén en la sesión antes de calcular
+                db.flush()
                 update_publication_ratings(db, publication.id)
             
             publications_added += 1
@@ -571,15 +543,11 @@ def main():
     
     db = SessionLocal()
     try:
-        # Crear tabla de beneficios si no existe
         from backend.app.db import engine
         PremiumBenefit.__table__.create(engine, checkfirst=True)
         print("✅ Tabla de beneficios verificada/creada")
-        
-        # Agregar nuevas publicaciones premium
         add_premium_publications(db)
         
-        # Crear beneficios para todas las publicaciones
         create_premium_benefits(db)
         
         print("\n🎉 ¡Script completado exitosamente!")

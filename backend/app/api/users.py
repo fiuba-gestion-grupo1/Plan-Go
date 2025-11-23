@@ -1,4 +1,3 @@
-# backend/app/api/users.py
 from fastapi import (
     APIRouter,
     Depends,
@@ -15,16 +14,15 @@ import uuid
 import os
 import json
 from json import JSONDecodeError
-from ..utils.match import compute_match_percentage  # 👈 nuevo import
+from ..utils.match import compute_match_percentage
 from collections.abc import Sequence  
 from ..db import get_db
 from .. import models, schemas
-from .auth import get_current_user  # Importamos la dependencia desde auth.py
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 UPLOAD_DIR = "backend/app/static/uploads"
-
 
 @router.put("/me/photo", response_model=schemas.UserOut)
 def upload_profile_photo(
@@ -42,7 +40,6 @@ def upload_profile_photo(
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-    # Nos aseguramos de que exista el directorio
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     try:
@@ -58,7 +55,6 @@ def upload_profile_photo(
     db.refresh(user)
 
     return user
-
 
 @router.post("/me/subscribe", response_model=schemas.UserOut)
 def subscribe_to_premium(
@@ -109,7 +105,6 @@ def list_travelers(
     en base a las preferencias configuradas (UserPreference).
     """
 
-    # --- helper: saca TODAS las preferencias (climas+actividades+continentes) ---
     def extract_pref_keywords(pref) -> list[str]:
         """
         Devuelve una lista de strings con las preferencias del usuario.
@@ -120,7 +115,6 @@ def list_travelers(
         if not pref:
             return []
 
-        # Si viene como lista / InstrumentedList, usamos el primero (relación 1-1)
         if isinstance(pref, Sequence) and not isinstance(pref, (str, bytes)):
             if not pref:
                 return []
@@ -135,10 +129,8 @@ def list_travelers(
 
         return keywords
 
-    # preferencias del usuario logueado (A)
     my_keywords = extract_pref_keywords(getattr(current_user, "preference", None))
 
-    # (usamos q solo para filtrar por nombre/username, el resto lo hace el front)
     q = request.query_params.get("q") or None
 
     query = db.query(models.User).filter(models.User.id != current_user.id)
@@ -155,7 +147,6 @@ def list_travelers(
     travelers: list[schemas.TravelerCardOut] = []
 
     for u in users:
-        # travel_profile para mostrar la card (destinos, estilo, etc.)
         try:
             prefs_json = json.loads(u.travel_preferences) if u.travel_preferences else {}
         except (JSONDecodeError, TypeError):
@@ -168,14 +159,12 @@ def list_travelers(
         tags = prefs_json.get("tags", []) or []
         city = prefs_json.get("city", "") or ""
 
-        # preferencias del usuario de la tarjeta (B)
         other_keywords = extract_pref_keywords(getattr(u, "preference", None))
 
-        # --- cálculo de coincidencia con la función utilitaria ---
         match_percentage = compute_match_percentage(
             me_keywords=my_keywords,
             other_keywords=other_keywords,
-        ) or 0  # por si algún día devolvés None
+        ) or 0
 
         travelers.append(
             schemas.TravelerCardOut(
@@ -234,7 +223,6 @@ def get_premium_benefits(
             detail="Función disponible solo para usuarios premium."
         )
     
-    # Obtener beneficios activos con información de la publicación
     benefits = db.query(models.PremiumBenefit).filter(
         models.PremiumBenefit.is_active == True
     ).join(models.Publication).options(
@@ -271,7 +259,7 @@ def get_premium_benefits(
                 "activities": getattr(pub, "activities", []),
                 "cost_per_day": getattr(pub, "cost_per_day", None),
                 "duration_min": getattr(pub, "duration_min", None),
-                "is_favorite": False  # Por defecto, se puede mejorar después
+                "is_favorite": False
             }
         })
     
@@ -291,7 +279,6 @@ def redeem_benefit(
             detail="Función disponible solo para usuarios premium."
         )
     
-    # Verificar que el beneficio existe y está activo
     benefit = db.query(models.PremiumBenefit).filter(
         models.PremiumBenefit.id == benefit_id,
         models.PremiumBenefit.is_active == True
@@ -300,7 +287,6 @@ def redeem_benefit(
     if not benefit:
         raise HTTPException(status_code=404, detail="Beneficio no encontrado")
     
-    # Verificar si ya tiene este beneficio
     existing = db.query(models.UserBenefit).filter(
         models.UserBenefit.user_id == current_user.id,
         models.UserBenefit.benefit_id == benefit_id,
@@ -310,13 +296,11 @@ def redeem_benefit(
     if existing:
         raise HTTPException(status_code=400, detail="Ya tienes este beneficio disponible")
     
-    # Calcular costo en puntos basado en el descuento
     if benefit.discount_percentage:
-        points_cost = benefit.discount_percentage * 2  # 2 puntos por cada % de descuento
+        points_cost = benefit.discount_percentage * 2
     else:
-        points_cost = 20  # Beneficios gratuitos/upgrades cuestan 20 puntos
+        points_cost = 20
     
-    # Verificar puntos suficientes
     user_points = db.query(models.UserPoints).filter(
         models.UserPoints.user_id == current_user.id
     ).first()
@@ -327,11 +311,9 @@ def redeem_benefit(
             detail=f"Puntos insuficientes. Necesitas {points_cost} puntos, tienes {user_points.total_points if user_points else 0}"
         )
     
-    # Generar código de comprobante único
     import uuid
     voucher_code = f"PG{str(uuid.uuid4()).replace('-', '')[:10].upper()}"
     
-    # Crear el beneficio del usuario
     user_benefit = models.UserBenefit(
         user_id=current_user.id,
         benefit_id=benefit_id,
@@ -341,10 +323,8 @@ def redeem_benefit(
     )
     db.add(user_benefit)
     
-    # Descontar puntos
     user_points.total_points -= points_cost
     
-    # Crear transacción de puntos
     transaction = models.PointsTransaction(
         user_id=current_user.id,
         points=-points_cost,
@@ -387,7 +367,6 @@ def get_user_benefits(
         benefit = user_benefit.benefit
         publication = benefit.publication
         
-        # Calcular precio con descuento si la publicación tiene precio
         original_price = publication.cost_per_day
         discounted_price = None
         if original_price and benefit.discount_percentage:

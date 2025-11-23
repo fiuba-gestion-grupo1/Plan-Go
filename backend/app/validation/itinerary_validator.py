@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Módulo de validación de itinerarios - valida tanto itinerarios de IA como personalizados
 """
@@ -7,7 +6,6 @@ from datetime import datetime, date
 from typing import List, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from backend.app import models
-
 
 class ItineraryValidationError:
     """Representa un error de validación en un itinerario"""
@@ -18,7 +16,7 @@ class ItineraryValidationError:
         self.publication_id = publication_id
         self.day = day
         self.time_slot = time_slot
-        self.severity = severity  # "error", "warning", "info"
+        self.severity = severity
     
     def to_dict(self):
         return {
@@ -59,12 +57,9 @@ class ItineraryValidator:
         self.warnings = []
         self.total_cost = 0.0
         
-        # Determinar el tipo de datos de entrada
         if "used_publications" in itinerary_data:
-            # Es respuesta de IA
             return self._validate_ai_itinerary(itinerary_data, budget, cant_persons, start_date, end_date)
         else:
-            # Es itinerario personalizado
             return self._validate_custom_itinerary(itinerary_data, budget, cant_persons, start_date, end_date)
     
     def _validate_ai_itinerary(self, ai_data: dict, budget: float, 
@@ -74,7 +69,6 @@ class ItineraryValidator:
         print(f"[VALIDATION] Validando itinerario de IA...")
         print(f"[VALIDATION] Presupuesto: US${budget} | Personas: {cant_persons}")
         
-        # Validar publicaciones utilizadas
         used_publications = ai_data.get("used_publications", [])
         ai_total_cost = ai_data.get("total_cost", 0)
         
@@ -88,7 +82,6 @@ class ItineraryValidator:
             hours_used = pub_usage.get("hours_used", [])
             ai_cost = pub_usage.get("total_cost", 0)
             
-            # Buscar publicación en BD
             publication = self.db.query(models.Publication).filter(
                 models.Publication.id == pub_id
             ).first()
@@ -99,17 +92,14 @@ class ItineraryValidator:
                               publication_id=pub_id)
                 continue
             
-            # Validar disponibilidad de días
             validation_result = self._validate_publication_availability(
                 publication, days_used, hours_used, pub_id
             )
             
-            # Calcular costo real
             real_cost = self._calculate_real_cost(publication, times_used, cant_persons, len(days_used))
             real_total_cost += real_cost
             
-            # Comparar con costo estimado por IA
-            if abs(real_cost - ai_cost) > 0.01:  # Tolerancia de 1 centavo
+            if abs(real_cost - ai_cost) > 0.01:
                 self._add_warning("COST_MISMATCH",
                                 f"Costo real de {publication.place_name}: US${real_cost:.2f} vs IA estimó: US${ai_cost:.2f}",
                                 publication_id=pub_id)
@@ -125,15 +115,13 @@ class ItineraryValidator:
                 "availability_valid": validation_result["valid"]
             })
         
-        # Validar presupuesto total
         if real_total_cost > budget:
             self._add_error("BUDGET_EXCEEDED",
                           f"Costo real total US${real_total_cost:.2f} excede presupuesto US${budget:.2f} por US${real_total_cost - budget:.2f}")
-        elif real_total_cost < budget * 0.3:  # Si usa menos del 30% del presupuesto
+        elif real_total_cost < budget * 0.3:
             self._add_warning("UNDERUTILIZED_BUDGET",
                             f"Solo se usa US${real_total_cost:.2f} ({(real_total_cost/budget)*100:.1f}%) del presupuesto de US${budget:.2f}")
         
-        # Validar fechas
         self._validate_dates(start_date, end_date, used_publications)
         
         self.total_cost = real_total_cost
@@ -158,9 +146,8 @@ class ItineraryValidator:
         
         real_total_cost = 0.0
         validated_publications = []
-        publication_usage = {}  # {id: {times_used, days_used, hours_used}}
+        publication_usage = {}
         
-        # Extraer información de uso de publicaciones del itinerario personalizado
         for day_key, day_data in custom_data.items():
             for period_key, period_data in day_data.items():
                 for time_slot, activity in period_data.items():
@@ -178,7 +165,6 @@ class ItineraryValidator:
                         publication_usage[pub_id]['days_used'].add(day_key)
                         publication_usage[pub_id]['hours_used'].append(time_slot)
         
-        # Validar cada publicación usada
         for pub_id, usage_data in publication_usage.items():
             publication = self.db.query(models.Publication).filter(
                 models.Publication.id == pub_id
@@ -194,10 +180,8 @@ class ItineraryValidator:
             hours_used = usage_data['hours_used']
             times_used = usage_data['times_used']
             
-            # Validar disponibilidad
             self._validate_publication_availability(publication, days_used, hours_used, pub_id)
             
-            # Calcular costo
             real_cost = self._calculate_real_cost(publication, times_used, cant_persons, len(days_used))
             real_total_cost += real_cost
             
@@ -210,7 +194,6 @@ class ItineraryValidator:
                 "real_cost": real_cost
             })
         
-        # Validar presupuesto
         if real_total_cost > budget:
             self._add_error("BUDGET_EXCEEDED",
                           f"Costo total US${real_total_cost:.2f} excede presupuesto US${budget:.2f}")
@@ -235,11 +218,9 @@ class ItineraryValidator:
         
         availability_errors = []
         
-        # Validar días disponibles
         if hasattr(publication, 'available_days') and publication.available_days:
             available_days = publication.available_days
             for day in days_used:
-                # Convertir fecha a día de la semana
                 try:
                     day_obj = datetime.fromisoformat(day).date()
                     day_name = self._get_day_name_spanish(day_obj)
@@ -254,7 +235,6 @@ class ItineraryValidator:
                                   f"Formato de fecha inválido: {day}",
                                   publication_id=pub_id, day=day)
         
-        # Validar horarios disponibles  
         if hasattr(publication, 'available_hours') and publication.available_hours:
             available_hours = publication.available_hours
             for hour in hours_used:
@@ -276,10 +256,8 @@ class ItineraryValidator:
         base_cost = 0.0
         
         if hasattr(publication, 'cost_per_day') and publication.cost_per_day:
-            # Costo por día por persona
             base_cost = publication.cost_per_day * cant_persons * days_used
         
-        # Si no hay costo específico, se asume gratuito (museos públicos, parques, etc.)
         return base_cost
     
     def _time_in_available_ranges(self, time_slot: str, available_ranges: List[str]) -> bool:
@@ -299,7 +277,7 @@ class ItineraryValidator:
             
             return False
         except ValueError:
-            return True  # Si hay error en el formato, asumir disponible
+            return True
     
     def _get_day_name_spanish(self, date_obj: date) -> str:
         """Convierte un objeto date al nombre del día en español"""
@@ -316,7 +294,6 @@ class ItineraryValidator:
                 self._add_error("INVALID_DATE_RANGE",
                               f"Fecha fin ({end}) anterior a fecha inicio ({start})")
             
-            # Validar que las fechas de uso estén dentro del rango
             for pub in used_publications:
                 for day_str in pub.get("days_used", []):
                     try:
@@ -326,7 +303,7 @@ class ItineraryValidator:
                                           f"Fecha {day} fuera del rango del viaje ({start} - {end})",
                                           publication_id=pub.get("id"))
                     except ValueError:
-                        pass  # Ya se maneja en otra validación
+                        pass
                         
         except ValueError:
             self._add_error("INVALID_DATE_FORMAT",

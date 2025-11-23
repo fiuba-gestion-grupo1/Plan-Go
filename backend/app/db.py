@@ -10,11 +10,8 @@ if not DATABASE_URL:
     )
 
 if DATABASE_URL.startswith("sqlite"):
-    # Extrae la ruta del archivo de la URL
     db_file_path = DATABASE_URL.split("///")[1]
-    # Extrae el directorio del archivo
     db_directory = os.path.dirname(db_file_path)
-    # Crea el directorio si no existe
     if db_directory:
         os.makedirs(db_directory, exist_ok=True)
         
@@ -36,7 +33,7 @@ def get_db():
 
 def log_db_info():
     try:
-        from . import models  # asegura que los modelos estén importados
+        from . import models
         insp = inspect(engine)
         print(f"[DB] Conectado a: {DATABASE_URL}")
         print(f"[DB] Tablas: {insp.get_table_names()}")
