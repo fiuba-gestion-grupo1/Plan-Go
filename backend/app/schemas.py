@@ -1,8 +1,10 @@
 from pydantic import BaseModel, EmailStr, validator, Field
 from typing import List, Optional
 from datetime import date, datetime
+
 try:
     from pydantic import ConfigDict
+
     _V2 = True
 except Exception:
     _V2 = False
@@ -38,7 +40,9 @@ class UserUpdate(BaseModel):
             try:
                 return datetime.strptime(v, "%Y-%m-%d").date()
             except ValueError:
-                raise ValueError(f"'{v}' no es una fecha válida. Usar formato AAAA-MM-DD.")
+                raise ValueError(
+                    f"'{v}' no es una fecha válida. Usar formato AAAA-MM-DD."
+                )
         return v
 
 
@@ -81,6 +85,7 @@ class UserOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -135,8 +140,10 @@ class PublicationOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
+
 
 class ReviewCommentCreate(BaseModel):
     comment: str = Field(..., min_length=1, max_length=1000)
@@ -151,6 +158,7 @@ class ReviewCommentOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -176,8 +184,10 @@ class ReviewOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
+
 
 class ReviewReportCreate(BaseModel):
     reason: str = Field(..., min_length=1, max_length=100)
@@ -200,12 +210,14 @@ class ReviewReportOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
 
 class ReviewReportReject(BaseModel):
     reason: Optional[str] = Field(None, max_length=500)
+
 
 class UserPreferenceIn(BaseModel):
     budget_min: Optional[float] = None
@@ -220,6 +232,7 @@ class UserPreferenceIn(BaseModel):
 
 class UserPreferenceOut(UserPreferenceIn):
     pass
+
 
 class DeletionRequestCreate(BaseModel):
     reason: Optional[str] = None
@@ -238,8 +251,10 @@ class DeletionRequestOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
+
 
 class ItineraryRequest(BaseModel):
     destination: str = Field(..., min_length=2, max_length=200)
@@ -251,6 +266,7 @@ class ItineraryRequest(BaseModel):
     arrival_time: Optional[str] = None
     departure_time: Optional[str] = None
     comments: Optional[str] = Field(None, max_length=500)
+
 
 class ItineraryOut(BaseModel):
     id: int
@@ -272,11 +288,14 @@ class ItineraryOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
+
 class SavedItineraryRequest(BaseModel):
     original_itinerary_id: int
+
 
 class SavedItineraryOut(BaseModel):
     id: int
@@ -299,8 +318,10 @@ class SavedItineraryOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
+
 
 class ExpenseIn(BaseModel):
     trip_name: str
@@ -309,11 +330,13 @@ class ExpenseIn(BaseModel):
     amount: float
     date: date
 
+
 class ExpenseOut(ExpenseIn):
     id: int
 
     class Config:
         from_attributes = True
+
 
 class TripOut(BaseModel):
     id: int
@@ -326,6 +349,7 @@ class TripOut(BaseModel):
     class Config:
         from_attributes = True
 
+
 class UserPointsOut(BaseModel):
     user_id: int
     points: int
@@ -334,6 +358,7 @@ class UserPointsOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -350,6 +375,7 @@ class PointsTransactionOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -357,7 +383,7 @@ class PointsTransactionOut(BaseModel):
 class AddPointsRequest(BaseModel):
     user_id: int
     points: int
-    transaction_type: str = Field(..., pattern='^(review_earned|bonus|redeemed)$')
+    transaction_type: str = Field(..., pattern="^(review_earned|bonus|redeemed)$")
     description: Optional[str] = None
     reference_id: Optional[int] = None
 
@@ -368,6 +394,7 @@ class TravelerCardOut(BaseModel):
     Todos los campos tienen default para no romper si el endpoint
     no los completa.
     """
+
     id: int = 0
     username: str = ""
     first_name: Optional[str] = None
@@ -383,6 +410,7 @@ class TravelerCardOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 
@@ -392,6 +420,7 @@ class TravelerProfileOut(BaseModel):
     Detalle de un viajero para el perfil público.
     Si tu endpoint /api/users/{id} no usa este modelo, no molesta.
     """
+
     id: int
     username: str
     first_name: Optional[str] = None
@@ -407,6 +436,7 @@ class TravelerProfileOut(BaseModel):
     if _V2:
         model_config = ConfigDict(from_attributes=True)
     else:
+
         class Config:
             orm_mode = True
 

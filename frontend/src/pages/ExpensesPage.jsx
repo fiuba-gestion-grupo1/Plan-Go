@@ -6,11 +6,20 @@ export default function ExpensesPage({ token, me }) {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [newTrip, setNewTrip] = useState("");
-  const [newExpense, setNewExpense] = useState({ name: "", category: "", amount: "", date: "" });
+  const [newExpense, setNewExpense] = useState({
+    name: "",
+    category: "",
+    amount: "",
+    date: "",
+  });
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [balances, setBalances] = useState([]);
-  const [balancesData, setBalancesData] = useState({ total: 0, por_persona: 0, balances: [] });
+  const [balancesData, setBalancesData] = useState({
+    total: 0,
+    por_persona: 0,
+    balances: [],
+  });
   const [view, setView] = useState("trips");
   const [editingExpense, setEditingExpense] = useState(null);
   const [addError, setAddError] = useState("");
@@ -131,7 +140,9 @@ export default function ExpensesPage({ token, me }) {
     } catch (error) {
       console.error("Error al agregar gasto:", error);
       const errorMessage =
-        error.message || error.detail || "Error al agregar. Verifique los datos ingresados.";
+        error.message ||
+        error.detail ||
+        "Error al agregar. Verifique los datos ingresados.";
       setAddError(errorMessage);
     }
   }
@@ -152,7 +163,9 @@ export default function ExpensesPage({ token, me }) {
       openTrip(selectedTrip);
     } catch (error) {
       console.error("Error al eliminar gasto:", error);
-      alert("Error al eliminar. Es posible que no tengas permiso para borrar este gasto.");
+      alert(
+        "Error al eliminar. Es posible que no tengas permiso para borrar este gasto.",
+      );
     } finally {
       setDeleteExpenseModal(false);
       setExpenseToDelete(null);
@@ -176,13 +189,17 @@ export default function ExpensesPage({ token, me }) {
     } catch (error) {
       console.error("Error al actualizar gasto:", error);
       const errorMessage =
-        error.message || error.detail || "Error al actualizar. Verifique los datos ingresados.";
+        error.message ||
+        error.detail ||
+        "Error al actualizar. Verifique los datos ingresados.";
       setEditError(errorMessage);
     }
   }
 
   const handleOpenEditModal = (expense) => {
-    const dateFormatted = expense.date ? new Date(expense.date).toISOString().split("T")[0] : "";
+    const dateFormatted = expense.date
+      ? new Date(expense.date).toISOString().split("T")[0]
+      : "";
     setEditingExpense({ ...expense, date: dateFormatted });
     setEditError("");
   };
@@ -209,12 +226,17 @@ export default function ExpensesPage({ token, me }) {
   }
 
   async function joinTrip() {
-    await request(`/api/trips/${selectedTrip}/participants`, { method: "POST", token });
+    await request(`/api/trips/${selectedTrip}/participants`, {
+      method: "POST",
+      token,
+    });
     alert("Te uniste al viaje como participante premium");
   }
 
   async function calculateBalances() {
-    const data = await request(`/api/trips/${selectedTrip}/balances`, { token });
+    const data = await request(`/api/trips/${selectedTrip}/balances`, {
+      token,
+    });
     setBalancesData(data);
     setBalances(data.balances || []);
   }
@@ -284,7 +306,9 @@ export default function ExpensesPage({ token, me }) {
 
   async function sendInvitation() {
     if (userRole !== "premium") {
-      setInviteError("Para invitar a otros usuarios, suscribite al plan Premium.");
+      setInviteError(
+        "Para invitar a otros usuarios, suscribite al plan Premium.",
+      );
       setInviteMessage("");
       setTimeout(() => setInviteError(""), 3000);
       return;
@@ -303,7 +327,8 @@ export default function ExpensesPage({ token, me }) {
       setInviteError("");
       setInviteUsername("");
     } catch (error) {
-      const msg = error?.detail || error?.message || "Error al enviar invitación";
+      const msg =
+        error?.detail || error?.message || "Error al enviar invitación";
       setInviteError(msg);
       setInviteMessage("");
       setTimeout(() => setInviteError(""), 3000);
@@ -316,7 +341,9 @@ export default function ExpensesPage({ token, me }) {
         <div className="d-flex mb-4 border-bottom">
           <button
             className={`btn pb-2 ${
-              view === "trips" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"
+              view === "trips"
+                ? "border-bottom border-3 border-primary fw-bold"
+                : "text-muted"
             }`}
             onClick={() => {
               setView("trips");
@@ -371,13 +398,17 @@ export default function ExpensesPage({ token, me }) {
                           <div className="btn-group btn-group-sm">
                             <button
                               className="btn btn-outline-success"
-                              onClick={() => respondInvitation(inv.id, "accept")}
+                              onClick={() =>
+                                respondInvitation(inv.id, "accept")
+                              }
                             >
                               ✅ Aceptar
                             </button>
                             <button
                               className="btn btn-outline-danger"
-                              onClick={() => respondInvitation(inv.id, "reject")}
+                              onClick={() =>
+                                respondInvitation(inv.id, "reject")
+                              }
                             >
                               ❌ Rechazar
                             </button>
@@ -427,7 +458,10 @@ export default function ExpensesPage({ token, me }) {
                   </div>
 
                   <div className="col-md-2 d-grid">
-                    <button className="btn btn-outline-custom fw-semibold" onClick={createTrip}>
+                    <button
+                      className="btn btn-outline-custom fw-semibold"
+                      onClick={createTrip}
+                    >
                       Crear viaje
                     </button>
                   </div>
@@ -463,16 +497,22 @@ export default function ExpensesPage({ token, me }) {
                         <td className="fw-semibold text-center">{t.name}</td>
                         <td>
                           {t.start_date
-                            ? new Date(t.start_date).toLocaleDateString(undefined, {
-                                timeZone: "UTC",
-                              })
+                            ? new Date(t.start_date).toLocaleDateString(
+                                undefined,
+                                {
+                                  timeZone: "UTC",
+                                },
+                              )
                             : "-"}
                         </td>
                         <td>
                           {t.end_date
-                            ? new Date(t.end_date).toLocaleDateString(undefined, {
-                                timeZone: "UTC",
-                              })
+                            ? new Date(t.end_date).toLocaleDateString(
+                                undefined,
+                                {
+                                  timeZone: "UTC",
+                                },
+                              )
                             : "-"}
                         </td>
                         <td>{t.participants_count ?? 1}</td>
@@ -535,7 +575,10 @@ export default function ExpensesPage({ token, me }) {
                             className="form-control"
                             value={editingTrip.name}
                             onChange={(e) =>
-                              setEditingTrip({ ...editingTrip, name: e.target.value })
+                              setEditingTrip({
+                                ...editingTrip,
+                                name: e.target.value,
+                              })
                             }
                           />
                         </div>
@@ -546,7 +589,10 @@ export default function ExpensesPage({ token, me }) {
                             className="form-control"
                             value={editingTrip.start_date}
                             onChange={(e) =>
-                              setEditingTrip({ ...editingTrip, start_date: e.target.value })
+                              setEditingTrip({
+                                ...editingTrip,
+                                start_date: e.target.value,
+                              })
                             }
                           />
                         </div>
@@ -557,7 +603,10 @@ export default function ExpensesPage({ token, me }) {
                             className="form-control"
                             value={editingTrip.end_date}
                             onChange={(e) =>
-                              setEditingTrip({ ...editingTrip, end_date: e.target.value })
+                              setEditingTrip({
+                                ...editingTrip,
+                                end_date: e.target.value,
+                              })
                             }
                           />
                         </div>
@@ -594,8 +643,12 @@ export default function ExpensesPage({ token, me }) {
                   style={{ maxWidth: 400, width: "90%" }}
                 >
                   <div className="p-4 text-center">
-                    <h5 className="mb-3">¿Seguro que querés eliminar este viaje?</h5>
-                    <p className="text-muted mb-3">Se borrarán todos sus gastos.</p>
+                    <h5 className="mb-3">
+                      ¿Seguro que querés eliminar este viaje?
+                    </h5>
+                    <p className="text-muted mb-3">
+                      Se borrarán todos sus gastos.
+                    </p>
                     <div className="d-flex gap-2 justify-content-center">
                       <button
                         className="btn btn-outline-secondary"
@@ -603,7 +656,10 @@ export default function ExpensesPage({ token, me }) {
                       >
                         Cancelar
                       </button>
-                      <button className="btn btn-danger" onClick={confirmDeleteTrip}>
+                      <button
+                        className="btn btn-danger"
+                        onClick={confirmDeleteTrip}
+                      >
                         Eliminar
                       </button>
                     </div>
@@ -642,7 +698,10 @@ export default function ExpensesPage({ token, me }) {
         <h3 className="mb-0">Gastos del viaje</h3>
         <div className="d-flex gap-2">
           {isPremium && (
-            <button className="btn btn-outline-success" onClick={calculateBalances}>
+            <button
+              className="btn btn-outline-success"
+              onClick={calculateBalances}
+            >
               Calcular saldos
             </button>
           )}
@@ -676,17 +735,24 @@ export default function ExpensesPage({ token, me }) {
               />
             </div>
             <div className="col-md-3 d-grid">
-              <button className="btn btn-outline-custom" onClick={sendInvitation}>
+              <button
+                className="btn btn-outline-custom"
+                onClick={sendInvitation}
+              >
                 Enviar invitación
               </button>
             </div>
           </div>
 
           {inviteMessage && (
-            <div className="alert alert-success mt-3 mb-0 py-2">✅ {inviteMessage}</div>
+            <div className="alert alert-success mt-3 mb-0 py-2">
+              ✅ {inviteMessage}
+            </div>
           )}
           {inviteError && (
-            <div className="alert alert-danger mt-3 mb-0 py-2">⚠️ {inviteError}</div>
+            <div className="alert alert-danger mt-3 mb-0 py-2">
+              ⚠️ {inviteError}
+            </div>
           )}
         </div>
       )}
@@ -698,14 +764,18 @@ export default function ExpensesPage({ token, me }) {
               className="form-control"
               placeholder="Nombre"
               value={newExpense.name}
-              onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })}
+              onChange={(e) =>
+                setNewExpense({ ...newExpense, name: e.target.value })
+              }
             />
           </div>
           <div className="col-md-3">
             <select
               className="form-select"
               value={newExpense.category}
-              onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+              onChange={(e) =>
+                setNewExpense({ ...newExpense, category: e.target.value })
+              }
             >
               <option value="">Seleccionar categoría</option>
               <option value="Comida">Comida</option>
@@ -722,7 +792,9 @@ export default function ExpensesPage({ token, me }) {
               className="form-control"
               placeholder="Monto"
               value={newExpense.amount}
-              onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+              onChange={(e) =>
+                setNewExpense({ ...newExpense, amount: e.target.value })
+              }
             />
           </div>
           <div className="col-md-3">
@@ -730,7 +802,9 @@ export default function ExpensesPage({ token, me }) {
               type="date"
               className="form-control"
               value={newExpense.date}
-              onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+              onChange={(e) =>
+                setNewExpense({ ...newExpense, date: e.target.value })
+              }
             />
           </div>
           <div className="col-md-1">
@@ -742,9 +816,16 @@ export default function ExpensesPage({ token, me }) {
       </div>
 
       {addError && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
+        <div
+          className="alert alert-danger alert-dismissible fade show"
+          role="alert"
+        >
           <strong>Error:</strong> {addError}
-          <button type="button" className="btn-close" onClick={() => setAddError("")}></button>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setAddError("")}
+          ></button>
         </div>
       )}
 
@@ -772,7 +853,9 @@ export default function ExpensesPage({ token, me }) {
         <div className="card shadow-sm">
           <div className="card-body">
             {expenses.length === 0 ? (
-              <div className="alert alert-secondary m-0">Sin gastos registrados.</div>
+              <div className="alert alert-secondary m-0">
+                Sin gastos registrados.
+              </div>
             ) : (
               <table className="table table-hover align-middle mb-0">
                 <thead className="table-light">
@@ -845,7 +928,9 @@ export default function ExpensesPage({ token, me }) {
                 ))}
               </ul>
             ) : (
-              <div className="alert alert-secondary m-0">No hay gastos para reportar.</div>
+              <div className="alert alert-secondary m-0">
+                No hay gastos para reportar.
+              </div>
             )}
           </div>
         </div>
@@ -856,7 +941,8 @@ export default function ExpensesPage({ token, me }) {
           <h5>💸 Saldos del viaje</h5>
           <div className="alert alert-info">
             Total del viaje:{" "}
-            <strong>{balancesData?.total?.toFixed(2) ?? 0}</strong> — Por persona:{" "}
+            <strong>{balancesData?.total?.toFixed(2) ?? 0}</strong> — Por
+            persona:{" "}
             <strong>{balancesData?.por_persona?.toFixed(2) ?? 0}</strong>
           </div>
 
@@ -868,7 +954,9 @@ export default function ExpensesPage({ token, me }) {
               >
                 <span>👤 {b.username}</span>
                 {b.debe_o_recibe > 0 ? (
-                  <span className="text-success fw-bold">Recibe ${b.debe_o_recibe}</span>
+                  <span className="text-success fw-bold">
+                    Recibe ${b.debe_o_recibe}
+                  </span>
                 ) : b.debe_o_recibe < 0 ? (
                   <span className="text-danger fw-bold">
                     Debe ${Math.abs(b.debe_o_recibe)}
@@ -909,7 +997,10 @@ export default function ExpensesPage({ token, me }) {
                       className="form-control"
                       value={editingExpense.name}
                       onChange={(e) =>
-                        setEditingExpense({ ...editingExpense, name: e.target.value })
+                        setEditingExpense({
+                          ...editingExpense,
+                          name: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -919,7 +1010,10 @@ export default function ExpensesPage({ token, me }) {
                       className="form-select"
                       value={editingExpense.category}
                       onChange={(e) =>
-                        setEditingExpense({ ...editingExpense, category: e.target.value })
+                        setEditingExpense({
+                          ...editingExpense,
+                          category: e.target.value,
+                        })
                       }
                     >
                       <option value="">Seleccionar categoría</option>
@@ -938,7 +1032,10 @@ export default function ExpensesPage({ token, me }) {
                       className="form-control"
                       value={editingExpense.amount}
                       onChange={(e) =>
-                        setEditingExpense({ ...editingExpense, amount: e.target.value })
+                        setEditingExpense({
+                          ...editingExpense,
+                          amount: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -949,7 +1046,10 @@ export default function ExpensesPage({ token, me }) {
                       className="form-control"
                       value={editingExpense.date}
                       onChange={(e) =>
-                        setEditingExpense({ ...editingExpense, date: e.target.value })
+                        setEditingExpense({
+                          ...editingExpense,
+                          date: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -986,7 +1086,9 @@ export default function ExpensesPage({ token, me }) {
             style={{ maxWidth: 400, width: "90%" }}
           >
             <div className="p-4 text-center">
-              <h5 className="mb-3">¿Estás seguro de que querés eliminar este gasto?</h5>
+              <h5 className="mb-3">
+                ¿Estás seguro de que querés eliminar este gasto?
+              </h5>
               <div className="d-flex gap-2 justify-content-center">
                 <button
                   className="btn btn-outline-secondary"
@@ -994,7 +1096,10 @@ export default function ExpensesPage({ token, me }) {
                 >
                   Cancelar
                 </button>
-                <button className="btn btn-danger" onClick={confirmDeleteExpense}>
+                <button
+                  className="btn btn-danger"
+                  onClick={confirmDeleteExpense}
+                >
                   Eliminar
                 </button>
               </div>

@@ -1,445 +1,662 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { api, BASE_URL } from '../api';
+import React, { useState, useEffect, useRef } from "react";
+import { api, BASE_URL } from "../api";
 
 const LoadingModal = ({ status }) => {
-    if (!status) return null;
-    const messages = {
-        subscribing: 'Procesando pago de suscripción...',
-        cancelling: 'Cancelando suscripción...'
-    };
-    const title = {
-        subscribing: 'Pagar Suscripción',
-        cancelling: 'Cancelar Suscripción'
-    };
+  if (!status) return null;
+  const messages = {
+    subscribing: "Procesando pago de suscripción...",
+    cancelling: "Cancelando suscripción...",
+  };
+  const title = {
+    subscribing: "Pagar Suscripción",
+    cancelling: "Cancelar Suscripción",
+  };
 
-    return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999
-        }}>
-            <div className="card shadow-lg p-4" style={{ minWidth: '300px', maxWidth: '90%' }}>
-                <div className="card-body text-center">
-                    <h4 className="card-title mb-3">{title[status] || 'Procesando...'}</h4>
-                    <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
-                        <span className="visually-hidden">Loading...</span>
-                    </div>
-                    <p className="mt-3 mb-0">{messages[status] || 'Por favor, espere.'}</p>
-                </div>
-            </div>
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 9999,
+      }}
+    >
+      <div
+        className="card shadow-lg p-4"
+        style={{ minWidth: "300px", maxWidth: "90%" }}
+      >
+        <div className="card-body text-center">
+          <h4 className="card-title mb-3">
+            {title[status] || "Procesando..."}
+          </h4>
+          <div
+            className="spinner-border text-primary"
+            role="status"
+            style={{ width: "3rem", height: "3rem" }}
+          >
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 mb-0">
+            {messages[status] || "Por favor, espere."}
+          </p>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default function Profile({ me, token, setMe }) {
-    const [viewMode, setViewMode] = useState('view');
-    const [formData, setFormData] = useState({
-        first_name: me.first_name || '',
-        last_name: me.last_name || '',
-        birth_date: me.birth_date || '',
-        travel_preferences: me.travel_preferences || '',
-    });
-    const [passwordData, setPasswordData] = useState({
-        current_password: '',
-        new_password: '',
-        confirm_password: '',
-    });
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
-    const fileInputRef = useRef(null);
+  const [viewMode, setViewMode] = useState("view");
+  const [formData, setFormData] = useState({
+    first_name: me.first_name || "",
+    last_name: me.last_name || "",
+    birth_date: me.birth_date || "",
+    travel_preferences: me.travel_preferences || "",
+  });
+  const [passwordData, setPasswordData] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const fileInputRef = useRef(null);
 
-    const [notification, setNotification] = useState({ type: '', message: '' });
+  const [notification, setNotification] = useState({ type: "", message: "" });
 
-    const [processingStatus, setProcessingStatus] = useState(null);
+  const [processingStatus, setProcessingStatus] = useState(null);
 
-    useEffect(() => {
-        if (notification.message) {
-            const timer = setTimeout(() => {
-                setNotification({ type: '', message: '' });
-            }, 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [notification]);
+  useEffect(() => {
+    if (notification.message) {
+      const timer = setTimeout(() => {
+        setNotification({ type: "", message: "" });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
-    useEffect(() => {
-        if (viewMode === 'edit') {
-            setFormData({
-                first_name: me.first_name || '',
-                last_name: me.last_name || '',
-                birth_date: me.birth_date ? me.birth_date.split('T')[0] : '',
-                travel_preferences: me.travel_preferences || '',
-            });
-        }
-    }, [me, viewMode]);
+  useEffect(() => {
+    if (viewMode === "edit") {
+      setFormData({
+        first_name: me.first_name || "",
+        last_name: me.last_name || "",
+        birth_date: me.birth_date ? me.birth_date.split("T")[0] : "",
+        travel_preferences: me.travel_preferences || "",
+      });
+    }
+  }, [me, viewMode]);
 
-    function handleChange(e) {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handlePasswordChange(e) {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setNotification({ type: "", message: "" });
+    try {
+      const updatedUser = await api("/api/auth/me", {
+        method: "PUT",
+        token,
+        body: formData,
+      });
+      setMe(updatedUser);
+      setNotification({
+        type: "success",
+        message: "¡Perfil actualizado con éxito!",
+      });
+      setViewMode("view");
+    } catch (error) {
+      setNotification({
+        type: "danger",
+        message: error.detail || "Error al actualizar el perfil.",
+      });
+    }
+  }
+
+  async function handlePasswordSubmit(e) {
+    e.preventDefault();
+    setNotification({ type: "", message: "" });
+    const { current_password, new_password, confirm_password } = passwordData;
+
+    if (!current_password || !new_password || !confirm_password) {
+      setNotification({
+        type: "danger",
+        message: "Por favor, completa todos los campos.",
+      });
+      return;
+    }
+    if (new_password.length < 8) {
+      setNotification({
+        type: "danger",
+        message: "La nueva contraseña debe tener al menos 8 caracteres.",
+      });
+      return;
+    }
+    if (new_password !== confirm_password) {
+      setNotification({
+        type: "danger",
+        message: "Las nuevas contraseñas no coinciden.",
+      });
+      return;
     }
 
-    function handlePasswordChange(e) {
-        const { name, value } = e.target;
-        setPasswordData(prev => ({ ...prev, [name]: value }));
+    try {
+      await api("/api/auth/change-password", {
+        method: "POST",
+        token,
+        body: { current_password, new_password },
+      });
+      setNotification({
+        type: "success",
+        message: "¡Contraseña actualizada con éxito!",
+      });
+      setPasswordData({
+        current_password: "",
+        new_password: "",
+        confirm_password: "",
+      });
+      setViewMode("view");
+    } catch (error) {
+      setNotification({
+        type: "danger",
+        message: error.detail || "Error al cambiar la contraseña.",
+      });
     }
+  }
 
-
-    async function handleSubmit(e) {
-        e.preventDefault();
-        setNotification({ type: '', message: '' });
-        try {
-            const updatedUser = await api('/api/auth/me', { method: 'PUT', token, body: formData });
-            setMe(updatedUser);
-            setNotification({ type: 'success', message: '¡Perfil actualizado con éxito!' });
-            setViewMode('view');
-        } catch (error) {
-            setNotification({ type: 'danger', message: error.detail || 'Error al actualizar el perfil.' });
-        }
+  async function handlePhotoSubmit() {
+    if (!selectedFile) {
+      setNotification({
+        type: "warning",
+        message: "Por favor, selecciona una foto primero.",
+      });
+      return;
     }
-
-    async function handlePasswordSubmit(e) {
-        e.preventDefault();
-        setNotification({ type: '', message: '' });
-        const { current_password, new_password, confirm_password } = passwordData;
-
-        if (!current_password || !new_password || !confirm_password) {
-            setNotification({ type: 'danger', message: 'Por favor, completa todos los campos.' });
-            return;
-        }
-        if (new_password.length < 8) {
-            setNotification({ type: 'danger', message: 'La nueva contraseña debe tener al menos 8 caracteres.' });
-            return;
-        }
-        if (new_password !== confirm_password) {
-            setNotification({ type: 'danger', message: 'Las nuevas contraseñas no coinciden.' });
-            return;
-        }
-
-        try {
-            await api('/api/auth/change-password', { method: 'POST', token, body: { current_password, new_password } });
-            setNotification({ type: 'success', message: '¡Contraseña actualizada con éxito!' });
-            setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
-            setViewMode('view');
-        } catch (error) {
-            setNotification({ type: 'danger', message: error.detail || 'Error al cambiar la contraseña.' });
-        }
+    setNotification({ type: "", message: "" });
+    const data = new FormData();
+    data.append("file", selectedFile);
+    try {
+      const updatedUser = await api("/api/users/me/photo", {
+        method: "PUT",
+        token,
+        body: data,
+      });
+      setMe(updatedUser);
+      setNotification({
+        type: "success",
+        message: "¡Foto de perfil actualizada!",
+      });
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    } catch (error) {
+      setNotification({
+        type: "danger",
+        message: error.detail || "Error al subir la foto.",
+      });
     }
+  }
 
-    async function handlePhotoSubmit() {
-        if (!selectedFile) {
-            setNotification({ type: 'warning', message: 'Por favor, selecciona una foto primero.' });
-            return;
-        }
-        setNotification({ type: '', message: '' });
-        const data = new FormData();
-        data.append("file", selectedFile);
-        try {
-            const updatedUser = await api('/api/users/me/photo', { method: 'PUT', token, body: data });
-            setMe(updatedUser);
-            setNotification({ type: 'success', message: '¡Foto de perfil actualizada!' });
-            setSelectedFile(null);
-            setPreviewUrl(null);
-        } catch (error) {
-            setNotification({ type: 'danger', message: error.detail || 'Error al subir la foto.' });
-        }
+  async function handleSubscribe() {
+    setNotification({ type: "", message: "" });
+    setProcessingStatus("subscribing");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    try {
+      const updatedUser = await api("/api/users/me/subscribe", {
+        method: "POST",
+        token,
+      });
+      setMe(updatedUser);
+      setNotification({
+        type: "success",
+        message: "¡Felicidades! Ahora eres un usuario Premium.",
+      });
+    } catch (error) {
+      setNotification({
+        type: "danger",
+        message: error.detail || "Error al procesar la suscripción.",
+      });
+    } finally {
+      setProcessingStatus(null);
     }
+  }
 
-    async function handleSubscribe() {
-        setNotification({ type: '', message: '' });
-        setProcessingStatus('subscribing');
-        await new Promise(resolve => setTimeout(resolve, 5000));
+  async function handleCancelSubscription() {
+    setNotification({ type: "", message: "" });
+    setProcessingStatus("cancelling");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        try {
-            const updatedUser = await api('/api/users/me/subscribe', { method: 'POST', token });
-            setMe(updatedUser);
-            setNotification({ type: 'success', message: '¡Felicidades! Ahora eres un usuario Premium.' });
-        } catch (error) {
-            setNotification({ type: 'danger', message: error.detail || 'Error al procesar la suscripción.' });
-        } finally {
-            setProcessingStatus(null);
-        }
+    try {
+      const updatedUser = await api("/api/users/me/cancel-subscription", {
+        method: "POST",
+        token,
+      });
+      setMe(updatedUser);
+      setNotification({
+        type: "success",
+        message: "Tu suscripción ha sido cancelada.",
+      });
+    } catch (error) {
+      setNotification({
+        type: "danger",
+        message: error.detail || "Error al cancelar la suscripción.",
+      });
+    } finally {
+      setProcessingStatus(null);
     }
+  }
 
-    async function handleCancelSubscription() {
-        setNotification({ type: '', message: '' });
-        setProcessingStatus('cancelling');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        try {
-            const updatedUser = await api('/api/users/me/cancel-subscription', { method: 'POST', token });
-            setMe(updatedUser);
-            setNotification({ type: 'success', message: 'Tu suscripción ha sido cancelada.' });
-        } catch (error) {
-            setNotification({ type: 'danger', message: error.detail || 'Error al cancelar la suscripción.' });
-        } finally {
-            setProcessingStatus(null);
-        }
+  function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
     }
+  }
 
-    function handleFileChange(e) {
-        const file = e.target.files[0];
-        if (file) {
-            setSelectedFile(file);
-            setPreviewUrl(URL.createObjectURL(file));
-        }
+  function formatDisplayDate(dateString) {
+    if (!dateString) return "No especificado";
+    try {
+      return new Date(dateString).toLocaleDateString("es-AR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+    } catch (e) {
+      return "Fecha inválida";
     }
+  }
 
-    function formatDisplayDate(dateString) {
-        if (!dateString) return 'No especificado';
-        try {
-            return new Date(dateString).toLocaleDateString('es-AR', {
-                day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
-            });
-        } catch (e) { return 'Fecha inválida'; }
-    }
+  const photoStyle = {
+    width: "150px",
+    height: "150px",
+    borderRadius: "50%",
+    objectFit: "cover",
+    border: "4px solid #fff",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#e9ecef",
+    color: "#6c757d",
+    fontWeight: "bold",
+    fontSize: "1.2rem",
+  };
+  const imageUrl = me.profile_picture_url
+    ? `${BASE_URL}${me.profile_picture_url}`
+    : null;
 
-    const photoStyle = {
-        width: '150px',
-        height: '150px',
-        borderRadius: '50%',
-        objectFit: 'cover',
-        border: '4px solid #fff',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#e9ecef',
-        color: '#6c757d',
-        fontWeight: 'bold',
-        fontSize: '1.2rem'
-    };
-    const imageUrl = me.profile_picture_url ? `${BASE_URL}${me.profile_picture_url}` : null;
-
-    const NotificationArea = () => (
-        notification.message && (
-            <div className={`alert alert-${notification.type} text-center`}>
-                {notification.message}
-            </div>
-        )
+  const NotificationArea = () =>
+    notification.message && (
+      <div className={`alert alert-${notification.type} text-center`}>
+        {notification.message}
+      </div>
     );
 
-    function formatTravelPreferencesDisplay(rawPrefs) {
-        if (!rawPrefs) return 'No especificadas';
-    
-        let obj = rawPrefs;
-        try {
-            if (typeof rawPrefs === 'string') {
-                obj = JSON.parse(rawPrefs);
-            }
-        } catch {
-            return rawPrefs;
-        }
-    
-        if (!obj || typeof obj !== 'object') {
-            return rawPrefs;
-        }
-    
-        const parts = [];
-    
-        if (obj.city) {
-            parts.push(obj.city);
-        }
-        if (Array.isArray(obj.destinations) && obj.destinations.length) {
-            parts.push(`Destinos favoritos: ${obj.destinations.join(', ')}`);
-        }
-        if (obj.style) {
-            parts.push(`Estilo de viaje: ${obj.style}`);
-        }
-        if (obj.budget) {
-            parts.push(`Presupuesto: ${obj.budget}`);
-        }
-        if (obj.about) {
-            parts.push(obj.about);
-        }
-    
-        return parts.length ? parts.join(' · ') : rawPrefs;
-    }
-    
+  function formatTravelPreferencesDisplay(rawPrefs) {
+    if (!rawPrefs) return "No especificadas";
 
-    if (viewMode === 'edit') {
-        return (
-            <div className="container mt-4" style={{ maxWidth: '700px' }}>
-                <div className="card shadow-sm">
-                    <div className="card-body p-4 p-md-5">
-                        <form onSubmit={handleSubmit}>
-                            <h2 className="card-title text-center mb-4">Editar Perfil</h2>
-                            <NotificationArea />
-                            <div className="mb-3">
-                                <label className="form-label">Nombre</label>
-                                <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} className="form-control" />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Apellido</label>
-                                <input type="text" name="last_name" value={formData.last_name} onChange={handleChange} className="form-control" />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Fecha de Nacimiento</label>
-                                <input type="date" name="birth_date" value={formData.birth_date} onChange={handleChange} className="form-control" />
-                            </div>
-                            <div className="mb-4">
-                                <label className="form-label">Preferencias de Viaje</label>
-                                <textarea
-                                    name="travel_preferences"
-                                    value={formData.travel_preferences}
-                                    onChange={handleChange}
-                                    className="form-control"
-                                    rows="3"
-                                    placeholder="Ej: Me gusta la playa, prefiero hostels..."
-                                ></textarea>
-                            </div>
-                            <div className="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <button type="button" onClick={() => setViewMode('view')} className="btn btn-secondary me-md-2">Cancelar</button>
-                                <button type="submit" className="btn btn-outline-custom">Guardar Cambios</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        );
+    let obj = rawPrefs;
+    try {
+      if (typeof rawPrefs === "string") {
+        obj = JSON.parse(rawPrefs);
+      }
+    } catch {
+      return rawPrefs;
     }
 
-    if (viewMode === 'password') {
-        return (
-            <div className="container mt-4" style={{ maxWidth: '700px' }}>
-                <div className="card shadow-sm">
-                    <div className="card-body p-4 p-md-5">
-                        <form onSubmit={handlePasswordSubmit}>
-                            <h2 className="card-title text-center mb-4">Cambiar Contraseña</h2>
-                            <NotificationArea />
-                            <div className="mb-3">
-                                <label className="form-label">Contraseña Actual</label>
-                                <input type="password" name="current_password" value={passwordData.current_password} onChange={handlePasswordChange} className="form-control" />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Nueva Contraseña</label>
-                                <input type="password" name="new_password" value={passwordData.new_password} onChange={handlePasswordChange} className="form-control" />
-                            </div>
-                            <div className="mb-4">
-                                <label className="form-label">Confirmar Nueva Contraseña</label>
-                                <input type="password" name="confirm_password" value={passwordData.confirm_password} onChange={handlePasswordChange} className="form-control" />
-                            </div>
-                            <div className="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <button type="button" onClick={() => setViewMode('view')} className="btn btn-secondary me-md-2">Cancelar</button>
-                                <button type="submit" className="btn btn-outline-custom">Actualizar Contraseña</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        );
+    if (!obj || typeof obj !== "object") {
+      return rawPrefs;
     }
 
+    const parts = [];
+
+    if (obj.city) {
+      parts.push(obj.city);
+    }
+    if (Array.isArray(obj.destinations) && obj.destinations.length) {
+      parts.push(`Destinos favoritos: ${obj.destinations.join(", ")}`);
+    }
+    if (obj.style) {
+      parts.push(`Estilo de viaje: ${obj.style}`);
+    }
+    if (obj.budget) {
+      parts.push(`Presupuesto: ${obj.budget}`);
+    }
+    if (obj.about) {
+      parts.push(obj.about);
+    }
+
+    return parts.length ? parts.join(" · ") : rawPrefs;
+  }
+
+  if (viewMode === "edit") {
     return (
-        < div className="container mt-4" style={{ maxWidth: '700px' }
-        }>
-            < LoadingModal status={processingStatus} />
-
-            <div className="card shadow-sm">
-                <div className="card-body p-4 p-md-5">
-                    <h2 className="card-title text-center mb-4">Mi Perfil</h2>
-                    <NotificationArea />
-
-                    <div className="text-center mb-4">
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                            <img src={previewUrl || imageUrl || 'default-avatar.png'} alt="Perfil" style={photoStyle} />
-                            <button onClick={() => fileInputRef.current.click()} style={{ position: 'absolute', bottom: '10px', right: '10px', borderRadius: '50%' }} className="btn btn-sm btn-light">
-                                ✏️
-                            </button>
-                            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*" />
-                        </div>
-                        {selectedFile && (
-                            <div className="mt-3">
-                                <button onClick={handlePhotoSubmit} className="btn btn-success btn-sm">Confirmar Foto</button>
-                                <button onClick={() => { setSelectedFile(null); setPreviewUrl(null); }} className="btn btn-outline-danger btn-sm ms-2">Cancelar</button>
-                            </div>
-                        )}
-                    </div>
-
-                    <ul className="list-group list-group-flush">
-                        <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Usuario:</strong> {me.username}</li>
-                        <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Email:</strong> {me.email}</li>
-                        <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Nombre:</strong> {me.first_name || 'No especificado'}</li>
-                        <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Apellido:</strong> {me.last_name || 'No especificado'}</li>
-                        <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Nacimiento:</strong> {formatDisplayDate(me.birth_date)}</li>
-                        <li className="list-group-item"><strong>Preferencias:</strong><p className="text-muted mb-0">{formatTravelPreferencesDisplay(me.travel_preferences)}</p></li>
-                    </ul>
-
-                    <div className="card shadow-sm mt-4">
-                        <div className="card-body">
-                            {me.role === 'user' && (
-                                <>
-                                    <h5 className="card-title">Suscripción: <span className="badge bg-secondary">Estándar</span></h5>
-                                    <p className="card-text fw-bold fs-5 text-primary">¡Convertite en Premium!</p>
-                                    <p>Disfruta de todos los beneficios de nuestra plataforma:</p>
-                                    <ul className="list-unstyled">
-                                        <li className="mb-2">
-                                            🚀 <strong>Publicá sin límites:</strong> creá publicaciones para otros usuarios sobre actividades y aventuras inigualables.
-                                        </li>
-                                        <li className="mb-2">
-                                            📝 <strong>Dejá tus reseñas:</strong> compartí tus experiencias y ganá puntos por cada opinión.
-                                        </li>
-                                        <li className="mb-2">
-                                            ⭐ <strong>Calificá tus actividades:</strong> puntuá lo que hiciste y acumulá más puntos.
-                                        </li>
-                                        <li className="mb-2">
-                                            🎁 <strong>Accedé a recompensas:</strong> disfrutá beneficios y descuentos increíbles.
-                                        </li>
-                                        <li className="mb-2">
-                                            💰 <strong>Dividí gastos de viajes:</strong> invitá amigos a tus viajes y compartí los gastos automáticamente.
-                                        </li>
-                                        <li className="mb-2">
-                                            💰 <strong>Compartí itinerarios:</strong> compartí itinerarios a amigos vía mail.
-                                        </li>
-                                    </ul>
-
-                                    <hr />
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <span className="fs-4 fw-bold">10 USD / mes</span>
-                                        <button className="btn btn-success" onClick={handleSubscribe}>
-                                            Convertirse en Premium
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-
-                            {me.role === 'premium' && (
-                                <>
-                                    <h5 className="card-title">Suscripción: <span className="badge bg-success">Premium</span></h5>
-                                    <p className="card-text">Estás disfrutando de todos los beneficios de tu cuenta.</p>
-                                    <p>Puedes cancelar tu suscripción en cualquier momento.</p>
-                                    <hr />
-                                    <div className="text-end">
-                                        <button className="btn btn-outline-danger" onClick={handleCancelSubscription}>
-                                            Cancelar Suscripción
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-
-                            {me.role !== 'user' && me.role !== 'premium' && (
-                                <>
-                                    <h5 className="card-title">Suscripción: <span className="badge bg-info text-dark">{me.role.charAt(0).toUpperCase() + me.role.slice(1)}</span></h5>
-                                    <p className="card-text">Tienes permisos especiales en la plataforma.</p>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                    <div className="d-flex justify-content-end align-items-center mt-4 gap-3">
-                        <button className="btn btn-outline-secondary" onClick={() => setViewMode('password')}>
-                            Modificar Contraseña
-                        </button>
-                        <button className="btn btn-outline-custom" onClick={() => setViewMode('edit')}>
-                            Editar Perfil
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div >
+      <div className="container mt-4" style={{ maxWidth: "700px" }}>
+        <div className="card shadow-sm">
+          <div className="card-body p-4 p-md-5">
+            <form onSubmit={handleSubmit}>
+              <h2 className="card-title text-center mb-4">Editar Perfil</h2>
+              <NotificationArea />
+              <div className="mb-3">
+                <label className="form-label">Nombre</label>
+                <input
+                  type="text"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  className="form-control"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Apellido</label>
+                <input
+                  type="text"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  className="form-control"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Fecha de Nacimiento</label>
+                <input
+                  type="date"
+                  name="birth_date"
+                  value={formData.birth_date}
+                  onChange={handleChange}
+                  className="form-control"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="form-label">Preferencias de Viaje</label>
+                <textarea
+                  name="travel_preferences"
+                  value={formData.travel_preferences}
+                  onChange={handleChange}
+                  className="form-control"
+                  rows="3"
+                  placeholder="Ej: Me gusta la playa, prefiero hostels..."
+                ></textarea>
+              </div>
+              <div className="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("view")}
+                  className="btn btn-secondary me-md-2"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-outline-custom">
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     );
+  }
+
+  if (viewMode === "password") {
+    return (
+      <div className="container mt-4" style={{ maxWidth: "700px" }}>
+        <div className="card shadow-sm">
+          <div className="card-body p-4 p-md-5">
+            <form onSubmit={handlePasswordSubmit}>
+              <h2 className="card-title text-center mb-4">
+                Cambiar Contraseña
+              </h2>
+              <NotificationArea />
+              <div className="mb-3">
+                <label className="form-label">Contraseña Actual</label>
+                <input
+                  type="password"
+                  name="current_password"
+                  value={passwordData.current_password}
+                  onChange={handlePasswordChange}
+                  className="form-control"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Nueva Contraseña</label>
+                <input
+                  type="password"
+                  name="new_password"
+                  value={passwordData.new_password}
+                  onChange={handlePasswordChange}
+                  className="form-control"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="form-label">Confirmar Nueva Contraseña</label>
+                <input
+                  type="password"
+                  name="confirm_password"
+                  value={passwordData.confirm_password}
+                  onChange={handlePasswordChange}
+                  className="form-control"
+                />
+              </div>
+              <div className="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("view")}
+                  className="btn btn-secondary me-md-2"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-outline-custom">
+                  Actualizar Contraseña
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mt-4" style={{ maxWidth: "700px" }}>
+      <LoadingModal status={processingStatus} />
+
+      <div className="card shadow-sm">
+        <div className="card-body p-4 p-md-5">
+          <h2 className="card-title text-center mb-4">Mi Perfil</h2>
+          <NotificationArea />
+
+          <div className="text-center mb-4">
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <img
+                src={previewUrl || imageUrl || "default-avatar.png"}
+                alt="Perfil"
+                style={photoStyle}
+              />
+              <button
+                onClick={() => fileInputRef.current.click()}
+                style={{
+                  position: "absolute",
+                  bottom: "10px",
+                  right: "10px",
+                  borderRadius: "50%",
+                }}
+                className="btn btn-sm btn-light"
+              >
+                ✏️
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: "none" }}
+                accept="image/*"
+              />
+            </div>
+            {selectedFile && (
+              <div className="mt-3">
+                <button
+                  onClick={handlePhotoSubmit}
+                  className="btn btn-success btn-sm"
+                >
+                  Confirmar Foto
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setPreviewUrl(null);
+                  }}
+                  className="btn btn-outline-danger btn-sm ms-2"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+          </div>
+
+          <ul className="list-group list-group-flush">
+            <li className="list-group-item d-flex justify-content-between align-items-center">
+              <strong>Usuario:</strong> {me.username}
+            </li>
+            <li className="list-group-item d-flex justify-content-between align-items-center">
+              <strong>Email:</strong> {me.email}
+            </li>
+            <li className="list-group-item d-flex justify-content-between align-items-center">
+              <strong>Nombre:</strong> {me.first_name || "No especificado"}
+            </li>
+            <li className="list-group-item d-flex justify-content-between align-items-center">
+              <strong>Apellido:</strong> {me.last_name || "No especificado"}
+            </li>
+            <li className="list-group-item d-flex justify-content-between align-items-center">
+              <strong>Nacimiento:</strong> {formatDisplayDate(me.birth_date)}
+            </li>
+            <li className="list-group-item">
+              <strong>Preferencias:</strong>
+              <p className="text-muted mb-0">
+                {formatTravelPreferencesDisplay(me.travel_preferences)}
+              </p>
+            </li>
+          </ul>
+
+          <div className="card shadow-sm mt-4">
+            <div className="card-body">
+              {me.role === "user" && (
+                <>
+                  <h5 className="card-title">
+                    Suscripción:{" "}
+                    <span className="badge bg-secondary">Estándar</span>
+                  </h5>
+                  <p className="card-text fw-bold fs-5 text-primary">
+                    ¡Convertite en Premium!
+                  </p>
+                  <p>Disfruta de todos los beneficios de nuestra plataforma:</p>
+                  <ul className="list-unstyled">
+                    <li className="mb-2">
+                      🚀 <strong>Publicá sin límites:</strong> creá
+                      publicaciones para otros usuarios sobre actividades y
+                      aventuras inigualables.
+                    </li>
+                    <li className="mb-2">
+                      📝 <strong>Dejá tus reseñas:</strong> compartí tus
+                      experiencias y ganá puntos por cada opinión.
+                    </li>
+                    <li className="mb-2">
+                      ⭐ <strong>Calificá tus actividades:</strong> puntuá lo
+                      que hiciste y acumulá más puntos.
+                    </li>
+                    <li className="mb-2">
+                      🎁 <strong>Accedé a recompensas:</strong> disfrutá
+                      beneficios y descuentos increíbles.
+                    </li>
+                    <li className="mb-2">
+                      💰 <strong>Dividí gastos de viajes:</strong> invitá amigos
+                      a tus viajes y compartí los gastos automáticamente.
+                    </li>
+                    <li className="mb-2">
+                      💰 <strong>Compartí itinerarios:</strong> compartí
+                      itinerarios a amigos vía mail.
+                    </li>
+                  </ul>
+
+                  <hr />
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="fs-4 fw-bold">10 USD / mes</span>
+                    <button
+                      className="btn btn-success"
+                      onClick={handleSubscribe}
+                    >
+                      Convertirse en Premium
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {me.role === "premium" && (
+                <>
+                  <h5 className="card-title">
+                    Suscripción:{" "}
+                    <span className="badge bg-success">Premium</span>
+                  </h5>
+                  <p className="card-text">
+                    Estás disfrutando de todos los beneficios de tu cuenta.
+                  </p>
+                  <p>Puedes cancelar tu suscripción en cualquier momento.</p>
+                  <hr />
+                  <div className="text-end">
+                    <button
+                      className="btn btn-outline-danger"
+                      onClick={handleCancelSubscription}
+                    >
+                      Cancelar Suscripción
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {me.role !== "user" && me.role !== "premium" && (
+                <>
+                  <h5 className="card-title">
+                    Suscripción:{" "}
+                    <span className="badge bg-info text-dark">
+                      {me.role.charAt(0).toUpperCase() + me.role.slice(1)}
+                    </span>
+                  </h5>
+                  <p className="card-text">
+                    Tienes permisos especiales en la plataforma.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="d-flex justify-content-end align-items-center mt-4 gap-3">
+            <button
+              className="btn btn-outline-secondary"
+              onClick={() => setViewMode("password")}
+            >
+              Modificar Contraseña
+            </button>
+            <button
+              className="btn btn-outline-custom"
+              onClick={() => setViewMode("edit")}
+            >
+              Editar Perfil
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

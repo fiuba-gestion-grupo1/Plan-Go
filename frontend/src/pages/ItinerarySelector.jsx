@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 export default function ItinerarySelector({ onNavigate }) {
   return (
@@ -14,15 +14,21 @@ export default function ItinerarySelector({ onNavigate }) {
 
           <div className="row g-4">
             <div className="col-md-6">
-              <div className="card shadow-sm h-100 border-0 hover-card" style={{ cursor: 'pointer' }}>
+              <div
+                className="card shadow-sm h-100 border-0 hover-card"
+                style={{ cursor: "pointer" }}
+              >
                 <div className="card-body text-center p-5">
-                  <div className="mb-4" style={{ fontSize: '4rem' }}>
+                  <div className="mb-4" style={{ fontSize: "4rem" }}>
                     ✏️
                   </div>
-                  <h4 className="card-title mb-3" style={{color: '#3A92B5'}}>Personalizado</h4>
+                  <h4 className="card-title mb-3" style={{ color: "#3A92B5" }}>
+                    Personalizado
+                  </h4>
                   <p className="card-text text-muted mb-4">
-                    Crea tu itinerario paso a paso, agregando lugares específicos y 
-                    organizando tu viaje según tus preferencias personales.
+                    Crea tu itinerario paso a paso, agregando lugares
+                    específicos y organizando tu viaje según tus preferencias
+                    personales.
                   </p>
                   <div className="mb-4">
                     <small className="text-muted">
@@ -33,13 +39,12 @@ export default function ItinerarySelector({ onNavigate }) {
                       • Selección manual de lugares
                       <br />
                       • Organización personalizada
-                      <br />
-                      • Gestión de tiempos y actividades
+                      <br />• Gestión de tiempos y actividades
                     </small>
                   </div>
-                  <button 
+                  <button
                     className="btn btn-outline-custom btn-lg"
-                    onClick={() => onNavigate('itinerary-custom')}
+                    onClick={() => onNavigate("itinerary-custom")}
                   >
                     Crear Personalizado
                   </button>
@@ -48,15 +53,19 @@ export default function ItinerarySelector({ onNavigate }) {
             </div>
 
             <div className="col-md-6">
-              <div className="card shadow-sm h-100 border-0 hover-card" style={{ cursor: 'pointer' }}>
+              <div
+                className="card shadow-sm h-100 border-0 hover-card"
+                style={{ cursor: "pointer" }}
+              >
                 <div className="card-body text-center p-5">
-                  <div className="mb-4" style={{ fontSize: '4rem' }}>
+                  <div className="mb-4" style={{ fontSize: "4rem" }}>
                     🤖
                   </div>
                   <h4 className="card-title text-success mb-3">Con IA</h4>
                   <p className="card-text text-muted mb-4">
-                    Deja que nuestra inteligencia artificial genere un itinerario 
-                    completo basado en tus preferencias, presupuesto y fechas.
+                    Deja que nuestra inteligencia artificial genere un
+                    itinerario completo basado en tus preferencias, presupuesto
+                    y fechas.
                   </p>
                   <div className="mb-4">
                     <small className="text-muted">
@@ -67,13 +76,12 @@ export default function ItinerarySelector({ onNavigate }) {
                       • Recomendaciones personalizadas
                       <br />
                       • Optimización de rutas y tiempos
-                      <br />
-                      • Lugares verificados de la plataforma
+                      <br />• Lugares verificados de la plataforma
                     </small>
                   </div>
-                  <button 
+                  <button
                     className="btn btn-success btn-lg"
-                    onClick={() => onNavigate('itinerary-ai')}
+                    onClick={() => onNavigate("itinerary-ai")}
                   >
                     Generar con IA
                   </button>
@@ -86,8 +94,9 @@ export default function ItinerarySelector({ onNavigate }) {
             <div className="alert alert-light">
               <h6 className="mb-2">💡 ¿No sabes cuál elegir?</h6>
               <p className="mb-0 small text-muted">
-                Si es tu primera vez, recomendamos usar <strong>Con IA</strong> para obtener 
-                sugerencias inteligentes que puedes personalizar después.
+                Si es tu primera vez, recomendamos usar <strong>Con IA</strong>{" "}
+                para obtener sugerencias inteligentes que puedes personalizar
+                después.
               </p>
             </div>
           </div>
@@ -96,12 +105,14 @@ export default function ItinerarySelector({ onNavigate }) {
 
       <style jsx>{`
         .hover-card {
-          transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+          transition:
+            transform 0.2s ease-in-out,
+            box-shadow 0.2s ease-in-out;
         }
-        
+
         .hover-card:hover {
           transform: translateY(-5px);
-          box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
         }
       `}</style>
     </div>

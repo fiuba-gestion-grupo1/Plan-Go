@@ -1,1 +1,65 @@
-.btn-outline-custom{border-color:#3a92b5;color:#3a92b5;background-color:transparent;transition:all .3s ease}.btn-outline-custom:hover{background-color:#3a92b5;color:#fff;border-color:#3a92b5}.btn-outline-custom:focus,.btn-outline-custom:active{background-color:#3a92b5;color:#fff;border-color:#3a92b5;box-shadow:0 0 0 .25rem #3a92b540}.btn-celeste{border:1px solid #3A92B5;background-color:#fff;color:#3a92b5;box-shadow:none}.btn-celeste:hover,.btn-celeste:focus{background-color:#f4fbfd;color:#2f7f98;border-color:#2f7f98;text-decoration:none}.btn-celeste:active{background-color:#eaf6fb;box-shadow:inset 0 3px 6px #0000000d}.btn-celeste.dropdown-toggle:after{border-top-color:#3a92b5}.table tbody tr td{border-top:1px solid #f0f2f5!important}.table{table-layout:fixed;width:100%}.table th,.table td{text-align:center}.table th:first-child,.table td:first-child{text-align:left}.sidebar-menu-item{transition:all .2s ease}.sidebar-menu-item:hover{background-color:transparent!important;transform:translate(2px)}.sidebar-menu-item.active{background-color:#51cafb!important;border-left:4px solid #3A92B5;padding-left:12px}
+.btn-outline-custom {
+  border-color: #3a92b5;
+  color: #3a92b5;
+  background-color: transparent;
+  transition: all 0.3s ease;
+}
+.btn-outline-custom:hover {
+  background-color: #3a92b5;
+  color: #fff;
+  border-color: #3a92b5;
+}
+.btn-outline-custom:focus,
+.btn-outline-custom:active {
+  background-color: #3a92b5;
+  color: #fff;
+  border-color: #3a92b5;
+  box-shadow: 0 0 0 0.25rem #3a92b540;
+}
+.btn-celeste {
+  border: 1px solid #3a92b5;
+  background-color: #fff;
+  color: #3a92b5;
+  box-shadow: none;
+}
+.btn-celeste:hover,
+.btn-celeste:focus {
+  background-color: #f4fbfd;
+  color: #2f7f98;
+  border-color: #2f7f98;
+  text-decoration: none;
+}
+.btn-celeste:active {
+  background-color: #eaf6fb;
+  box-shadow: inset 0 3px 6px #0000000d;
+}
+.btn-celeste.dropdown-toggle:after {
+  border-top-color: #3a92b5;
+}
+.table tbody tr td {
+  border-top: 1px solid #f0f2f5 !important;
+}
+.table {
+  table-layout: fixed;
+  width: 100%;
+}
+.table th,
+.table td {
+  text-align: center;
+}
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+.sidebar-menu-item {
+  transition: all 0.2s ease;
+}
+.sidebar-menu-item:hover {
+  background-color: transparent !important;
+  transform: translate(2px);
+}
+.sidebar-menu-item.active {
+  background-color: #51cafb !important;
+  border-left: 4px solid #3a92b5;
+  padding-left: 12px;
+}

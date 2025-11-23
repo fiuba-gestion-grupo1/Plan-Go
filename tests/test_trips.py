@@ -4,13 +4,14 @@ from fastapi import status
 from backend.app import models
 from backend.app.security import create_access_token
 
+
 def create_user(db, username, role="user"):
     """Crea un usuario con rol configurable."""
     user = models.User(
         username=username,
         email=f"{username}@example.com",
         hashed_password="hashed",
-        role=role
+        role=role,
     )
     db.add(user)
     db.commit()
@@ -20,11 +21,9 @@ def create_user(db, username, role="user"):
 
 def get_auth_headers(user):
     """Genera un token válido y devuelve el header Authorization."""
-    token = create_access_token({
-        "sub": str(user.id),
-        "email": user.email,
-        "username": user.username
-    })
+    token = create_access_token(
+        {"sub": str(user.id), "email": user.email, "username": user.username}
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -37,7 +36,9 @@ def create_trip(db, user_id, name="Viaje Test"):
     return trip
 
 
-def create_expense(db, trip_id, user_id, name="Gasto genérico", category="Otros", amount=100.0):
+def create_expense(
+    db, trip_id, user_id, name="Gasto genérico", category="Otros", amount=100.0
+):
     """Crea un gasto asociado a un viaje y usuario."""
     exp = models.Expense(
         trip_id=trip_id,
@@ -52,7 +53,10 @@ def create_expense(db, trip_id, user_id, name="Gasto genérico", category="Otros
     db.refresh(exp)
     return exp
 
-def test_edit_and_delete_expense_by_creator(client, db_session, test_user, auth_headers):
+
+def test_edit_and_delete_expense_by_creator(
+    client, db_session, test_user, auth_headers
+):
     """El creador del gasto puede editarlo y eliminarlo."""
     trip = create_trip(db_session, user_id=test_user.id)
     exp = create_expense(db_session, trip.id, test_user.id)
@@ -61,7 +65,7 @@ def test_edit_and_delete_expense_by_creator(client, db_session, test_user, auth_
         "name": "Cena editada",
         "category": "Comida",
         "amount": 200.0,
-        "date": str(date.today())
+        "date": str(date.today()),
     }
     r_edit = client.put(
         f"/api/trips/{trip.id}/expenses/{exp.id}",
@@ -71,7 +75,9 @@ def test_edit_and_delete_expense_by_creator(client, db_session, test_user, auth_
     assert r_edit.status_code == 200
     assert r_edit.json()["name"] == "Cena editada"
 
-    r_del = client.delete(f"/api/trips/{trip.id}/expenses/{exp.id}", headers=auth_headers)
+    r_del = client.delete(
+        f"/api/trips/{trip.id}/expenses/{exp.id}", headers=auth_headers
+    )
     assert r_del.status_code == 200
     assert "Gasto eliminado" in r_del.text
 
@@ -112,7 +118,9 @@ def test_invite_premium_user_and_accept(client, db_session, test_user, auth_head
     assert "Viaje Premium" in names
 
 
-def test_invite_user_rejected_if_not_premium(client, db_session, test_user, auth_headers):
+def test_invite_user_rejected_if_not_premium(
+    client, db_session, test_user, auth_headers
+):
     """Un usuario normal no puede invitar a otros usuarios."""
     non_premium = create_user(db_session, "usuario_comun", role="user")
     headers_user = get_auth_headers(non_premium)
@@ -128,7 +136,9 @@ def test_invite_user_rejected_if_not_premium(client, db_session, test_user, auth
     assert "premium" in r.text.lower() or "no autorizado" in r.text.lower()
 
 
-def test_calculate_balances_is_trip_specific(client, db_session, test_user, auth_headers):
+def test_calculate_balances_is_trip_specific(
+    client, db_session, test_user, auth_headers
+):
     """El cálculo de saldos es específico para cada viaje."""
     trip1 = create_trip(db_session, test_user.id, "Viaje 1")
     trip2 = create_trip(db_session, test_user.id, "Viaje 2")
@@ -168,6 +178,7 @@ def test_delete_trip_removes_expenses(client, db_session, test_user, auth_header
     remaining = db_session.query(models.Expense).filter_by(trip_id=trip.id).count()
     assert remaining == 0
 
+
 def test_cannot_invite_same_user_twice(client, db_session, test_user, auth_headers):
     """Un usuario premium no puede invitar dos veces al mismo usuario."""
     test_user.role = "premium"
@@ -193,7 +204,9 @@ def test_cannot_invite_same_user_twice(client, db_session, test_user, auth_heade
     assert "ya existe" in r2.text.lower() or "pendiente" in r2.text.lower()
 
 
-def test_invited_user_cannot_invite_if_not_participant(client, db_session, test_user, auth_headers):
+def test_invited_user_cannot_invite_if_not_participant(
+    client, db_session, test_user, auth_headers
+):
     """Un usuario invitado pero que aún no aceptó NO puede invitar a otros."""
     test_user.role = "premium"
     db_session.commit()
@@ -219,7 +232,9 @@ def test_invited_user_cannot_invite_if_not_participant(client, db_session, test_
     assert "participante" in r_fail.text.lower()
 
 
-def test_premium_participant_can_invite_other_premium(client, db_session, test_user, auth_headers):
+def test_premium_participant_can_invite_other_premium(
+    client, db_session, test_user, auth_headers
+):
     """Un usuario premium que fue invitado y aceptó puede invitar a otros premium."""
     test_user.role = "premium"
     db_session.commit()
@@ -255,7 +270,9 @@ def test_premium_participant_can_invite_other_premium(client, db_session, test_u
     assert "invitación enviada" in r_chain.text.lower()
 
 
-def test_cannot_invite_user_already_participant(client, db_session, test_user, auth_headers):
+def test_cannot_invite_user_already_participant(
+    client, db_session, test_user, auth_headers
+):
     """No se puede invitar a un usuario que ya es participante del viaje."""
     test_user.role = "premium"
     db_session.commit()
@@ -276,7 +293,9 @@ def test_cannot_invite_user_already_participant(client, db_session, test_user, a
     assert "ya es participante" in r.text.lower()
 
 
-def test_invitation_accept_twice_is_rejected(client, db_session, test_user, auth_headers):
+def test_invitation_accept_twice_is_rejected(
+    client, db_session, test_user, auth_headers
+):
     """Una invitación aceptada no puede volver a ser respondida."""
     test_user.role = "premium"
     db_session.commit()

@@ -51,7 +51,10 @@ def create_or_update_user(
             user.hashed_password = new_hashed
             changed = True
 
-        if travel_preferences_str is not None and user.travel_preferences != travel_preferences_str:
+        if (
+            travel_preferences_str is not None
+            and user.travel_preferences != travel_preferences_str
+        ):
             user.travel_preferences = travel_preferences_str
             changed = True
 

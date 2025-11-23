@@ -2,14 +2,16 @@
 Guía Interactiva - Testing Manual PASO 4: Pegar Itinerario de IA
 Prueba paso a paso del flujo completo en el navegador
 """
+
 import time
+
 
 class TestingGuide:
     def __init__(self):
         self.step = 0
         self.total_steps = 8
         self.results = {}
-        
+
     def next_step(self, title, description, expected_result, instructions=None):
         self.step += 1
         print(f"\n{'='*60}")
@@ -17,41 +19,41 @@ class TestingGuide:
         print(f"{'='*60}")
         print(f"📝 Descripción: {description}")
         print(f"✅ Resultado esperado: {expected_result}")
-        
+
         if instructions:
             print(f"\n📌 Instrucciones:")
             for i, instruction in enumerate(instructions, 1):
                 print(f"   {i}. {instruction}")
-        
+
         print(f"\n⏳ Realiza este paso en el navegador...")
         result = input("¿El paso fue exitoso? (s/n/detalle): ").strip().lower()
-        
-        if result == 's':
+
+        if result == "s":
             self.results[self.step] = "✅ EXITOSO"
             print("   ✅ Paso completado exitosamente")
-        elif result == 'n':
+        elif result == "n":
             error_detail = input("   Describe el error: ")
             self.results[self.step] = f"❌ ERROR: {error_detail}"
             print("   ❌ Error registrado")
         else:
             self.results[self.step] = f"📝 DETALLE: {result}"
             print("   📝 Detalle registrado")
-    
+
     def show_summary(self):
         print(f"\n{'='*60}")
         print("📊 RESUMEN FINAL DE LA PRUEBA")
         print(f"{'='*60}")
-        
+
         success_count = 0
         for step, result in self.results.items():
             print(f"Paso {step}: {result}")
             if result.startswith("✅"):
                 success_count += 1
-        
+
         print(f"\n📈 Estadísticas:")
         print(f"   Pasos exitosos: {success_count}/{self.total_steps}")
         print(f"   Porcentaje de éxito: {(success_count/self.total_steps)*100:.1f}%")
-        
+
         if success_count == self.total_steps:
             print("\n🎉 ¡PASO 4 COMPLETADO EXITOSAMENTE!")
             print("   Todas las funcionalidades están operativas")
@@ -62,15 +64,16 @@ class TestingGuide:
             print("\n🔴 PASO 4 NECESITA REVISIÓN")
             print("   Se encontraron problemas significativos")
 
+
 def run_manual_testing():
     print("🚀 GUÍA DE TESTING MANUAL - PASO 4")
     print("🎯 Objetivo: Validar funcionalidad 'Pegar itinerario de IA'")
     print("\n📱 URLs de prueba:")
     print("   Frontend: http://localhost:5173/")
     print("   Credenciales: normal@fi.uba.ar / password")
-    
+
     guide = TestingGuide()
-    
+
     guide.next_step(
         "Acceso a la aplicación",
         "Verificar que la aplicación web esté accesible y cargue correctamente",
@@ -78,10 +81,10 @@ def run_manual_testing():
         [
             "Abre http://localhost:5173/ en tu navegador",
             "Verifica que la página principal cargue",
-            "Comprueba que no hay errores en la consola del navegador"
-        ]
+            "Comprueba que no hay errores en la consola del navegador",
+        ],
     )
-    
+
     guide.next_step(
         "Autenticación de usuario",
         "Realizar login con las credenciales de prueba",
@@ -90,10 +93,10 @@ def run_manual_testing():
             "Haz clic en 'Iniciar Sesión' o botón de login",
             "Ingresa: normal@fi.uba.ar",
             "Ingresa contraseña: password",
-            "Haz clic en 'Iniciar Sesión'"
-        ]
+            "Haz clic en 'Iniciar Sesión'",
+        ],
     )
-    
+
     guide.next_step(
         "Navegación al Constructor Personalizado",
         "Encontrar y acceder al constructor de itinerarios personalizados",
@@ -101,10 +104,10 @@ def run_manual_testing():
         [
             "Busca la opción 'Constructor Personalizado' o similar",
             "Haz clic para acceder",
-            "Verifica que se muestre la pantalla de configuración inicial"
-        ]
+            "Verifica que se muestre la pantalla de configuración inicial",
+        ],
     )
-    
+
     guide.next_step(
         "Activar funcionalidad 'Pegar IA'",
         "Usar el botón 'Pegar itinerario de IA existente'",
@@ -113,10 +116,10 @@ def run_manual_testing():
             "Busca el botón '📋 Pegar itinerario de IA existente'",
             "Haz clic en el botón",
             "Verifica que se abra un modal/ventana emergente",
-            "Confirma que aparezca 'Cargando tus itinerarios de IA...'"
-        ]
+            "Confirma que aparezca 'Cargando tus itinerarios de IA...'",
+        ],
     )
-    
+
     guide.next_step(
         "Lista de itinerarios de IA",
         "Verificar que se muestre la lista de itinerarios disponibles",
@@ -125,10 +128,10 @@ def run_manual_testing():
             "Verifica que se cargue la lista de itinerarios",
             "Confirma que aparezca el itinerario de 'francia'",
             "Revisa que muestre información: 3 días, $1500, 3 personas",
-            "Verifica que tenga badges de estado (Completo, Validado, etc.)"
-        ]
+            "Verifica que tenga badges de estado (Completo, Validado, etc.)",
+        ],
     )
-    
+
     guide.next_step(
         "Selección y conversión de itinerario",
         "Seleccionar un itinerario de IA para pegar",
@@ -137,10 +140,10 @@ def run_manual_testing():
             "Haz clic en el itinerario de 'francia'",
             "Verifica que aparezca mensaje de conversión exitosa",
             "Confirma que el modal se cierre automáticamente",
-            "Verifica que se carguen los datos en el constructor"
-        ]
+            "Verifica que se carguen los datos en el constructor",
+        ],
     )
-    
+
     guide.next_step(
         "Constructor con datos cargados",
         "Verificar que el itinerario se haya cargado correctamente en el constructor",
@@ -149,10 +152,10 @@ def run_manual_testing():
             "Verifica que aparezca '✏️ Itinerario Personalizado'",
             "Confirma que muestre badge '🔄 Convertido desde IA'",
             "Revisa que aparezcan 3 días (DÍA 1, DÍA 2, DÍA 3)",
-            "Confirma que se muestren franjas horarias (MAÑANA, TARDE, NOCHE)"
-        ]
+            "Confirma que se muestren franjas horarias (MAÑANA, TARDE, NOCHE)",
+        ],
     )
-    
+
     guide.next_step(
         "Funcionalidad de edición",
         "Probar que se pueden agregar/editar actividades manualmente",
@@ -162,29 +165,30 @@ def run_manual_testing():
             "Verifica que se abra el modal de selección de publicaciones",
             "Prueba agregar una actividad",
             "Haz clic en '💾 Guardar Itinerario'",
-            "Confirma que aparezca mensaje de guardado exitoso"
-        ]
+            "Confirma que aparezca mensaje de guardado exitoso",
+        ],
     )
-    
+
     guide.show_summary()
-    
+
     print(f"\n📄 REPORTE GENERADO:")
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     report_file = f"test_paso4_manual_report_{timestamp}.txt"
-    
-    with open(report_file, 'w', encoding='utf-8') as f:
+
+    with open(report_file, "w", encoding="utf-8") as f:
         f.write("REPORTE DE TESTING MANUAL - PASO 4\n")
-        f.write("="*50 + "\n")
+        f.write("=" * 50 + "\n")
         f.write(f"Fecha: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Funcionalidad: Pegar itinerario de IA\n\n")
-        
+
         for step, result in guide.results.items():
             f.write(f"Paso {step}: {result}\n")
-        
+
         success_count = sum(1 for r in guide.results.values() if r.startswith("✅"))
         f.write(f"\nÉxito: {success_count}/{guide.total_steps} pasos\n")
-    
+
     print(f"   📁 Archivo: {report_file}")
-    
+
+
 if __name__ == "__main__":
     run_manual_testing()

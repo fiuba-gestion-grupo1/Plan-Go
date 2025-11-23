@@ -5,7 +5,20 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from backend.app.api import suggestions
 from .db import Base, engine, log_db_info
-from .api import auth, health, users, publications, debug, categories, preferences, itineraries, expenses, trips, reviews, points
+from .api import (
+    auth,
+    health,
+    users,
+    publications,
+    debug,
+    categories,
+    preferences,
+    itineraries,
+    expenses,
+    trips,
+    reviews,
+    points,
+)
 from .db_migrations import ensure_min_schema
 from .api import invitations
 
@@ -35,15 +48,17 @@ app.include_router(trips.router)
 app.include_router(points.router, prefix="/api/users")
 
 if os.getenv("ENV", "dev") == "dev":
-  try:
-      from .api import debug as debug_router
-      app.include_router(debug_router.router)
-  except Exception as e:
-      print(f"[DEBUG] router no cargado: {e}")
+    try:
+        from .api import debug as debug_router
+
+        app.include_router(debug_router.router)
+    except Exception as e:
+        print(f"[DEBUG] router no cargado: {e}")
 
 frontend_build = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 if frontend_build.exists():
     app.mount("/", StaticFiles(directory=frontend_build, html=True), name="frontend")
+
 
 @app.on_event("startup")
 def on_startup():

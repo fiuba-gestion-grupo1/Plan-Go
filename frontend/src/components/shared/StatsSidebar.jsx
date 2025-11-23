@@ -20,7 +20,7 @@ export default function StatsSidebar({ stats = [] }) {
       <div className="position-sticky" style={{ top: 20 }}>
         <h5 className="mb-3">📊 Estadísticas</h5>
         {stats.map((stat, index) => (
-          <StatCard 
+          <StatCard
             key={index}
             icon={stat.icon}
             label={stat.label}

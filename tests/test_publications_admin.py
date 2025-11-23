@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app import models, security
 from backend.app.api.publications import UPLOAD_DIR
 
+
 def _url_to_abspath(url: str) -> str:
     """
     Convierte '/static/uploads/publications/xxx.jpg' -> ruta absoluta
@@ -22,7 +23,6 @@ def _url_to_abspath(url: str) -> str:
 def _fake_img(name: str = "test.jpg", mime: str = "image/jpeg") -> tuple:
     """Pequeño archivo 'imagen' en memoria (el contenido no se valida)."""
     return (name, io.BytesIO(b"fake-image-bytes"), mime)
-
 
 
 @pytest.fixture
@@ -47,10 +47,10 @@ def admin_user(db_session: Session):
 @pytest.fixture
 def admin_headers(client: TestClient, admin_user) -> dict:
     """Token Bearer para el admin."""
-    resp = client.post("/api/auth/login", json={
-        "identifier": admin_user.email,
-        "password": "adminpass"
-    })
+    resp = client.post(
+        "/api/auth/login",
+        json={"identifier": admin_user.email, "password": "adminpass"},
+    )
     assert resp.status_code == 200, resp.text
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -89,7 +89,9 @@ def test_admin_create_publication_with_photos_success(
         ("photos", _fake_img("c.webp", "image/webp")),
     ]
 
-    resp = client.post("/api/publications", data=data, files=files, headers=admin_headers)
+    resp = client.post(
+        "/api/publications", data=data, files=files, headers=admin_headers
+    )
     assert resp.status_code == 201, resp.text
     payload = resp.json()
     assert payload["place_name"] == data["place_name"]
@@ -105,7 +107,9 @@ def test_admin_create_publication_with_photos_success(
         assert os.path.exists(abs_path)
 
 
-def test_admin_create_publication_rejects_too_many_photos(client: TestClient, admin_headers: dict):
+def test_admin_create_publication_rejects_too_many_photos(
+    client: TestClient, admin_headers: dict
+):
     data = {
         "place_name": "Lugar X",
         "country": "AR",
@@ -121,12 +125,16 @@ def test_admin_create_publication_rejects_too_many_photos(client: TestClient, ad
         ("photos", _fake_img("4.jpg")),
         ("photos", _fake_img("5.jpg")),
     ]
-    resp = client.post("/api/publications", data=data, files=files, headers=admin_headers)
+    resp = client.post(
+        "/api/publications", data=data, files=files, headers=admin_headers
+    )
     assert resp.status_code == 400
     assert "Máximo 4 fotos" in resp.json()["detail"]
 
 
-def test_admin_create_publication_rejects_invalid_mime(client: TestClient, admin_headers: dict):
+def test_admin_create_publication_rejects_invalid_mime(
+    client: TestClient, admin_headers: dict
+):
     data = {
         "place_name": "Lugar Y",
         "country": "AR",
@@ -137,7 +145,9 @@ def test_admin_create_publication_rejects_invalid_mime(client: TestClient, admin
     }
 
     files = [("photos", ("bad.txt", io.BytesIO(b"no-image"), "text/plain"))]
-    resp = client.post("/api/publications", data=data, files=files, headers=admin_headers)
+    resp = client.post(
+        "/api/publications", data=data, files=files, headers=admin_headers
+    )
     assert resp.status_code == 400
     assert "Formato de imagen inválido" in resp.json()["detail"]
 
@@ -161,7 +171,9 @@ def test_public_list_returns_items(
         "description": "Descripción del lugar público",
     }
     files = [("photos", _fake_img("pub.jpg"))]
-    create = client.post("/api/publications", data=data, files=files, headers=admin_headers)
+    create = client.post(
+        "/api/publications", data=data, files=files, headers=admin_headers
+    )
     assert create.status_code == 201
     created = create.json()
     for url in created["photos"]:

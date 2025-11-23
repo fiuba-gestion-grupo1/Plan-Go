@@ -2,6 +2,7 @@
 Tests para funcionalidad de favoritos en publicaciones.
 Un usuario normal puede marcar/desmarcar publicaciones como favoritas.
 """
+
 import io
 import os
 from typing import List
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from backend.app import models
 from backend.app.api.publications import UPLOAD_DIR
+
 
 def _url_to_abspath(url: str) -> str:
     """
@@ -37,12 +39,13 @@ def track_created_files():
         except Exception:
             pass
 
+
 def test_user_can_toggle_favorite_and_see_in_list(
     client: TestClient,
     admin_headers: dict,
     auth_headers: dict,
     db_session: Session,
-    track_created_files
+    track_created_files,
 ):
     """
     Un usuario normal puede:
@@ -59,11 +62,13 @@ def test_user_can_toggle_favorite_and_see_in_list(
         "description": "Descripción del Hotel Favorito",
     }
     files = [("photos", _fake_img("hotel.jpg"))]
-    create_resp = client.post("/api/publications", data=data, files=files, headers=admin_headers)
+    create_resp = client.post(
+        "/api/publications", data=data, files=files, headers=admin_headers
+    )
     assert create_resp.status_code == 201
     pub = create_resp.json()
     pub_id = pub["id"]
-    
+
     for url in pub["photos"]:
         track_created_files.append(_url_to_abspath(url))
 
@@ -71,7 +76,9 @@ def test_user_can_toggle_favorite_and_see_in_list(
     assert fav_resp.status_code == 200
     assert fav_resp.json()["is_favorite"] is True
 
-    favorite = db_session.query(models.Favorite).filter_by(publication_id=pub_id).first()
+    favorite = (
+        db_session.query(models.Favorite).filter_by(publication_id=pub_id).first()
+    )
     assert favorite is not None
 
     list_resp = client.get("/api/publications/favorites", headers=auth_headers)
@@ -81,11 +88,15 @@ def test_user_can_toggle_favorite_and_see_in_list(
     assert favorites[0]["id"] == pub_id
     assert favorites[0]["place_name"] == "Hotel Favorito"
 
-    unfav_resp = client.post(f"/api/publications/{pub_id}/favorite", headers=auth_headers)
+    unfav_resp = client.post(
+        f"/api/publications/{pub_id}/favorite", headers=auth_headers
+    )
     assert unfav_resp.status_code == 200
     assert unfav_resp.json()["is_favorite"] is False
 
-    favorite_deleted = db_session.query(models.Favorite).filter_by(publication_id=pub_id).first()
+    favorite_deleted = (
+        db_session.query(models.Favorite).filter_by(publication_id=pub_id).first()
+    )
     assert favorite_deleted is None
 
     empty_list = client.get("/api/publications/favorites", headers=auth_headers)

@@ -1,5 +1,6 @@
 from typing import Iterable, Optional
 
+
 def _normalize_keywords(values: Iterable[str]) -> set[str]:
     """
     Pasa todo a lowercase, saca espacios y ignora valores vacíos.

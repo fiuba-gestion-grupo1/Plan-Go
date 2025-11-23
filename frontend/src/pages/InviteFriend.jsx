@@ -19,7 +19,7 @@ export default function InviteFriend({ token }) {
 
     try {
       setSending(true);
-        const res = await fetch("/api/invitations/send", {
+      const res = await fetch("/api/invitations/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -27,7 +27,7 @@ export default function InviteFriend({ token }) {
         },
         body: JSON.stringify({ email: trimmed }),
       });
-      
+
       if (!res.ok) {
         if (res.status === 403) {
           throw new Error("Función disponible solo para usuarios premium.");
@@ -41,7 +41,7 @@ export default function InviteFriend({ token }) {
     } catch (err) {
       setErrMsg(
         err?.message ||
-          "No pudimos enviar la invitación. Intentá nuevamente en un rato."
+          "No pudimos enviar la invitación. Intentá nuevamente en un rato.",
       );
     } finally {
       setSending(false);
@@ -53,8 +53,8 @@ export default function InviteFriend({ token }) {
       <div className="card-body">
         <h3 className="card-title mb-2">✉️ Invitar amigos a Plan&Go</h3>
         <p className="text-muted mb-4">
-          Enviá una invitación por correo para que se unan a la app y planifiquen
-          itinerarios con vos.
+          Enviá una invitación por correo para que se unan a la app y
+          planifiquen itinerarios con vos.
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -81,7 +81,11 @@ export default function InviteFriend({ token }) {
             </div>
           )}
 
-          <button type="submit" className="btn btn-outline-custom" disabled={sending}>
+          <button
+            type="submit"
+            className="btn btn-outline-custom"
+            disabled={sending}
+          >
             {sending ? "Enviando..." : "Enviar invitación"}
           </button>
         </form>

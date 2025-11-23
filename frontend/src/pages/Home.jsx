@@ -5,7 +5,7 @@ import "../styles/buttons.css";
 import ItineraryRequest from "../pages/ItineraryRequest";
 import PublicationDetailModal from "../components/PublicationDetailModal";
 import { Stars, RatingBadge } from "../components/shared/UIComponents";
-import { request } from '../utils/api';
+import { request } from "../utils/api";
 import ExpensesPage from "../pages/ExpensesPage";
 
 function useOnClickOutside(ref, handler) {
@@ -19,27 +19,44 @@ function useOnClickOutside(ref, handler) {
   }, [ref, handler]);
 }
 
-function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload }) {
+function MultiCategoryDropdown({
+  allCats = [],
+  selected = [],
+  onApply,
+  onReload,
+}) {
   const [open, setOpen] = useState(false);
   const [temp, setTemp] = useState(selected);
   const boxRef = useRef(null);
 
-  useEffect(() => { if (open) setTemp(selected); }, [open, selected]);
+  useEffect(() => {
+    if (open) setTemp(selected);
+  }, [open, selected]);
   useOnClickOutside(boxRef, () => setOpen(false));
 
   function toggle(c) {
-    setTemp(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+    setTemp((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
   }
-  function clear() { setTemp([]); }
-  function apply() { onApply(temp); setOpen(false); }
+  function clear() {
+    setTemp([]);
+  }
+  function apply() {
+    onApply(temp);
+    setOpen(false);
+  }
 
   return (
     <div className="position-relative">
       <button
         type="button"
-        style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
+        style={{ borderColor: "#3A92B5", color: "#3A92B5" }}
         className="btn btn-celeste dropdown-toggle"
-        onClick={() => { setOpen(o => !o); if (!open && onReload) onReload(); }}
+        onClick={() => {
+          setOpen((o) => !o);
+          if (!open && onReload) onReload();
+        }}
       >
         Categorías
       </button>
@@ -47,24 +64,64 @@ function MultiCategoryDropdown({ allCats = [], selected = [], onApply, onReload 
         <div
           ref={boxRef}
           className="position-absolute end-0 mt-2 p-3 bg-white border rounded-3 shadow"
-          style={{ minWidth: 280, zIndex: 1000, maxHeight: 360, overflow: "auto" }}
+          style={{
+            minWidth: 280,
+            zIndex: 1000,
+            maxHeight: 360,
+            overflow: "auto",
+          }}
         >
           <div className="d-flex align-items-center justify-content-between mb-2">
-            <div className="fw-semibold text-muted small">Tipo de categoría</div>
-            <button className="btn btn-sm btn-link" type="button" onClick={onReload} title="Actualizar lista">↻</button>
+            <div className="fw-semibold text-muted small">
+              Tipo de categoría
+            </div>
+            <button
+              className="btn btn-sm btn-link"
+              type="button"
+              onClick={onReload}
+              title="Actualizar lista"
+            >
+              ↻
+            </button>
           </div>
           <ul className="list-unstyled mb-3" style={{ columnGap: 24 }}>
-            {allCats.length === 0 && <li className="text-muted small">Sin categorías aún.</li>}
+            {allCats.length === 0 && (
+              <li className="text-muted small">Sin categorías aún.</li>
+            )}
             {allCats.map((c) => (
               <li key={c} className="form-check mb-2">
-                <input id={`cat-${c}`} type="checkbox" className="form-check-input" checked={temp.includes(c)} onChange={() => toggle(c)} />
-                <label className="form-check-label ms-1 text-capitalize" htmlFor={`cat-${c}`}>{c}</label>
+                <input
+                  id={`cat-${c}`}
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={temp.includes(c)}
+                  onChange={() => toggle(c)}
+                />
+                <label
+                  className="form-check-label ms-1 text-capitalize"
+                  htmlFor={`cat-${c}`}
+                >
+                  {c}
+                </label>
               </li>
             ))}
           </ul>
           <div className="d-flex justify-content-between gap-2">
-            <button className="btn btn-outline-secondary" type="button" onClick={clear}>Limpiar</button>
-            <button className="btn btn-outline-custom" style={{ borderColor: '#3A92B5', color: '#3A92B5' }} type="button" onClick={apply}>Ver resultados</button>
+            <button
+              className="btn btn-outline-secondary"
+              type="button"
+              onClick={clear}
+            >
+              Limpiar
+            </button>
+            <button
+              className="btn btn-outline-custom"
+              style={{ borderColor: "#3A92B5", color: "#3A92B5" }}
+              type="button"
+              onClick={apply}
+            >
+              Ver resultados
+            </button>
           </div>
         </div>
       )}
@@ -96,20 +153,28 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
         if (!cancel) setLoading(false);
       }
     })();
-    return () => { cancel = true; };
+    return () => {
+      cancel = true;
+    };
   }, [open, pub?.id]);
 
   async function submitReview(e) {
     e.preventDefault();
-    if (!isPremium) { return; }
-    if (!token) { alert("Iniciá sesión para publicar una reseña."); return; }
+    if (!isPremium) {
+      return;
+    }
+    if (!token) {
+      alert("Iniciá sesión para publicar una reseña.");
+      return;
+    }
     try {
       await request(`/api/publications/${pub.id}/reviews`, {
         method: "POST",
         token,
-        body: { rating: Number(rating), comment: comment || undefined }
+        body: { rating: Number(rating), comment: comment || undefined },
       });
-      setComment(""); setRating(5);
+      setComment("");
+      setRating(5);
       const rows = await request(`/api/publications/${pub.id}/reviews`);
       setList(rows);
     } catch (e) {
@@ -120,20 +185,33 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
   if (!open) return null;
 
   return (
-    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-end align-items-md-center justify-content-center" style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
-      <div className="bg-white rounded-3 shadow-lg border w-100" style={{ maxWidth: 720, maxHeight: "90vh" }}>
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-end align-items-md-center justify-content-center"
+      style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}
+    >
+      <div
+        className="bg-white rounded-3 shadow-lg border w-100"
+        style={{ maxWidth: 720, maxHeight: "90vh" }}
+      >
         <div className="p-3 border-bottom d-flex align-items-center justify-content-between">
           <div>
             <h5 className="mb-1">Reseñas — {pub?.place_name}</h5>
             <RatingBadge avg={pub?.rating_avg} count={pub?.rating_count} />
           </div>
-          <button className="btn btn-sm btn-outline-secondary" onClick={onClose}>Cerrar</button>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            onClick={onClose}
+          >
+            Cerrar
+          </button>
         </div>
 
         <div className="p-3" style={{ overflow: "auto", maxHeight: 350 }}>
           {loading && <div className="text-muted">Cargando…</div>}
           {err && <div className="alert alert-danger">{err}</div>}
-          {!loading && !err && list.length === 0 && <div className="text-muted">Sin reseñas todavía.</div>}
+          {!loading && !err && list.length === 0 && (
+            <div className="text-muted">Sin reseñas todavía.</div>
+          )}
           <ul className="list-unstyled mb-0">
             {list.map((r) => (
               <li key={r.id} className="border rounded-3 p-3 mb-2">
@@ -146,10 +224,14 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
                       </span>
                     )}
                   </div>
-                  <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
+                  <small className="text-muted">
+                    {new Date(r.created_at).toLocaleString()}
+                  </small>
                 </div>
                 {r.comment && <div className="mt-1">{r.comment}</div>}
-                <small className="text-muted d-block mt-1">por {r.author_username}</small>
+                <small className="text-muted d-block mt-1">
+                  por {r.author_username}
+                </small>
               </li>
             ))}
           </ul>
@@ -160,23 +242,39 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
             <div className="row g-2">
               <div className="col-12 col-md-2">
                 <label className="form-label mb-1">Rating</label>
-                <select className="form-select" value={rating} onChange={(e) => setRating(e.target.value)}>
-                  {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v}</option>)}
+                <select
+                  className="form-select"
+                  value={rating}
+                  onChange={(e) => setRating(e.target.value)}
+                >
+                  {[5, 4, 3, 2, 1].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="col-12 col-md-8">
                 <label className="form-label mb-1">Comentario (opcional)</label>
-                <input className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Contanos tu experiencia" />
+                <input
+                  className="form-control"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Contanos tu experiencia"
+                />
               </div>
               <div className="col-12 col-md-2 d-flex align-items-end">
-                <button className="btn  w-100" type="submit">Publicar</button>
+                <button className="btn  w-100" type="submit">
+                  Publicar
+                </button>
               </div>
             </div>
           </form>
         ) : (
           <div className="p-3 border-top">
             <div className="alert alert-secondary mb-0">
-              Solo los <strong>usuarios premium</strong> pueden publicar reseñas.
+              Solo los <strong>usuarios premium</strong> pueden publicar
+              reseñas.
             </div>
           </div>
         )}
@@ -232,62 +330,113 @@ function PreferencesBox({ token }) {
       <div className="row g-2 mb-3">
         <div className="col-md-3">
           <label className="form-label">Presupuesto mín. (USD)</label>
-          <input type="number" className="form-control"
+          <input
+            type="number"
+            className="form-control"
             value={prefs.budget_min || ""}
-            onChange={(e) => setPrefs({ ...prefs, budget_min: Number(e.target.value) || null })} />
+            onChange={(e) =>
+              setPrefs({ ...prefs, budget_min: Number(e.target.value) || null })
+            }
+          />
         </div>
         <div className="col-md-3">
           <label className="form-label">Presupuesto máx. (USD)</label>
-          <input type="number" className="form-control"
+          <input
+            type="number"
+            className="form-control"
             value={prefs.budget_max || ""}
-            onChange={(e) => setPrefs({ ...prefs, budget_max: Number(e.target.value) || null })} />
+            onChange={(e) =>
+              setPrefs({ ...prefs, budget_max: Number(e.target.value) || null })
+            }
+          />
         </div>
         <div className="col-md-3">
           <label className="form-label">Duración mín. (días)</label>
-          <input type="number" className="form-control"
+          <input
+            type="number"
+            className="form-control"
             value={prefs.duration_min_days || ""}
-            onChange={(e) => setPrefs({ ...prefs, duration_min_days: Number(e.target.value) || null })} />
+            onChange={(e) =>
+              setPrefs({
+                ...prefs,
+                duration_min_days: Number(e.target.value) || null,
+              })
+            }
+          />
         </div>
         <div className="col-md-3">
           <label className="form-label">Duración máx. (días)</label>
-          <input type="number" className="form-control"
+          <input
+            type="number"
+            className="form-control"
             value={prefs.duration_max_days || ""}
-            onChange={(e) => setPrefs({ ...prefs, duration_max_days: Number(e.target.value) || null })} />
+            onChange={(e) =>
+              setPrefs({
+                ...prefs,
+                duration_max_days: Number(e.target.value) || null,
+              })
+            }
+          />
         </div>
       </div>
 
       <div className="mb-3">
         <strong>Climas:</strong>{" "}
-        {["templado", "frio", "tropical", "seco"].map(v => (
-          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.climates?.includes(v) ? "btn-outline-custom" : "btn-outline-secondary"}`}
-            onClick={() => toggleList("climates", v)}>{v}</button>
+        {["templado", "frio", "tropical", "seco"].map((v) => (
+          <button
+            key={v}
+            className={`btn btn-sm me-2 mb-2 ${prefs.climates?.includes(v) ? "btn-outline-custom" : "btn-outline-secondary"}`}
+            onClick={() => toggleList("climates", v)}
+          >
+            {v}
+          </button>
         ))}
       </div>
 
       <div className="mb-3">
         <strong>Actividades:</strong>{" "}
-        {["playa", "montaña", "ciudad", "gastronomía", "historia", "noche"].map(v => (
-          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.activities?.includes(v) ? "btn-success" : "btn-outline-success"}`}
-            onClick={() => toggleList("activities", v)}>{v}</button>
-        ))}
+        {["playa", "montaña", "ciudad", "gastronomía", "historia", "noche"].map(
+          (v) => (
+            <button
+              key={v}
+              className={`btn btn-sm me-2 mb-2 ${prefs.activities?.includes(v) ? "btn-success" : "btn-outline-success"}`}
+              onClick={() => toggleList("activities", v)}
+            >
+              {v}
+            </button>
+          ),
+        )}
       </div>
 
       <div className="mb-3">
         <strong>Continentes:</strong>{" "}
-        {["américa", "europa", "asia", "áfrica", "oceanía"].map(v => (
-          <button key={v} className={`btn btn-sm me-2 mb-2 ${prefs.continents?.includes(v) ? "btn-secondary" : "btn-outline-secondary"}`}
-            onClick={() => toggleList("continents", v)}>{v}</button>
+        {["américa", "europa", "asia", "áfrica", "oceanía"].map((v) => (
+          <button
+            key={v}
+            className={`btn btn-sm me-2 mb-2 ${prefs.continents?.includes(v) ? "btn-secondary" : "btn-outline-secondary"}`}
+            onClick={() => toggleList("continents", v)}
+          >
+            {v}
+          </button>
         ))}
       </div>
 
-      <button className="btn btn-dark" disabled={saving} onClick={savePreferences}>
+      <button
+        className="btn btn-dark"
+        disabled={saving}
+        onClick={savePreferences}
+      >
         {saving ? "Guardando..." : "Guardar preferencias"}
       </button>
     </div>
   );
 }
 
-export default function Home({ me, view = "publications", onOpenShareItinerary }) {
+export default function Home({
+  me,
+  view = "publications",
+  onOpenShareItinerary,
+}) {
   const isPremium = me?.role === "premium";
   const [pubs, setPubs] = useState([]);
   const [myPubs, setMyPubs] = useState([]);
@@ -334,13 +483,17 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     }
   }
 
-  useEffect(() => { reloadCats(); }, []);
+  useEffect(() => {
+    reloadCats();
+  }, []);
 
   function buildPublicationsEndpoint(query, categories) {
     if (query && query.trim().length >= 2) {
       return `/api/publications/search?q=${encodeURIComponent(query.trim())}`;
     }
-    const qs = categories?.length ? `?category=${encodeURIComponent(categories.join(","))}` : "";
+    const qs = categories?.length
+      ? `?category=${encodeURIComponent(categories.join(","))}`
+      : "";
     return `/api/publications/public${qs}`;
   }
 
@@ -359,37 +512,52 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
   }
 
   useEffect(() => {
-    if (view === 'publications' && !subView) {
+    if (view === "publications" && !subView) {
       fetchPublications(searchQuery, cats);
-    } else if (view === 'my-publications' && !subView) {
+    } else if (view === "my-publications" && !subView) {
       fetchMySubmissions();
-    } else if (view === 'favorites' && !subView) {
+    } else if (view === "favorites" && !subView) {
       fetchFavorites();
-    } else if (view === 'my-itineraries' && !subView) {
+    } else if (view === "my-itineraries" && !subView) {
       fetchMyItineraries();
     }
   }, [token, view, JSON.stringify(cats)]);
 
   useEffect(() => {
-    const showItineraryId = localStorage.getItem('showItineraryId');
-    if (showItineraryId && view === 'my-itineraries') {
-      console.log('🔄 [DEBUG] Vista my-itineraries activa, buscando itinerario recién creado:', showItineraryId);
+    const showItineraryId = localStorage.getItem("showItineraryId");
+    if (showItineraryId && view === "my-itineraries") {
+      console.log(
+        "🔄 [DEBUG] Vista my-itineraries activa, buscando itinerario recién creado:",
+        showItineraryId,
+      );
       setTimeout(() => {
-        const targetItinerary = myItineraries.find(it => it.id.toString() === showItineraryId);
+        const targetItinerary = myItineraries.find(
+          (it) => it.id.toString() === showItineraryId,
+        );
         if (targetItinerary) {
-          console.log('🔄 [DEBUG] Itinerario encontrado, abriendo automáticamente:', targetItinerary);
+          console.log(
+            "🔄 [DEBUG] Itinerario encontrado, abriendo automáticamente:",
+            targetItinerary,
+          );
           setSelectedItinerary(targetItinerary);
-          setSubView('view-itinerary');
-          localStorage.removeItem('showItineraryId');
+          setSubView("view-itinerary");
+          localStorage.removeItem("showItineraryId");
         } else {
-          console.log('🔄 [DEBUG] Itinerario no encontrado, puede que aún no esté cargado');
+          console.log(
+            "🔄 [DEBUG] Itinerario no encontrado, puede que aún no esté cargado",
+          );
           setTimeout(() => {
-            const targetItinerary2 = myItineraries.find(it => it.id.toString() === showItineraryId);
+            const targetItinerary2 = myItineraries.find(
+              (it) => it.id.toString() === showItineraryId,
+            );
             if (targetItinerary2) {
-              console.log('🔄 [DEBUG] Itinerario encontrado en segundo intento:', targetItinerary2);
+              console.log(
+                "🔄 [DEBUG] Itinerario encontrado en segundo intento:",
+                targetItinerary2,
+              );
               setSelectedItinerary(targetItinerary2);
-              setSubView('view-itinerary');
-              localStorage.removeItem('showItineraryId');
+              setSubView("view-itinerary");
+              localStorage.removeItem("showItineraryId");
             }
           }, 2000);
         }
@@ -400,7 +568,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
   useEffect(() => {
     if (!paramPubId) return;
     if (!Array.isArray(pubs) || pubs.length === 0) return;
-    const found = pubs.find(p => p.id === paramPubId);
+    const found = pubs.find((p) => p.id === paramPubId);
     if (found) {
       setCurrentPub(found);
       setOpenDetailModal(true);
@@ -408,35 +576,48 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         const url = new URL(window.location.href);
         url.searchParams.delete("pub");
         window.history.replaceState({}, "", url.pathname);
-      } catch { }
+      } catch {}
     }
   }, [paramPubId, pubs]);
 
-  function openReviews(p) { setCurrent(p); setOpen(true); }
+  function openReviews(p) {
+    setCurrent(p);
+    setOpen(true);
+  }
 
   async function fetchMySubmissions() {
-    console.log('🔥🔥🔥 [URGENT] fetchMySubmissions INICIADA 🔥🔥🔥');
-    console.log('🔍 [DEBUG] Iniciando fetchMySubmissions...');
-    console.log('🔍 [DEBUG] Token:', token ? 'Presente' : 'Ausente');
-    console.log('🔍 [DEBUG] Token valor:', token);
-    
+    console.log("🔥🔥🔥 [URGENT] fetchMySubmissions INICIADA 🔥🔥🔥");
+    console.log("🔍 [DEBUG] Iniciando fetchMySubmissions...");
+    console.log("🔍 [DEBUG] Token:", token ? "Presente" : "Ausente");
+    console.log("🔍 [DEBUG] Token valor:", token);
+
     setLoading(true);
     setError("");
     try {
-      console.log('🔍 [DEBUG] Haciendo request a /api/publications/my-submissions');
+      console.log(
+        "🔍 [DEBUG] Haciendo request a /api/publications/my-submissions",
+      );
       const data = await request("/api/publications/my-submissions", { token });
-      console.log('🔍 [DEBUG] Respuesta recibida:', data);
-      console.log('🔍 [DEBUG] Tipo de respuesta:', typeof data, 'Es array:', Array.isArray(data));
-      console.log('🔍 [DEBUG] Cantidad de publicaciones:', data ? data.length : 'No es array');
-      
+      console.log("🔍 [DEBUG] Respuesta recibida:", data);
+      console.log(
+        "🔍 [DEBUG] Tipo de respuesta:",
+        typeof data,
+        "Es array:",
+        Array.isArray(data),
+      );
+      console.log(
+        "🔍 [DEBUG] Cantidad de publicaciones:",
+        data ? data.length : "No es array",
+      );
+
       setMyPubs(data);
-      console.log('🔍 [DEBUG] Estado myPubs actualizado');
+      console.log("🔍 [DEBUG] Estado myPubs actualizado");
     } catch (e) {
-      console.error('❌ [DEBUG] Error en fetchMySubmissions:', e);
+      console.error("❌ [DEBUG] Error en fetchMySubmissions:", e);
       setError(e.message);
     } finally {
       setLoading(false);
-      console.log('🔍 [DEBUG] fetchMySubmissions completado');
+      console.log("🔍 [DEBUG] fetchMySubmissions completado");
     }
   }
 
@@ -457,12 +638,12 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     try {
       const data = await request(`/api/publications/${pubId}/favorite`, {
         method: "POST",
-        token
+        token,
       });
-      setPubs(prevPubs =>
-        prevPubs.map(p =>
-          p.id === pubId ? { ...p, is_favorite: data.is_favorite } : p
-        )
+      setPubs((prevPubs) =>
+        prevPubs.map((p) =>
+          p.id === pubId ? { ...p, is_favorite: data.is_favorite } : p,
+        ),
       );
     } catch (e) {
       setError(e.message);
@@ -477,8 +658,10 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         body: { status: newStatus },
       });
 
-      setFavPubs(prev =>
-        prev.map(p => p.id === pubId ? { ...p, favorite_status: newStatus } : p)
+      setFavPubs((prev) =>
+        prev.map((p) =>
+          p.id === pubId ? { ...p, favorite_status: newStatus } : p,
+        ),
       );
     } catch (e) {
       setError(e.message || "Error al actualizar el estado del favorito");
@@ -502,16 +685,23 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       return;
     }
     try {
-      await request(`/api/publications/${deletionReasonPubId}/request-deletion`, {
-        method: "POST",
-        token,
-        body: { reason: deletionReason }
-      });
-      setSuccessMsg("Solicitud de eliminación enviada. Será revisada por un administrador.");
-      setMyPubs(prevPubs =>
-        prevPubs.map(p =>
-          p.id === deletionReasonPubId ? { ...p, has_pending_deletion: true } : p
-        )
+      await request(
+        `/api/publications/${deletionReasonPubId}/request-deletion`,
+        {
+          method: "POST",
+          token,
+          body: { reason: deletionReason },
+        },
+      );
+      setSuccessMsg(
+        "Solicitud de eliminación enviada. Será revisada por un administrador.",
+      );
+      setMyPubs((prevPubs) =>
+        prevPubs.map((p) =>
+          p.id === deletionReasonPubId
+            ? { ...p, has_pending_deletion: true }
+            : p,
+        ),
       );
       setDeletionReasonModal(false);
       setDeletionReasonPubId(null);
@@ -528,20 +718,28 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     try {
       const data = await request("/api/itineraries/my-itineraries", { token });
       setMyItineraries(data);
-      
-      const showItineraryId = localStorage.getItem('showItineraryId');
+
+      const showItineraryId = localStorage.getItem("showItineraryId");
       if (showItineraryId && data.length > 0) {
-        console.log('🎯 [DEBUG] Buscando itinerario recién creado ID:', showItineraryId);
-        
-        const newItinerary = data.find(it => it.id.toString() === showItineraryId);
+        console.log(
+          "🎯 [DEBUG] Buscando itinerario recién creado ID:",
+          showItineraryId,
+        );
+
+        const newItinerary = data.find(
+          (it) => it.id.toString() === showItineraryId,
+        );
         if (newItinerary) {
-          console.log('✅ [DEBUG] Itinerario encontrado, mostrando automáticamente:', newItinerary.destination);
-          
+          console.log(
+            "✅ [DEBUG] Itinerario encontrado, mostrando automáticamente:",
+            newItinerary.destination,
+          );
+
           setSelectedItinerary(newItinerary);
-          
-          localStorage.removeItem('showItineraryId');
+
+          localStorage.removeItem("showItineraryId");
         } else {
-          console.log('⚠️ [DEBUG] Itinerario no encontrado en la lista');
+          console.log("⚠️ [DEBUG] Itinerario no encontrado en la lista");
         }
       }
     } catch (e) {
@@ -560,7 +758,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       const data = await request("/api/itineraries/request", {
         method: "POST",
         token,
-        body: payload
+        body: payload,
       });
 
       setSuccessMsg("¡Itinerario generado exitosamente!");
@@ -588,7 +786,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     try {
       await request(`/api/itineraries/${itineraryToDelete}`, {
         method: "DELETE",
-        token
+        token,
       });
 
       setSuccessMsg("Itinerario eliminado exitosamente");
@@ -619,24 +817,24 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     setSuccessMsg("");
     const form = e.currentTarget;
     const fd = new FormData(form);
-    const costPerDay = fd.get('cost_per_day');
-    const durationMin = fd.get('duration_min');
+    const costPerDay = fd.get("cost_per_day");
+    const durationMin = fd.get("duration_min");
 
-    if (costPerDay && costPerDay.trim() !== '') {
-      fd.set('cost_per_day', parseFloat(costPerDay));
+    if (costPerDay && costPerDay.trim() !== "") {
+      fd.set("cost_per_day", parseFloat(costPerDay));
     } else {
-      fd.delete('cost_per_day');
+      fd.delete("cost_per_day");
     }
 
-    if (durationMin && durationMin.trim() !== '') {
-      fd.set('duration_min', parseInt(durationMin, 10));
+    if (durationMin && durationMin.trim() !== "") {
+      fd.set("duration_min", parseInt(durationMin, 10));
     } else {
-      fd.delete('duration_min');
+      fd.delete("duration_min");
     }
 
     console.log("Datos del formulario:");
     for (let pair of fd.entries()) {
-      console.log(pair[0] + ': ' + pair[1]);
+      console.log(pair[0] + ": " + pair[1]);
     }
 
     const files = form.photos.files || [];
@@ -653,7 +851,9 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         isForm: true,
       });
       console.log("Respuesta del servidor:", result);
-      setSuccessMsg("¡Publicación enviada! Será revisada por un administrador.");
+      setSuccessMsg(
+        "¡Publicación enviada! Será revisada por un administrador.",
+      );
       form.reset();
       setTimeout(() => {
         setSubView(null);
@@ -667,7 +867,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     }
   }
 
-  if (subView === 'create-publication') {
+  if (subView === "create-publication") {
     return (
       <CreatePublicationForm
         onSubmit={handleCreateSubmit}
@@ -683,7 +883,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-  if (view === 'my-publications' && !subView) {
+  if (view === "my-publications" && !subView) {
     return (
       <>
         <MySubmissionsView
@@ -697,20 +897,36 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         />
 
         {deletionReasonModal && (
-          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
-            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 500, width: "90%" }}>
+          <div
+            className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}
+          >
+            <div
+              className="bg-white rounded-3 shadow-lg border"
+              style={{ maxWidth: 500, width: "90%" }}
+            >
               <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">Solicitar Eliminación de Publicación</h5>
-                <button className="btn-close" onClick={() => setDeletionReasonModal(false)}></button>
+                <button
+                  className="btn-close"
+                  onClick={() => setDeletionReasonModal(false)}
+                ></button>
               </div>
               <div className="p-3">
                 <p className="text-muted mb-3">
-                  Un administrador revisará tu solicitud. Por favor, cuéntale por qué deseas eliminar esta publicación.
+                  Un administrador revisará tu solicitud. Por favor, cuéntale
+                  por qué deseas eliminar esta publicación.
                 </p>
-                <form onSubmit={(e) => { e.preventDefault(); submitDeletionRequest(); }}>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    submitDeletionRequest();
+                  }}
+                >
                   <div className="mb-3">
-                    <label className="form-label">Motivo de la eliminación</label>
+                    <label className="form-label">
+                      Motivo de la eliminación
+                    </label>
                     <textarea
                       className="form-control"
                       rows="4"
@@ -748,7 +964,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-  if (view === 'favorites' && !subView) {
+  if (view === "favorites" && !subView) {
     return (
       <FavoritesView
         pubs={favPubs}
@@ -764,22 +980,21 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-
-  if (view === 'preferences') {
+  if (view === "preferences") {
     return <PreferencesBox token={token} />;
   }
 
-  if (view === 'expenses') {
+  if (view === "expenses") {
     return <ExpensesPage me={me} token={token} />;
   }
 
-  if (view === 'itinerary' || selectedItinerary) {
+  if (view === "itinerary" || selectedItinerary) {
     const formatDate = (dateStr) => {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+      return date.toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       });
     };
 
@@ -787,7 +1002,9 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       return (
         <div className="container mt-4">
           <div className="d-flex align-items-center justify-content-between mb-4">
-            <h3 className="mb-0">Itinerario: {selectedItinerary.destination}</h3>
+            <h3 className="mb-0">
+              Itinerario: {selectedItinerary.destination}
+            </h3>
             <div className="d-flex gap-2">
               <button
                 className="btn btn-outline-secondary"
@@ -809,34 +1026,63 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
             </div>
           </div>
 
-          {error && <div className="alert alert-danger" role="alert">{error}</div>}
-          {successMsg && <div className="alert alert-success" role="alert">{successMsg}</div>}
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
+          {successMsg && (
+            <div className="alert alert-success" role="alert">
+              {successMsg}
+            </div>
+          )}
 
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <p><strong>📅 Fechas:</strong> {formatDate(selectedItinerary.start_date)} - {formatDate(selectedItinerary.end_date)}</p>
-                  <p><strong>🎯 Tipo de viaje:</strong> {selectedItinerary.trip_type}</p>
-                  <p><strong>💰 Presupuesto:</strong> US${selectedItinerary.budget}</p>
-                  <p><strong>👥 Personas:</strong> {selectedItinerary.cant_persons}</p>
+                  <p>
+                    <strong>📅 Fechas:</strong>{" "}
+                    {formatDate(selectedItinerary.start_date)} -{" "}
+                    {formatDate(selectedItinerary.end_date)}
+                  </p>
+                  <p>
+                    <strong>🎯 Tipo de viaje:</strong>{" "}
+                    {selectedItinerary.trip_type}
+                  </p>
+                  <p>
+                    <strong>💰 Presupuesto:</strong> US$
+                    {selectedItinerary.budget}
+                  </p>
+                  <p>
+                    <strong>👥 Personas:</strong>{" "}
+                    {selectedItinerary.cant_persons}
+                  </p>
                 </div>
                 <div className="col-md-6">
                   {selectedItinerary.arrival_time && (
-                    <p><strong>🛬 Hora de llegada:</strong> {selectedItinerary.arrival_time}</p>
+                    <p>
+                      <strong>🛬 Hora de llegada:</strong>{" "}
+                      {selectedItinerary.arrival_time}
+                    </p>
                   )}
                   {selectedItinerary.departure_time && (
-                    <p><strong>🛫 Hora de salida:</strong> {selectedItinerary.departure_time}</p>
+                    <p>
+                      <strong>🛫 Hora de salida:</strong>{" "}
+                      {selectedItinerary.departure_time}
+                    </p>
                   )}
                   <p>
-                    <strong>Estado:</strong>{' '}
-                    {selectedItinerary.status === 'completed' && (
+                    <strong>Estado:</strong>{" "}
+                    {selectedItinerary.status === "completed" && (
                       <span className="badge bg-success">Completado</span>
                     )}
-                    {selectedItinerary.status === 'pending' && (
-                      <span className="badge bg-warning text-dark">Pendiente</span>
+                    {selectedItinerary.status === "pending" && (
+                      <span className="badge bg-warning text-dark">
+                        Pendiente
+                      </span>
                     )}
-                    {selectedItinerary.status === 'failed' && (
+                    {selectedItinerary.status === "failed" && (
                       <span className="badge bg-danger">Error</span>
                     )}
                   </p>
@@ -851,125 +1097,209 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
               <button
                 className="btn btn-sm btn-light"
                 onClick={() => {
-                  navigator.clipboard.writeText(selectedItinerary.generated_itinerary || '');
-                  alert('Itinerario copiado al portapapeles');
+                  navigator.clipboard.writeText(
+                    selectedItinerary.generated_itinerary || "",
+                  );
+                  alert("Itinerario copiado al portapapeles");
                 }}
               >
                 📋 Copiar
               </button>
             </div>
             <div className="card-body">
-              {selectedItinerary.status === 'completed' ? (
-                <div style={{
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-                  lineHeight: '1.8',
-                  fontSize: '0.95rem',
-                  color: '#333'
-                }}>
+              {selectedItinerary.status === "completed" ? (
+                <div
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    fontFamily:
+                      'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+                    lineHeight: "1.8",
+                    fontSize: "0.95rem",
+                    color: "#333",
+                  }}
+                >
                   {selectedItinerary.generated_itinerary}
                 </div>
               ) : (
                 <div className="alert alert-warning">
-                  {selectedItinerary.generated_itinerary || 'No se pudo generar el itinerario'}
+                  {selectedItinerary.generated_itinerary ||
+                    "No se pudo generar el itinerario"}
                 </div>
               )}
             </div>
           </div>
 
-          {selectedItinerary.publications && selectedItinerary.publications.length > 0 && (
-            <div className="mt-4">
-              <h4 className="mb-3">📍 Lugares incluidos en este itinerario</h4>
-              <p className="text-muted mb-3">
-                Estos son los lugares de nuestra plataforma que la IA utilizó para crear tu itinerario:
-              </p>
-              <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-                {selectedItinerary.publications.map((p) => (
-                  <div className="col" key={p.id}>
-                    <div className="card shadow-sm h-100 border-success">
-                      <div className="card-body pb-0">
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div className="flex-grow-1">
-                            <h5 className="card-title mb-1">{p.place_name}</h5>
-                            <small className="text-muted">
-                              {p.address}, {p.city}, {p.province}, {p.country}
-                            </small>
-                            <div className="mt-2 d-flex flex-wrap gap-2">
-                              <RatingBadge avg={p.rating_avg} count={p.rating_count} />
-                              {(p.categories || []).map((c) => (
-                                <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+          {selectedItinerary.publications &&
+            selectedItinerary.publications.length > 0 && (
+              <div className="mt-4">
+                <h4 className="mb-3">
+                  📍 Lugares incluidos en este itinerario
+                </h4>
+                <p className="text-muted mb-3">
+                  Estos son los lugares de nuestra plataforma que la IA utilizó
+                  para crear tu itinerario:
+                </p>
+                <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                  {selectedItinerary.publications.map((p) => (
+                    <div className="col" key={p.id}>
+                      <div className="card shadow-sm h-100 border-success">
+                        <div className="card-body pb-0">
+                          <div className="d-flex justify-content-between align-items-start">
+                            <div className="flex-grow-1">
+                              <h5 className="card-title mb-1">
+                                {p.place_name}
+                              </h5>
+                              <small className="text-muted">
+                                {p.address}, {p.city}, {p.province}, {p.country}
+                              </small>
+                              <div className="mt-2 d-flex flex-wrap gap-2">
+                                <RatingBadge
+                                  avg={p.rating_avg}
+                                  count={p.rating_count}
+                                />
+                                {(p.categories || []).map((c) => (
+                                  <span
+                                    key={c}
+                                    className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                                  >
+                                    {c}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            <button
+                              className="btn btn-link p-0 ms-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(p.id);
+                              }}
+                              style={{
+                                fontSize: "1.5rem",
+                                textDecoration: "none",
+                              }}
+                              title={
+                                p.is_favorite
+                                  ? "Quitar de favoritos"
+                                  : "Agregar a favoritos"
+                              }
+                            >
+                              {p.is_favorite ? "❤️" : "🤍"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {p.photos?.length ? (
+                          <div
+                            id={`itin-carousel-${p.id}`}
+                            className="carousel slide"
+                            data-bs-ride="false"
+                          >
+                            <div className="carousel-inner">
+                              {p.photos.map((url, idx) => (
+                                <div
+                                  className={`carousel-item ${idx === 0 ? "active" : ""}`}
+                                  key={url}
+                                >
+                                  <img
+                                    src={url}
+                                    className="d-block w-100"
+                                    alt={`Foto ${idx + 1}`}
+                                    style={{ height: 260, objectFit: "cover" }}
+                                  />
+                                </div>
                               ))}
                             </div>
+                            {p.photos.length > 1 && (
+                              <>
+                                <button
+                                  className="carousel-control-prev"
+                                  type="button"
+                                  data-bs-target={`#itin-carousel-${p.id}`}
+                                  data-bs-slide="prev"
+                                  style={{
+                                    filter:
+                                      "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                                  }}
+                                  aria-label="Anterior"
+                                  title="Anterior"
+                                >
+                                  <span
+                                    className="carousel-control-prev-icon"
+                                    aria-hidden="true"
+                                  />
+                                  <span className="visually-hidden">
+                                    Anterior
+                                  </span>
+                                </button>
+                                <button
+                                  className="carousel-control-next"
+                                  type="button"
+                                  data-bs-target={`#itin-carousel-${p.id}`}
+                                  data-bs-slide="next"
+                                  style={{
+                                    filter:
+                                      "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                                  }}
+                                  aria-label="Siguiente"
+                                  title="Siguiente"
+                                >
+                                  <span
+                                    className="carousel-control-next-icon"
+                                    aria-hidden="true"
+                                  />
+                                  <span className="visually-hidden">
+                                    Siguiente
+                                  </span>
+                                </button>
+                              </>
+                            )}
                           </div>
+                        ) : (
+                          <div className="p-4 text-center text-muted">
+                            Sin fotos
+                          </div>
+                        )}
 
+                        <div className="card-footer bg-white d-flex justify-content-between align-items-center">
+                          <small className="text-muted">
+                            Creado: {new Date(p.created_at).toLocaleString()}
+                          </small>
                           <button
-                            className="btn btn-link p-0 ms-2"
-                            onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
-                            style={{ fontSize: "1.5rem", textDecoration: "none" }}
-                            title={p.is_favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+                            className="btn btn-sm btn-celeste"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPublicationDetail(p);
+                            }}
                           >
-                            {p.is_favorite ? "❤️" : "🤍"}
+                            Ver Detalles
                           </button>
                         </div>
                       </div>
-
-                      {p.photos?.length ? (
-                        <div id={`itin-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
-                          <div className="carousel-inner">
-                            {p.photos.map((url, idx) => (
-                              <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
-                                <img
-                                  src={url}
-                                  className="d-block w-100"
-                                  alt={`Foto ${idx + 1}`}
-                                  style={{ height: 260, objectFit: "cover" }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                          {p.photos.length > 1 && (
-                            <>
-                              <button className="carousel-control-prev" type="button" data-bs-target={`#itin-carousel-${p.id}`} data-bs-slide="prev" style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }} aria-label="Anterior" title="Anterior">
-                                <span className="carousel-control-prev-icon" aria-hidden="true" />
-                                <span className="visually-hidden">Anterior</span>
-                              </button>
-                              <button className="carousel-control-next" type="button" data-bs-target={`#itin-carousel-${p.id}`} data-bs-slide="next" style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }} aria-label="Siguiente" title="Siguiente">
-                                <span className="carousel-control-next-icon" aria-hidden="true" />
-                                <span className="visually-hidden">Siguiente</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="p-4 text-center text-muted">Sin fotos</div>
-                      )}
-
-                      <div className="card-footer bg-white d-flex justify-content-between align-items-center">
-                        <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
-                        <button
-                          className="btn btn-sm btn-celeste"
-                          onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
-                        >
-                          Ver Detalles
-                        </button>
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           <div className="alert alert-info mt-4">
-            <strong>💡 Tip:</strong> Usa el botón "📋 Copiar" para copiar todo el itinerario y pegarlo donde necesites.
+            <strong>💡 Tip:</strong> Usa el botón "📋 Copiar" para copiar todo
+            el itinerario y pegarlo donde necesites.
           </div>
 
           {deleteItineraryModal && (
-            <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-              style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
-              <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+            <div
+              className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+              style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}
+            >
+              <div
+                className="bg-white rounded-3 shadow-lg border"
+                style={{ maxWidth: 400, width: "90%" }}
+              >
                 <div className="p-4 text-center">
-                  <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+                  <h5 className="mb-3">
+                    ¿Estás seguro de eliminar este itinerario?
+                  </h5>
                   <div className="d-flex gap-2 justify-content-center">
                     <button
                       className="btn btn-outline-secondary"
@@ -998,8 +1328,16 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
           <h3 className="mb-0">Solicitar Itinerario con IA</h3>
         </div>
 
-        {error && <div className="alert alert-danger" role="alert">{error}</div>}
-        {successMsg && <div className="alert alert-success" role="alert">{successMsg}</div>}
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
+          </div>
+        )}
+        {successMsg && (
+          <div className="alert alert-success" role="alert">
+            {successMsg}
+          </div>
+        )}
 
         <div className="row justify-content-center">
           <div className="col-lg-10">
@@ -1013,13 +1351,13 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-  if (view === 'my-itineraries') {
+  if (view === "my-itineraries") {
     const formatDate = (dateStr) => {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+      return date.toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       });
     };
 
@@ -1040,19 +1378,22 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <h5 className="card-title mb-0">{itinerary.destination}</h5>
-                    {itinerary.status === 'completed' && (
+                    {itinerary.status === "completed" && (
                       <span className="badge bg-success">Completado</span>
                     )}
-                    {itinerary.status === 'pending' && (
-                      <span className="badge bg-warning text-dark">Pendiente</span>
+                    {itinerary.status === "pending" && (
+                      <span className="badge bg-warning text-dark">
+                        Pendiente
+                      </span>
                     )}
-                    {itinerary.status === 'failed' && (
+                    {itinerary.status === "failed" && (
                       <span className="badge bg-danger">Error</span>
                     )}
                   </div>
 
                   <p className="text-muted small mb-2">
-                    {formatDate(itinerary.start_date)} - {formatDate(itinerary.end_date)}
+                    {formatDate(itinerary.start_date)} -{" "}
+                    {formatDate(itinerary.end_date)}
                   </p>
 
                   <p className="mb-2">
@@ -1092,7 +1433,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                       </button>
                     )}
 
-
                     <button
                       className="btn btn-sm btn-outline-danger"
                       onClick={(e) => {
@@ -1108,7 +1448,8 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                 </div>
 
                 <div className="card-footer text-muted small">
-                  Creado: {new Date(itinerary.created_at).toLocaleString('es-ES')}
+                  Creado:{" "}
+                  {new Date(itinerary.created_at).toLocaleString("es-ES")}
                 </div>
               </div>
             </div>
@@ -1117,16 +1458,24 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
 
         {!loading && myItineraries.length === 0 && (
           <div className="alert alert-secondary">
-            No tienes itinerarios generados aún. ¡Crea tu primer itinerario con IA!
+            No tienes itinerarios generados aún. ¡Crea tu primer itinerario con
+            IA!
           </div>
         )}
 
         {deleteItineraryModal && (
-          <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
-            <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+          <div
+            className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}
+          >
+            <div
+              className="bg-white rounded-3 shadow-lg border"
+              style={{ maxWidth: 400, width: "90%" }}
+            >
               <div className="p-4 text-center">
-                <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+                <h5 className="mb-3">
+                  ¿Estás seguro de eliminar este itinerario?
+                </h5>
                 <div className="d-flex gap-2 justify-content-center">
                   <button
                     className="btn btn-outline-secondary"
@@ -1159,8 +1508,13 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     <div className="container mt-4">
       <div className="p-3 mb-3 bg-light rounded-3">
         <div className="container-fluid py-2">
-          <h4 className="fw-bold mb-1">¡Bienvenido a Plan&Go, {me.first_name || me.username}!</h4>
-          <p className="small mb-0 text-muted">Usá los filtros para encontrar actividades/lugares y mirá las reseñas antes de decidir.</p>
+          <h4 className="fw-bold mb-1">
+            ¡Bienvenido a Plan&Go, {me.first_name || me.username}!
+          </h4>
+          <p className="small mb-0 text-muted">
+            Usá los filtros para encontrar actividades/lugares y mirá las
+            reseñas antes de decidir.
+          </p>
         </div>
       </div>
 
@@ -1170,10 +1524,11 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
           <MultiCategoryDropdown
             allCats={allCats}
             selected={cats}
-            onApply={(sel) => { setCats(sel); }}
+            onApply={(sel) => {
+              setCats(sel);
+            }}
             onReload={reloadCats}
           />
-
         </div>
       </div>
 
@@ -1189,9 +1544,14 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       </form>
 
       {searchQuery && (
-        <div className="alert alert-info d-flex justify-content-between align-items-center mt-3" role="alert">
+        <div
+          className="alert alert-info d-flex justify-content-between align-items-center mt-3"
+          role="alert"
+        >
           <span>
-            <strong>Búsqueda:</strong> "{searchQuery}" - {pubs.length} resultado{pubs.length !== 1 ? "s" : ""} encontrado{pubs.length !== 1 ? "s" : ""}
+            <strong>Búsqueda:</strong> "{searchQuery}" - {pubs.length} resultado
+            {pubs.length !== 1 ? "s" : ""} encontrado
+            {pubs.length !== 1 ? "s" : ""}
           </span>
           <button
             className="btn btn-sm btn-outline-secondary"
@@ -1217,34 +1577,57 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                    <small className="text-muted">
+                      📍 {p.address ? `${p.address}, ` : ""}
+                      {p.city}, {p.province}
+                      {p.country ? `, ${p.country}` : ""}
+                    </small>
 
                     <div className="mt-2">
                       <div className="mb-2">
-                        <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                        <RatingBadge
+                          avg={p.rating_avg}
+                          count={p.rating_count}
+                        />
                       </div>
 
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
-                          <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                          <span
+                            key={c}
+                            className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                          >
+                            {c}
+                          </span>
                         ))}
                       </div>
                     </div>
 
                     <p className="card-text mt-2 mb-0">
                       {p.cost_per_day ? (
-                        <span className="text-success fw-bold">${p.cost_per_day}</span>
+                        <span className="text-success fw-bold">
+                          ${p.cost_per_day}
+                        </span>
                       ) : (
-                        <span className="text-info fw-bold">El precio sujeto al consumo en el lugar</span>
+                        <span className="text-info fw-bold">
+                          El precio sujeto al consumo en el lugar
+                        </span>
                       )}
                     </p>
                   </div>
 
                   <button
                     className="btn btn-link p-0 ms-2"
-                    onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(p.id);
+                    }}
                     style={{ fontSize: "1.5rem", textDecoration: "none" }}
-                    title={p.is_favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+                    title={
+                      p.is_favorite
+                        ? "Quitar de favoritos"
+                        : "Agregar a favoritos"
+                    }
                   >
                     {p.is_favorite ? "❤️" : "🤍"}
                   </button>
@@ -1252,10 +1635,17 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
               </div>
 
               {p.photos?.length ? (
-                <div id={`home-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                <div
+                  id={`home-carousel-${p.id}`}
+                  className="carousel slide"
+                  data-bs-ride="false"
+                >
                   <div className="carousel-inner">
                     {p.photos.map((url, idx) => (
-                      <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                      <div
+                        className={`carousel-item ${idx === 0 ? "active" : ""}`}
+                        key={url}
+                      >
                         <img
                           src={url}
                           className="d-block w-100"
@@ -1268,11 +1658,27 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
 
                   {p.photos.length > 1 && (
                     <>
-                      <button className="carousel-control-prev" type="button" data-bs-target={`#home-carousel-${p.id}`} data-bs-slide="prev">
-                        <span className="carousel-control-prev-icon" aria-hidden="true" />
+                      <button
+                        className="carousel-control-prev"
+                        type="button"
+                        data-bs-target={`#home-carousel-${p.id}`}
+                        data-bs-slide="prev"
+                      >
+                        <span
+                          className="carousel-control-prev-icon"
+                          aria-hidden="true"
+                        />
                       </button>
-                      <button className="carousel-control-next" type="button" data-bs-target={`#home-carousel-${p.id}`} data-bs-slide="next">
-                        <span className="carousel-control-next-icon" aria-hidden="true" />
+                      <button
+                        className="carousel-control-next"
+                        type="button"
+                        data-bs-target={`#home-carousel-${p.id}`}
+                        data-bs-slide="next"
+                      >
+                        <span
+                          className="carousel-control-next-icon"
+                          aria-hidden="true"
+                        />
                       </button>
                     </>
                   )}
@@ -1282,10 +1688,15 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
               )}
 
               <div className="card-footer bg-white d-flex justify-content-between align-items-center">
-                <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
+                <small className="text-muted">
+                  Creado: {new Date(p.created_at).toLocaleString()}
+                </small>
                 <button
                   className="btn btn-sm btn-celeste"
-                  onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openPublicationDetail(p);
+                  }}
                 >
                   Ver Detalles
                 </button>
@@ -1305,18 +1716,32 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       />
 
       {deletionReasonModal && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
-          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 500, width: "90%" }}>
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}
+        >
+          <div
+            className="bg-white rounded-3 shadow-lg border"
+            style={{ maxWidth: 500, width: "90%" }}
+          >
             <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Solicitar Eliminación de Publicación</h5>
-              <button className="btn-close" onClick={() => setDeletionReasonModal(false)}></button>
+              <button
+                className="btn-close"
+                onClick={() => setDeletionReasonModal(false)}
+              ></button>
             </div>
             <div className="p-3">
               <p className="text-muted mb-3">
-                Un administrador revisará tu solicitud. Por favor, cuéntale por qué deseas eliminar esta publicación.
+                Un administrador revisará tu solicitud. Por favor, cuéntale por
+                qué deseas eliminar esta publicación.
               </p>
-              <form onSubmit={(e) => { e.preventDefault(); submitDeletionRequest(); }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitDeletionRequest();
+                }}
+              >
                 <div className="mb-3">
                   <label className="form-label">Motivo de la eliminación</label>
                   <textarea
@@ -1353,14 +1778,25 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         </div>
       )}
 
-      {console.log("🎯 EVALUATING MODAL CONDITION:", deleteItineraryModal, typeof deleteItineraryModal)}
+      {console.log(
+        "🎯 EVALUATING MODAL CONDITION:",
+        deleteItineraryModal,
+        typeof deleteItineraryModal,
+      )}
       {deleteItineraryModal ? (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}
+        >
           {console.log("🎯 MODAL IS RENDERING!")}
-          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+          <div
+            className="bg-white rounded-3 shadow-lg border"
+            style={{ maxWidth: 400, width: "90%" }}
+          >
             <div className="p-4 text-center">
-              <h5 className="mb-3">¿Estás seguro de eliminar este itinerario?</h5>
+              <h5 className="mb-3">
+                ¿Estás seguro de eliminar este itinerario?
+              </h5>
               <div className="d-flex gap-2 justify-content-center">
                 <button
                   className="btn btn-outline-secondary"
@@ -1386,29 +1822,40 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         </div>
       ) : (
         <>
-          {console.log("🎯 MODAL NOT RENDERING - value is:", deleteItineraryModal)}
+          {console.log(
+            "🎯 MODAL NOT RENDERING - value is:",
+            deleteItineraryModal,
+          )}
         </>
       )}
     </div>
   );
 }
 
-function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequestDeletion, setSubView }) {
-  console.log('🔥 [URGENT DEBUG] MySubmissionsView montado - START');
-  
-  React.useEffect(() => { 
-    console.log('🔥 [URGENT DEBUG] useEffect ejecutándose - llamando onLoad');
-    onLoad(); 
+function MySubmissionsView({
+  pubs,
+  loading,
+  error,
+  successMsg,
+  onLoad,
+  onRequestDeletion,
+  setSubView,
+}) {
+  console.log("🔥 [URGENT DEBUG] MySubmissionsView montado - START");
+
+  React.useEffect(() => {
+    console.log("🔥 [URGENT DEBUG] useEffect ejecutándose - llamando onLoad");
+    onLoad();
   }, []);
 
-  console.log('🔍 [DEBUG] MySubmissionsView renderizando...');
-  console.log('🔍 [DEBUG] Props recibidas:');
-  console.log('  - pubs:', pubs);
-  console.log('  - loading:', loading);
-  console.log('  - error:', error);
-  console.log('  - pubs tipo:', typeof pubs);
-  console.log('  - pubs es array:', Array.isArray(pubs));
-  console.log('  - pubs length:', pubs ? pubs.length : 'No tiene length');
+  console.log("🔍 [DEBUG] MySubmissionsView renderizando...");
+  console.log("🔍 [DEBUG] Props recibidas:");
+  console.log("  - pubs:", pubs);
+  console.log("  - loading:", loading);
+  console.log("  - error:", error);
+  console.log("  - pubs tipo:", typeof pubs);
+  console.log("  - pubs es array:", Array.isArray(pubs));
+  console.log("  - pubs length:", pubs ? pubs.length : "No tiene length");
 
   const [openDetailModal, setOpenDetailModal] = React.useState(false);
   const [currentPub, setCurrentPub] = React.useState(null);
@@ -1420,10 +1867,14 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
   }
 
   const getStatusBadge = (status) => {
-    if (status === "approved") return <span className="badge bg-success">Aprobada</span>;
-    if (status === "pending") return <span className="badge bg-warning text-dark">Pendiente</span>;
-    if (status === "rejected") return <span className="badge bg-danger">Rechazada</span>;
-    if (status === "deleted") return <span className="badge bg-dark">Eliminada</span>;
+    if (status === "approved")
+      return <span className="badge bg-success">Aprobada</span>;
+    if (status === "pending")
+      return <span className="badge bg-warning text-dark">Pendiente</span>;
+    if (status === "rejected")
+      return <span className="badge bg-danger">Rechazada</span>;
+    if (status === "deleted")
+      return <span className="badge bg-dark">Eliminada</span>;
     return <span className="badge bg-secondary">{status}</span>;
   };
 
@@ -1434,12 +1885,11 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <button
             className="btn btn-celeste"
-            style={{ borderColor: '#3A92B5', color: '#3A92B5' }}
-            onClick={() => setSubView('create-publication')}
+            style={{ borderColor: "#3A92B5", color: "#3A92B5" }}
+            onClick={() => setSubView("create-publication")}
           >
             + Agregar Publicación
           </button>
-
         </div>
       </div>
 
@@ -1459,25 +1909,41 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                    <small className="text-muted">
+                      📍 {p.address ? `${p.address}, ` : ""}
+                      {p.city}, {p.province}
+                      {p.country ? `, ${p.country}` : ""}
+                    </small>
 
                     <div className="mt-2">
                       <div className="mb-2">
-                        <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                        <RatingBadge
+                          avg={p.rating_avg}
+                          count={p.rating_count}
+                        />
                       </div>
 
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
-                          <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                          <span
+                            key={c}
+                            className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                          >
+                            {c}
+                          </span>
                         ))}
                       </div>
                     </div>
 
                     <p className="card-text mt-2 mb-0">
                       {p.cost_per_day ? (
-                        <span className="text-success fw-bold">${p.cost_per_day}</span>
+                        <span className="text-success fw-bold">
+                          ${p.cost_per_day}
+                        </span>
                       ) : (
-                        <span className="text-info fw-bold">El precio sujeto al consumo en el lugar</span>
+                        <span className="text-info fw-bold">
+                          El precio sujeto al consumo en el lugar
+                        </span>
                       )}
                     </p>
                   </div>
@@ -1499,7 +1965,10 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                           <li>
                             <button
                               className="dropdown-item text-danger"
-                              onClick={(e) => { e.stopPropagation(); onRequestDeletion(p.id); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRequestDeletion(p.id);
+                              }}
                             >
                               Solicitar eliminación
                             </button>
@@ -1512,10 +1981,17 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
               </div>
 
               {p.photos?.length ? (
-                <div id={`my-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                <div
+                  id={`my-carousel-${p.id}`}
+                  className="carousel slide"
+                  data-bs-ride="false"
+                >
                   <div className="carousel-inner">
                     {p.photos.map((url, idx) => (
-                      <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                      <div
+                        className={`carousel-item ${idx === 0 ? "active" : ""}`}
+                        key={url}
+                      >
                         <img
                           src={url}
                           className="d-block w-100"
@@ -1533,7 +2009,9 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                         type="button"
                         data-bs-target={`#my-carousel-${p.id}`}
                         data-bs-slide="prev"
-                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                        style={{
+                          filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                        }}
                       >
                         <span className="carousel-control-prev-icon" />
                       </button>
@@ -1542,7 +2020,9 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                         type="button"
                         data-bs-target={`#my-carousel-${p.id}`}
                         data-bs-slide="next"
-                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                        style={{
+                          filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                        }}
                       >
                         <span className="carousel-control-next-icon" />
                       </button>
@@ -1555,10 +2035,15 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
 
               <div className="card-footer bg-white">
                 <div className="d-flex justify-content-between align-items-center mb-2">
-                  <small className="text-muted">Enviado: {new Date(p.created_at).toLocaleString()}</small>
+                  <small className="text-muted">
+                    Enviado: {new Date(p.created_at).toLocaleString()}
+                  </small>
                   <button
                     className="btn btn-sm btn-celeste"
-                    onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openPublicationDetail(p);
+                    }}
                   >
                     Ver Detalles
                   </button>
@@ -1612,7 +2097,7 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
         token={token}
         me={{}}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => { }}
+        onToggleFavorite={() => {}}
       />
     </div>
   );
@@ -1635,23 +2120,32 @@ function FavoritesView({
     setOpenDetailModal(true);
   }
 
-  React.useEffect(() => { onLoad(); }, []);
+  React.useEffect(() => {
+    onLoad();
+  }, []);
 
   const [filter, setFilter] = React.useState("all");
   const shown = React.useMemo(
-    () => pubs.filter(p => filter === "all" ? true : (p.favorite_status || "pending") === filter),
-    [pubs, filter]
+    () =>
+      pubs.filter((p) =>
+        filter === "all" ? true : (p.favorite_status || "pending") === filter,
+      ),
+    [pubs, filter],
   );
 
   return (
     <div className="container-fluid py-4">
       <div className="d-flex align-items-center justify-content-between mb-4">
         <h3 className="mb-0">Mis Favoritos</h3>
-        <div className="btn-group btn-group-sm" role="group" aria-label="Filtro favoritos">
+        <div
+          className="btn-group btn-group-sm"
+          role="group"
+          aria-label="Filtro favoritos"
+        >
           {[
             { key: "all", label: "Todos" },
             { key: "pending", label: "⏳ Pendientes" },
-            { key: "done", label: "✅ Realizados" }
+            { key: "done", label: "✅ Realizados" },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -1704,31 +2198,50 @@ function FavoritesView({
                   <div className="d-flex justify-content-between align-items-start">
                     <div className="flex-grow-1">
                       <h5 className="card-title mb-1">{p.place_name}</h5>
-                      <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                      <small className="text-muted">
+                        📍 {p.address ? `${p.address}, ` : ""}
+                        {p.city}, {p.province}
+                        {p.country ? `, ${p.country}` : ""}
+                      </small>
 
                       <div className="mt-2">
                         <div className="mb-2">
-                          <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                          <RatingBadge
+                            avg={p.rating_avg}
+                            count={p.rating_count}
+                          />
                         </div>
                         <div className="d-flex flex-wrap gap-1">
                           {(p.categories || []).map((c) => (
-                            <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                            <span
+                              key={c}
+                              className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                            >
+                              {c}
+                            </span>
                           ))}
                         </div>
                       </div>
 
                       <p className="card-text mt-2 mb-0">
                         {p.cost_per_day ? (
-                          <span className="text-success fw-bold">${p.cost_per_day}</span>
+                          <span className="text-success fw-bold">
+                            ${p.cost_per_day}
+                          </span>
                         ) : (
-                          <span className="text-info fw-bold">El precio sujeto al consumo en el lugar</span>
+                          <span className="text-info fw-bold">
+                            El precio sujeto al consumo en el lugar
+                          </span>
                         )}
                       </p>
                     </div>
 
                     <button
                       className="btn btn-link p-0 ms-2"
-                      onClick={(e) => { e.stopPropagation(); onToggleFavorite(p.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(p.id);
+                      }}
                       style={{ fontSize: "1.5rem", textDecoration: "none" }}
                       title="Quitar de favoritos"
                     >
@@ -1738,10 +2251,17 @@ function FavoritesView({
                 </div>
 
                 {p.photos?.length ? (
-                  <div id={`fav-carousel-${p.id}`} className="carousel slide" data-bs-ride="false">
+                  <div
+                    id={`fav-carousel-${p.id}`}
+                    className="carousel slide"
+                    data-bs-ride="false"
+                  >
                     <div className="carousel-inner">
                       {p.photos.map((url, idx) => (
-                        <div className={`carousel-item ${idx === 0 ? "active" : ""}`} key={url}>
+                        <div
+                          className={`carousel-item ${idx === 0 ? "active" : ""}`}
+                          key={url}
+                        >
                           <img
                             src={url}
                             className="d-block w-100"
@@ -1759,7 +2279,10 @@ function FavoritesView({
                           type="button"
                           data-bs-target={`#fav-carousel-${p.id}`}
                           data-bs-slide="prev"
-                          style={{ filter: "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))" }}
+                          style={{
+                            filter:
+                              "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))",
+                          }}
                           aria-label="Anterior"
                           title="Anterior"
                         >
@@ -1770,7 +2293,10 @@ function FavoritesView({
                           type="button"
                           data-bs-target={`#fav-carousel-${p.id}`}
                           data-bs-slide="next"
-                          style={{ filter: "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))" }}
+                          style={{
+                            filter:
+                              "drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))",
+                          }}
                           aria-label="Siguiente"
                           title="Siguiente"
                         >
@@ -1785,19 +2311,33 @@ function FavoritesView({
 
                 <div className="card-footer bg-white d-flex justify-content-between align-items-center">
                   <button
-                    className={`btn btn-sm ${status === "done"
-                      ? "btn-success border-success text-white"
-                      : "btn-outline-secondary"
-                      }`}
-                    onClick={(e) => { e.stopPropagation(); onUpdateStatus(p.id, status === "done" ? "pending" : "done"); }}
-                    title={status === "done" ? "Marcar como Pendiente" : "Marcar como Realizado"}
+                    className={`btn btn-sm ${
+                      status === "done"
+                        ? "btn-success border-success text-white"
+                        : "btn-outline-secondary"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateStatus(
+                        p.id,
+                        status === "done" ? "pending" : "done",
+                      );
+                    }}
+                    title={
+                      status === "done"
+                        ? "Marcar como Pendiente"
+                        : "Marcar como Realizado"
+                    }
                   >
                     {status === "done" ? "Realizado" : "✓ Marcar realizado"}
                   </button>
 
                   <button
                     className="btn btn-sm btn-celeste"
-                    onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openPublicationDetail(p);
+                    }}
                   >
                     Ver Detalles
                   </button>
@@ -1810,7 +2350,8 @@ function FavoritesView({
 
       {!loading && pubs.length === 0 && (
         <div className="alert alert-secondary mt-3">
-          No tienes publicaciones favoritas aún. ¡Empieza a explorar y agrega tus lugares favoritos! 💝
+          No tienes publicaciones favoritas aún. ¡Empieza a explorar y agrega
+          tus lugares favoritos! 💝
         </div>
       )}
 
@@ -1820,7 +2361,7 @@ function FavoritesView({
         me={{}}
         token={token}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => { }}
+        onToggleFavorite={() => {}}
       />
     </div>
   );

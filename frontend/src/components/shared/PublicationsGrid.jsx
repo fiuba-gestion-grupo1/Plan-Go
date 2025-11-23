@@ -15,7 +15,7 @@ export default function PublicationsGrid({
   onToggleFavorite,
   renderActions = null,
   renderFooter = null,
-  showDetails = false
+  showDetails = false,
 }) {
   if (loading) {
     return <LoadingSpinner />;
@@ -29,7 +29,7 @@ export default function PublicationsGrid({
     <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
       {publications.map((pub) => {
         const isFavorite = favorites.includes(pub.id);
-        
+
         return (
           <div className="col" key={pub.id}>
             <PublicationCard

@@ -4,6 +4,7 @@ from ..db import engine
 
 router = APIRouter(prefix="/api/debug", tags=["debug"])
 
+
 @router.get("/db")
 def debug_db():
     insp = inspect(engine)

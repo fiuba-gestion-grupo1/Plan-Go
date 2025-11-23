@@ -6,6 +6,7 @@ from .. import models, schemas
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
 
+
 @router.get("", response_model=schemas.UserPreferenceOut)
 def get_my_preferences(db: Session = Depends(get_db), user=Depends(get_current_user)):
     pref = db.query(models.UserPreference).filter_by(user_id=user.id).first()
@@ -13,13 +14,16 @@ def get_my_preferences(db: Session = Depends(get_db), user=Depends(get_current_u
         return schemas.UserPreferenceOut(publication_type="all")
     if not pref.publication_type:
         pref.publication_type = "all"
-        
+
     return schemas.UserPreferenceOut.model_validate(pref.__dict__)
 
+
 @router.put("", response_model=schemas.UserPreferenceOut)
-def upsert_my_preferences(payload: schemas.UserPreferenceIn,
-                          db: Session = Depends(get_db),
-                          user=Depends(get_current_user)):
+def upsert_my_preferences(
+    payload: schemas.UserPreferenceIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
     pref = db.query(models.UserPreference).filter_by(user_id=user.id).first()
     if not pref:
         pref = models.UserPreference(user_id=user.id)

@@ -67,15 +67,11 @@ function SearchUsers({ me, onOpenMyProfile }) {
             budget: u.budget || "",
 
             about:
-              u.about ||
-              "Todavía no completó la descripción de su perfil.",
+              u.about || "Todavía no completó la descripción de su perfil.",
 
             tags: u.tags || [],
 
-            matchesWithYou:
-              u.matches_with_you ??
-              u.match_percentage ??
-              null,
+            matchesWithYou: u.matches_with_you ?? u.match_percentage ?? null,
           };
         });
 
@@ -93,10 +89,10 @@ function SearchUsers({ me, onOpenMyProfile }) {
         });
 
         const destArray = Array.from(destSet).sort((a, b) =>
-          a.localeCompare(b)
+          a.localeCompare(b),
         );
         const styleArray = Array.from(styleSet).sort((a, b) =>
-          a.localeCompare(b)
+          a.localeCompare(b),
         );
 
         if (!cancelled) {
@@ -128,19 +124,16 @@ function SearchUsers({ me, onOpenMyProfile }) {
 
     return travelers.filter((t) => {
       const bigText = `${t.username} ${t.name} ${t.destinations.join(
-        " "
+        " ",
       )} ${t.tags.join(" ")}`;
       const matchesText = !text || normalize(bigText).includes(text);
 
       const matchesDestination =
         filterDestination === "todos" ||
-        (t.destinations || []).some(
-          (d) => normalize(d) === filterDestNorm
-        );
+        (t.destinations || []).some((d) => normalize(d) === filterDestNorm);
 
       const matchesStyle =
-        filterStyle === "todos" ||
-        normalize(t.style) === filterStyleNorm;
+        filterStyle === "todos" || normalize(t.style) === filterStyleNorm;
 
       return matchesText && matchesDestination && matchesStyle;
     });
@@ -243,10 +236,10 @@ function SearchUsers({ me, onOpenMyProfile }) {
               {loading
                 ? "Cargando viajeros…"
                 : filteredTravelers.length === 0
-                ? "No encontramos viajeros con esos filtros."
-                : `Se encontraron ${filteredTravelers.length} viajero${
-                    filteredTravelers.length > 1 ? "s" : ""
-                  }`}
+                  ? "No encontramos viajeros con esos filtros."
+                  : `Se encontraron ${filteredTravelers.length} viajero${
+                      filteredTravelers.length > 1 ? "s" : ""
+                    }`}
             </small>
           </div>
         </div>
@@ -290,7 +283,14 @@ function SearchUsers({ me, onOpenMyProfile }) {
                     ))}
                   </div>
                   {t.style && (
-                    <span className="badge small me-2" style={{backgroundColor: '#3A92B5', opacity: 0.1, color: '#3A92B5'}}>
+                    <span
+                      className="badge small me-2"
+                      style={{
+                        backgroundColor: "#3A92B5",
+                        opacity: 0.1,
+                        color: "#3A92B5",
+                      }}
+                    >
                       ✈️ {t.style}
                     </span>
                   )}

@@ -3,6 +3,7 @@ import os, smtplib, socket
 from email.message import EmailMessage
 from fastapi import HTTPException, status
 
+
 def _smtp_config():
     host = os.getenv("SMTP_HOST")
     port = int(os.getenv("SMTP_PORT", "587"))
@@ -16,7 +17,10 @@ def _smtp_config():
         raise RuntimeError("SMTP no configurado: faltan SMTP_HOST/SMTP_USER/SMTP_PASS")
     return host, port, user, password, use_starttls, use_ssl, sender, timeout
 
-def send_email_html(to_email: str, subject: str, html_body: str, text_fallback: str | None = None):
+
+def send_email_html(
+    to_email: str, subject: str, html_body: str, text_fallback: str | None = None
+):
     host, port, user, password, use_starttls, use_ssl, sender, timeout = _smtp_config()
 
     msg = EmailMessage()
@@ -26,10 +30,16 @@ def send_email_html(to_email: str, subject: str, html_body: str, text_fallback: 
     msg.set_content(text_fallback or "Tu cliente de correo no soporta HTML.")
     msg.add_alternative(html_body, subtype="html")
 
-    print(f"[MAIL] Conectando a {host}:{port} (ssl={use_ssl}, starttls={use_starttls}, timeout={timeout}s) ...")
+    print(
+        f"[MAIL] Conectando a {host}:{port} (ssl={use_ssl}, starttls={use_starttls}, timeout={timeout}s) ..."
+    )
 
     try:
-        server = smtplib.SMTP_SSL(host, port, timeout=timeout) if use_ssl else smtplib.SMTP(host, port, timeout=timeout)
+        server = (
+            smtplib.SMTP_SSL(host, port, timeout=timeout)
+            if use_ssl
+            else smtplib.SMTP(host, port, timeout=timeout)
+        )
         with server:
             server.ehlo()
             if (not use_ssl) and use_starttls:
@@ -38,10 +48,16 @@ def send_email_html(to_email: str, subject: str, html_body: str, text_fallback: 
             server.login(user, password)
             server.send_message(msg)
     except (socket.timeout, TimeoutError) as e:
-        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                            detail=f"Timeout conectando a SMTP ({host}:{port}). Verificá firewall/red: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=f"Timeout conectando a SMTP ({host}:{port}). Verificá firewall/red: {e}",
+        )
     except smtplib.SMTPAuthenticationError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="No se pudo autenticar contra el servidor SMTP (ver credenciales).")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo autenticar contra el servidor SMTP (ver credenciales).",
+        )
     except smtplib.SMTPException as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Error SMTP: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Error SMTP: {e}"
+        )

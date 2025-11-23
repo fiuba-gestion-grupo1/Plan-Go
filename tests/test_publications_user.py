@@ -7,12 +7,15 @@ from sqlalchemy.orm import Session
 from backend.app import models
 from backend.app.api.publications import UPLOAD_DIR
 
+
 def _fake_img(name: str = "test.jpg", mime: str = "image/jpeg") -> tuple:
     return (name, io.BytesIO(b"fake-image-bytes"), mime)
+
 
 def _url_to_abspath(url: str) -> str:
     filename = url.split("/static/uploads/publications/")[-1]
     return os.path.join(UPLOAD_DIR, filename)
+
 
 @pytest.fixture
 def track_created_files():
@@ -24,6 +27,7 @@ def track_created_files():
                 os.remove(p)
         except Exception:
             pass
+
 
 def test_user_submit_publication_and_admin_approve(
     client: TestClient,

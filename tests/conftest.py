@@ -23,6 +23,7 @@ engine = create_engine(
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 def override_get_db():
     db = TestingSessionLocal()
     try:
@@ -30,13 +31,16 @@ def override_get_db():
     finally:
         db.close()
 
+
 app.dependency_overrides[get_db] = override_get_db
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
     """Crear las tablas una vez por sesión de tests."""
     Base.metadata.create_all(bind=engine)
     yield
+
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -53,11 +57,13 @@ def db_session():
     finally:
         session.close()
 
+
 @pytest.fixture(scope="module")
 def client():
     """Cliente de prueba de FastAPI."""
     with TestClient(app) as c:
         yield c
+
 
 @pytest.fixture(scope="function")
 def test_user_data():
@@ -70,6 +76,7 @@ def test_user_data():
         "security_question_2": "City of birth?",
         "security_answer_2": "Testville",
     }
+
 
 @pytest.fixture(scope="function")
 def test_user(db_session: TestingSessionLocal, test_user_data: dict):
@@ -109,7 +116,10 @@ def admin_user(db_session: TestingSessionLocal):
 
 @pytest.fixture(scope="function")
 def auth_headers(client: TestClient, test_user, test_user_data: dict):
-    login_data = {"identifier": test_user_data["email"], "password": test_user_data["password"]}
+    login_data = {
+        "identifier": test_user_data["email"],
+        "password": test_user_data["password"],
+    }
     response = client.post("/api/auth/login", json=login_data)
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -118,13 +128,14 @@ def auth_headers(client: TestClient, test_user, test_user_data: dict):
 @pytest.fixture(scope="function")
 def admin_headers(client: TestClient, admin_user):
     """Token Bearer para el admin."""
-    resp = client.post("/api/auth/login", json={
-        "identifier": admin_user.email,
-        "password": "adminpass"
-    })
+    resp = client.post(
+        "/api/auth/login",
+        json={"identifier": admin_user.email, "password": "adminpass"},
+    )
     assert resp.status_code == 200, resp.text
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_test_uploads():

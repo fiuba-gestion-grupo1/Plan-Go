@@ -3,6 +3,7 @@ from fastapi import status
 from backend.app import models
 from datetime import date
 
+
 def create_trip(db, user_id, name="Test Trip"):
     """
     Crea un viaje asociado a un usuario.
@@ -30,6 +31,7 @@ def create_expense(db, trip_id, **kwargs):
     db.refresh(expense)
     return expense
 
+
 def test_requires_auth_for_trips(client):
     """
     No debe permitir acceder a /api/trips sin autenticación.
@@ -42,17 +44,36 @@ def test_create_trip_and_add_expenses(client, db_session, test_user, auth_header
     """
     Crea un viaje, agrega gastos y valida los totales por categoría.
     """
-    r_trip = client.post("/api/trips", headers=auth_headers, json={"name": "Europa 2025"})
+    r_trip = client.post(
+        "/api/trips", headers=auth_headers, json={"name": "Europa 2025"}
+    )
     assert r_trip.status_code == 200, f"Error creando viaje: {r_trip.text}"
     trip_id = r_trip.json()["id"]
 
     expenses = [
-        {"name": "Cena en Roma", "category": "Comida", "amount": 50.0, "date": str(date.today())},
-        {"name": "Taxi aeropuerto", "category": "Transporte", "amount": 30.0, "date": str(date.today())},
-        {"name": "Pizza Napoli", "category": "Comida", "amount": 25.0, "date": str(date.today())},
+        {
+            "name": "Cena en Roma",
+            "category": "Comida",
+            "amount": 50.0,
+            "date": str(date.today()),
+        },
+        {
+            "name": "Taxi aeropuerto",
+            "category": "Transporte",
+            "amount": 30.0,
+            "date": str(date.today()),
+        },
+        {
+            "name": "Pizza Napoli",
+            "category": "Comida",
+            "amount": 25.0,
+            "date": str(date.today()),
+        },
     ]
     for e in expenses:
-        r_exp = client.post(f"/api/trips/{trip_id}/expenses", headers=auth_headers, json=e)
+        r_exp = client.post(
+            f"/api/trips/{trip_id}/expenses", headers=auth_headers, json=e
+        )
         assert r_exp.status_code == 200, f"Error agregando gasto: {r_exp.text}"
 
     r_list = client.get(f"/api/trips/{trip_id}/expenses", headers=auth_headers)

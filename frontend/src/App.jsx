@@ -63,17 +63,17 @@ function AppWithRouter() {
           setMe(meResp);
           const isAdminUser =
             meResp?.role === "admin" || meResp?.username === "admin";
-          
+
           const urlParams = new URLSearchParams(window.location.search);
-          const viewParam = urlParams.get('view');
-          const showIdParam = urlParams.get('showId');
-          
+          const viewParam = urlParams.get("view");
+          const showIdParam = urlParams.get("showId");
+
           if (viewParam) {
-            console.log('🔗 [URL] Vista desde URL:', viewParam);
+            console.log("🔗 [URL] Vista desde URL:", viewParam);
             setAuthView(viewParam);
             if (showIdParam) {
-              console.log('🔗 [URL] ID para mostrar:', showIdParam);
-              localStorage.setItem('showItineraryId', showIdParam);
+              console.log("🔗 [URL] ID para mostrar:", showIdParam);
+              localStorage.setItem("showItineraryId", showIdParam);
             }
           } else {
             setAuthView(isAdminUser ? "approved-publications" : "publications");
@@ -271,9 +271,7 @@ function AppWithRouter() {
           <ItinerarySelector onNavigate={handleNavigate} />
         )}
 
-        {authView === "itinerary-ai" && (
-          <ItineraryRequest me={me} />
-        )}
+        {authView === "itinerary-ai" && <ItineraryRequest me={me} />}
 
         {authView === "itinerary-custom" && (
           <CustomItinerary me={me} token={token} />
@@ -342,16 +340,12 @@ function AppWithRouter() {
               <Login setToken={setToken} setView={setView} />
             )}
             {view === "register" && <Register setView={setView} />}
-            {view === "forgot-password" && (
-              <ForgotPassword setView={setView} />
-            )}
+            {view === "forgot-password" && <ForgotPassword setView={setView} />}
           </div>
 
           <div className="text-center mt-3">
             <button
-              onClick={() =>
-                setView(view === "login" ? "register" : "login")
-              }
+              onClick={() => setView(view === "login" ? "register" : "login")}
               className="btn btn-link text-blue fw-bold"
             >
               {view === "login"
@@ -393,32 +387,38 @@ function AppWithRouter() {
       <Route
         path="/perfil"
         element={
-          token && me
-            ? renderShell(<TravelerProfile me={me} />)
-            : <Navigate to="/" replace />
+          token && me ? (
+            renderShell(<TravelerProfile me={me} />)
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
 
       <Route
         path="/viajeros"
         element={
-          token && me
-            ? renderShell(
-                <SearchUsers
-                  me={me}
-                  onOpenMyProfile={() => handleNavigate("my-traveler-profile")}
-                />
-              )
-            : <Navigate to="/" replace />
+          token && me ? (
+            renderShell(
+              <SearchUsers
+                me={me}
+                onOpenMyProfile={() => handleNavigate("my-traveler-profile")}
+              />,
+            )
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
 
       <Route
         path="/viajeros/:userId"
         element={
-          token && me
-            ? renderShell(<TravelerProfile me={me} />)
-            : <Navigate to="/" replace />
+          token && me ? (
+            renderShell(<TravelerProfile me={me} />)
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
 

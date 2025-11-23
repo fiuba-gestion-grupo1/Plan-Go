@@ -1,28 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { request } from '../utils/api';
+import React, { useState, useEffect } from "react";
+import { request } from "../utils/api";
 import PublicationDetailModal from "../components/PublicationDetailModal";
 
 export default function Benefits({ token, me }) {
-  const [activeView, setActiveView] = useState('benefits');
+  const [activeView, setActiveView] = useState("benefits");
   const [userPoints, setUserPoints] = useState(0);
   const [pointsMovements, setPointsMovements] = useState([]);
   const [premiumBenefits, setPremiumBenefits] = useState([]);
   const [userBenefits, setUserBenefits] = useState([]);
   const [obtainedBenefits, setObtainedBenefits] = useState(new Set());
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  
+  const [error, setError] = useState("");
+
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [showPublicationModal, setShowPublicationModal] = useState(false);
   const [selectedBenefit, setSelectedBenefit] = useState(null);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [selectedPublication, setSelectedPublication] = useState(null);
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [percentageFilter, setPercentageFilter] = useState('');
-  const [pointsFilter, setPointsFilter] = useState('');
-  const [activityFilter, setActivityFilter] = useState('');
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [percentageFilter, setPercentageFilter] = useState("");
+  const [pointsFilter, setPointsFilter] = useState("");
+  const [activityFilter, setActivityFilter] = useState("");
   const [filteredBenefits, setFilteredBenefits] = useState([]);
 
   useEffect(() => {
@@ -37,10 +37,10 @@ export default function Benefits({ token, me }) {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -61,35 +61,42 @@ export default function Benefits({ token, me }) {
 
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
-        filtered = filtered.filter(benefit => {
+        filtered = filtered.filter((benefit) => {
           try {
             return (
               (benefit.title && benefit.title.toLowerCase().includes(term)) ||
-              (benefit.description && benefit.description.toLowerCase().includes(term)) ||
-              (benefit.publication?.place_name && benefit.publication.place_name.toLowerCase().includes(term)) ||
-              (benefit.publication?.city && benefit.publication.city.toLowerCase().includes(term)) ||
-              (benefit.publication?.province && benefit.publication.province.toLowerCase().includes(term)) ||
-              (benefit.publication?.country && benefit.publication.country.toLowerCase().includes(term)) ||
-              (benefit.publication?.continent && benefit.publication.continent.toLowerCase().includes(term)) ||
-              (benefit.publication?.activities && Array.isArray(benefit.publication.activities) && 
-                benefit.publication.activities.some(activity => 
-                  activity && activity.toLowerCase().includes(term)
-                )
-              )
+              (benefit.description &&
+                benefit.description.toLowerCase().includes(term)) ||
+              (benefit.publication?.place_name &&
+                benefit.publication.place_name.toLowerCase().includes(term)) ||
+              (benefit.publication?.city &&
+                benefit.publication.city.toLowerCase().includes(term)) ||
+              (benefit.publication?.province &&
+                benefit.publication.province.toLowerCase().includes(term)) ||
+              (benefit.publication?.country &&
+                benefit.publication.country.toLowerCase().includes(term)) ||
+              (benefit.publication?.continent &&
+                benefit.publication.continent.toLowerCase().includes(term)) ||
+              (benefit.publication?.activities &&
+                Array.isArray(benefit.publication.activities) &&
+                benefit.publication.activities.some(
+                  (activity) =>
+                    activity && activity.toLowerCase().includes(term),
+                ))
             );
           } catch (e) {
-            console.warn('Error filtering benefit:', e, benefit);
+            console.warn("Error filtering benefit:", e, benefit);
             return false;
           }
         });
       }
 
       if (percentageFilter) {
-        if (percentageFilter === 'no-discount') {
-          filtered = filtered.filter(benefit => !benefit.discount_percentage);
+        if (percentageFilter === "no-discount") {
+          filtered = filtered.filter((benefit) => !benefit.discount_percentage);
         } else {
-          const [min, max] = percentageFilter.split('-').map(Number);
-          filtered = filtered.filter(benefit => {
+          const [min, max] = percentageFilter.split("-").map(Number);
+          filtered = filtered.filter((benefit) => {
             const discount = benefit.discount_percentage || 0;
             return discount >= min && (max ? discount <= max : true);
           });
@@ -97,30 +104,32 @@ export default function Benefits({ token, me }) {
       }
 
       if (pointsFilter) {
-        const [min, max] = pointsFilter.split('-').map(Number);
-        filtered = filtered.filter(benefit => {
+        const [min, max] = pointsFilter.split("-").map(Number);
+        filtered = filtered.filter((benefit) => {
           try {
             const points = calculatePointsCost(benefit);
             return points >= min && (max ? points <= max : true);
           } catch (e) {
-            console.warn('Error calculating points for benefit:', e, benefit);
+            console.warn("Error calculating points for benefit:", e, benefit);
             return false;
           }
         });
       }
 
       if (activityFilter) {
-        filtered = filtered.filter(benefit => {
+        filtered = filtered.filter((benefit) => {
           try {
             return (
-              benefit.publication?.activities && 
+              benefit.publication?.activities &&
               Array.isArray(benefit.publication.activities) &&
-              benefit.publication.activities.some(activity => 
-                activity && activity.toLowerCase().includes(activityFilter.toLowerCase())
+              benefit.publication.activities.some(
+                (activity) =>
+                  activity &&
+                  activity.toLowerCase().includes(activityFilter.toLowerCase()),
               )
             );
           } catch (e) {
-            console.warn('Error filtering by activity:', e, benefit);
+            console.warn("Error filtering by activity:", e, benefit);
             return false;
           }
         });
@@ -128,18 +137,24 @@ export default function Benefits({ token, me }) {
 
       setFilteredBenefits(filtered);
     } catch (error) {
-      console.error('Error in benefits filtering:', error);
+      console.error("Error in benefits filtering:", error);
       setFilteredBenefits([]);
     }
-  }, [premiumBenefits, searchTerm, percentageFilter, pointsFilter, activityFilter]);
+  }, [
+    premiumBenefits,
+    searchTerm,
+    percentageFilter,
+    pointsFilter,
+    activityFilter,
+  ]);
 
   async function fetchUserPoints() {
     setLoading(true);
     try {
-      const data = await request('/api/users/points', { token });
+      const data = await request("/api/users/points", { token });
       setUserPoints(data.points || 0);
     } catch (e) {
-      console.error('Error al cargar puntos:', e);
+      console.error("Error al cargar puntos:", e);
       setUserPoints(0);
     } finally {
       setLoading(false);
@@ -148,13 +163,13 @@ export default function Benefits({ token, me }) {
 
   async function fetchPointsMovements() {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const data = await request('/api/users/points/movements', { token });
+      const data = await request("/api/users/points/movements", { token });
       setPointsMovements(data || []);
     } catch (e) {
-      console.error('Error al cargar movimientos:', e);
-      setError('Error al cargar el historial de puntos');
+      console.error("Error al cargar movimientos:", e);
+      setError("Error al cargar el historial de puntos");
     } finally {
       setLoading(false);
     }
@@ -162,17 +177,21 @@ export default function Benefits({ token, me }) {
 
   async function fetchPremiumBenefits() {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const data = await request('/api/users/benefits', { token });
+      const data = await request("/api/users/benefits", { token });
       setPremiumBenefits(data || []);
-      
-      const userBenefitsData = await request('/api/users/my-benefits', { token });
-      const obtainedIds = new Set(userBenefitsData.map(ub => ub.benefit.publication.id));
+
+      const userBenefitsData = await request("/api/users/my-benefits", {
+        token,
+      });
+      const obtainedIds = new Set(
+        userBenefitsData.map((ub) => ub.benefit.publication.id),
+      );
       setObtainedBenefits(obtainedIds);
     } catch (e) {
-      console.error('Error al cargar beneficios:', e);
-      setError('Error al cargar los beneficios premium');
+      console.error("Error al cargar beneficios:", e);
+      setError("Error al cargar los beneficios premium");
     } finally {
       setLoading(false);
     }
@@ -180,13 +199,13 @@ export default function Benefits({ token, me }) {
 
   async function fetchUserBenefits() {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const data = await request('/api/users/my-benefits', { token });
+      const data = await request("/api/users/my-benefits", { token });
       setUserBenefits(data || []);
     } catch (e) {
-      console.error('Error al cargar mis beneficios:', e);
-      setError('Error al cargar mis beneficios');
+      console.error("Error al cargar mis beneficios:", e);
+      setError("Error al cargar mis beneficios");
     } finally {
       setLoading(false);
     }
@@ -195,22 +214,23 @@ export default function Benefits({ token, me }) {
   async function redeemBenefit(benefitId) {
     try {
       setLoading(true);
-      const result = await request(`/api/users/benefits/${benefitId}/redeem`, { 
-        method: 'POST', 
-        token 
+      const result = await request(`/api/users/benefits/${benefitId}/redeem`, {
+        method: "POST",
+        token,
       });
-      
+
       setUserPoints(result.remaining_points);
-      
-      setObtainedBenefits(prev => new Set([...prev, selectedBenefit.publication.id]));
-      
+
+      setObtainedBenefits(
+        (prev) => new Set([...prev, selectedBenefit.publication.id]),
+      );
+
       setShowConfirmModal(false);
       setSelectedBenefit(null);
-      
+
       alert(`¡Beneficio obtenido! Código: ${result.voucher_code}`);
-      
     } catch (e) {
-      setError(e.detail || 'Error al obtener el beneficio');
+      setError(e.detail || "Error al obtener el beneficio");
     } finally {
       setLoading(false);
     }
@@ -218,12 +238,16 @@ export default function Benefits({ token, me }) {
 
   function calculatePointsCost(benefit) {
     try {
-      if (benefit && typeof benefit.discount_percentage === 'number' && benefit.discount_percentage > 0) {
+      if (
+        benefit &&
+        typeof benefit.discount_percentage === "number" &&
+        benefit.discount_percentage > 0
+      ) {
         return benefit.discount_percentage * 2;
       }
       return 20;
     } catch (e) {
-      console.warn('Error calculating points cost:', e, benefit);
+      console.warn("Error calculating points cost:", e, benefit);
       return 20;
     }
   }
@@ -245,47 +269,52 @@ export default function Benefits({ token, me }) {
 
   function handleViewChange(view) {
     setActiveView(view);
-    if (view === 'movements') {
+    if (view === "movements") {
       fetchPointsMovements();
-    } else if (view === 'benefits') {
+    } else if (view === "benefits") {
       fetchPremiumBenefits();
-    } else if (view === 'my-benefits') {
+    } else if (view === "my-benefits") {
       fetchUserBenefits();
     }
   }
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateStr).toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getMovementIcon = (transactionType) => {
     switch (transactionType) {
-      case 'review_earned': return '⭐';
-      case 'invitation_bonus': return '👥';
-      case 'bonus': return '🎁';
-      case 'redeemed': return '💸';
-      default: return '💎';
+      case "review_earned":
+        return "⭐";
+      case "invitation_bonus":
+        return "👥";
+      case "bonus":
+        return "🎁";
+      case "redeemed":
+        return "💸";
+      default:
+        return "💎";
     }
   };
 
   const getMovementDescription = (movement) => {
     switch (movement.transaction_type) {
-      case 'review_earned': 
+      case "review_earned":
         return `Puntos ganados por reseña: "${movement.description}"`;
-      case 'invitation_bonus':
+      case "invitation_bonus":
         return `Puntos por invitar a: ${movement.description}`;
-      case 'bonus': 
+      case "bonus":
         return `Bonus especial: ${movement.description}`;
-      case 'redeemed': 
+      case "redeemed":
         return `Puntos canjeados: ${movement.description}`;
-      default: 
-        return movement.description || 'Movimiento de puntos';
+      default:
+        return movement.description || "Movimiento de puntos";
     }
   };
 
@@ -294,7 +323,7 @@ export default function Benefits({ token, me }) {
       <div className="d-flex align-items-center justify-content-between mb-4">
         <h3 className="mb-0">🎁 Beneficios Premium</h3>
         <div className="badge bg-warning text-dark fs-6 px-3 py-2">
-          💎 {loading ? '...' : userPoints} puntos
+          💎 {loading ? "..." : userPoints} puntos
         </div>
       </div>
 
@@ -302,26 +331,26 @@ export default function Benefits({ token, me }) {
 
       <div className="d-flex mb-4 border-bottom">
         <button
-          className={`btn pb-2 ${activeView === 'benefits' ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
-          onClick={() => handleViewChange('benefits')}
+          className={`btn pb-2 ${activeView === "benefits" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
+          onClick={() => handleViewChange("benefits")}
         >
           🎁 Beneficios disponibles
         </button>
         <button
-          className={`btn pb-2 ${activeView === 'my-benefits' ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
-          onClick={() => handleViewChange('my-benefits')}
+          className={`btn pb-2 ${activeView === "my-benefits" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
+          onClick={() => handleViewChange("my-benefits")}
         >
           🎯 Mis descuentos
         </button>
         <button
-          className={`btn pb-2 ${activeView === 'movements' ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
-          onClick={() => handleViewChange('movements')}
+          className={`btn pb-2 ${activeView === "movements" ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
+          onClick={() => handleViewChange("movements")}
         >
           📋 Historial de puntos
         </button>
       </div>
 
-      {activeView === 'benefits' && (
+      {activeView === "benefits" && (
         <div>
           <div className="row mb-4">
             <div className="col-lg-6">
@@ -329,7 +358,12 @@ export default function Benefits({ token, me }) {
                 <div className="card-body text-center">
                   <div className="display-4 text-warning mb-3">💎</div>
                   <h4 className="mb-2">Tus puntos actuales</h4>
-                  <div className="display-5 fw-bold mb-3" style={{color: '#3A92B5'}}>{loading ? '...' : userPoints}</div>
+                  <div
+                    className="display-5 fw-bold mb-3"
+                    style={{ color: "#3A92B5" }}
+                  >
+                    {loading ? "..." : userPoints}
+                  </div>
                   <p className="text-muted">
                     Ganá más puntos escribiendo reseñas detalladas
                   </p>
@@ -349,7 +383,9 @@ export default function Benefits({ token, me }) {
                         <div>
                           <strong>Escribir reseñas</strong>
                           <br />
-                          <small className="text-muted">+10 puntos por reseña detallada</small>
+                          <small className="text-muted">
+                            +10 puntos por reseña detallada
+                          </small>
                         </div>
                       </div>
                     </li>
@@ -359,7 +395,9 @@ export default function Benefits({ token, me }) {
                         <div>
                           <strong>Invitar un amigo</strong>
                           <br />
-                          <small className="text-muted">+50 puntos por invitación exitosa</small>
+                          <small className="text-muted">
+                            +50 puntos por invitación exitosa
+                          </small>
                         </div>
                       </div>
                     </li>
@@ -370,12 +408,14 @@ export default function Benefits({ token, me }) {
           </div>
 
           <h5 className="mb-4">🎁 Beneficios disponibles</h5>
-          
+
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <div className="row g-3">
                 <div className="col-12 col-md-6 col-lg-4">
-                  <label className="form-label small fw-bold">🔍 Buscar beneficios</label>
+                  <label className="form-label small fw-bold">
+                    🔍 Buscar beneficios
+                  </label>
                   <input
                     type="text"
                     className="form-control"
@@ -384,9 +424,11 @@ export default function Benefits({ token, me }) {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                
+
                 <div className="col-12 col-md-6 col-lg-2">
-                  <label className="form-label small fw-bold">💸 % Descuento</label>
+                  <label className="form-label small fw-bold">
+                    💸 % Descuento
+                  </label>
                   <select
                     className="form-select"
                     value={percentageFilter}
@@ -401,7 +443,7 @@ export default function Benefits({ token, me }) {
                     <option value="50">50%+</option>
                   </select>
                 </div>
-                
+
                 <div className="col-12 col-md-6 col-lg-2">
                   <label className="form-label small fw-bold">💎 Puntos</label>
                   <select
@@ -417,9 +459,11 @@ export default function Benefits({ token, me }) {
                     <option value="100">100+</option>
                   </select>
                 </div>
-                
+
                 <div className="col-12 col-md-6 col-lg-2">
-                  <label className="form-label small fw-bold">🎯 Actividad</label>
+                  <label className="form-label small fw-bold">
+                    🎯 Actividad
+                  </label>
                   <input
                     type="text"
                     className="form-control"
@@ -428,27 +472,33 @@ export default function Benefits({ token, me }) {
                     onChange={(e) => setActivityFilter(e.target.value)}
                   />
                 </div>
-                
+
                 <div className="col-12 col-md-6 col-lg-2 d-flex align-items-end">
                   <button
                     type="button"
                     className="btn btn-outline-secondary w-100"
                     onClick={() => {
-                      setSearchTerm('');
-                      setPercentageFilter('');
-                      setPointsFilter('');
-                      setActivityFilter('');
+                      setSearchTerm("");
+                      setPercentageFilter("");
+                      setPointsFilter("");
+                      setActivityFilter("");
                     }}
                   >
                     🗑️ Limpiar
                   </button>
                 </div>
               </div>
-              
+
               {!loading && (
                 <div className="mt-3 text-muted small">
-                  {searchTerm || percentageFilter || pointsFilter || activityFilter ? (
-                    <>Mostrando {filteredBenefits.length} de {premiumBenefits.length} beneficios</>
+                  {searchTerm ||
+                  percentageFilter ||
+                  pointsFilter ||
+                  activityFilter ? (
+                    <>
+                      Mostrando {filteredBenefits.length} de{" "}
+                      {premiumBenefits.length} beneficios
+                    </>
                   ) : (
                     <>{premiumBenefits.length} beneficios disponibles</>
                   )}
@@ -456,14 +506,21 @@ export default function Benefits({ token, me }) {
               )}
             </div>
           </div>
-          
+
           <div className="row g-4">
             {loading ? (
               <div className="col-12 text-center py-4">
-                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                <div
+                  className="spinner-border spinner-border-sm me-2"
+                  role="status"
+                ></div>
                 Cargando beneficios...
               </div>
-            ) : (searchTerm || percentageFilter || pointsFilter || activityFilter) && filteredBenefits.length === 0 ? (
+            ) : (searchTerm ||
+                percentageFilter ||
+                pointsFilter ||
+                activityFilter) &&
+              filteredBenefits.length === 0 ? (
               <div className="col-12">
                 <div className="text-center py-4 text-muted">
                   <div className="mb-3">🔍</div>
@@ -476,96 +533,122 @@ export default function Benefits({ token, me }) {
                 <div className="text-center py-4 text-muted">
                   <div className="mb-3">🎁</div>
                   <p>No hay beneficios disponibles en este momento.</p>
-                  <small>Agregamos nuevos descuentos y ofertas regularmente.</small>
+                  <small>
+                    Agregamos nuevos descuentos y ofertas regularmente.
+                  </small>
                 </div>
               </div>
             ) : (
-              (searchTerm || percentageFilter || pointsFilter || activityFilter ? filteredBenefits : premiumBenefits).map((benefit) => {
-              const pointsCost = calculatePointsCost(benefit);
-              const isObtained = obtainedBenefits.has(benefit.publication.id);
-              
-              return (
-                <div className="col-md-6 col-lg-4" key={benefit.id}>
-                  <div className="card shadow-sm h-100">
-                    <div className="card-body">
-                      <div className="d-flex align-items-start justify-content-between mb-3">
-                        <h5 className="card-title mb-0 flex-grow-1">{benefit.title}</h5>
-                        {benefit.discount_percentage && (
-                          <span className="badge bg-success ms-2">
-                            -{benefit.discount_percentage}%
-                          </span>
-                        )}
-                        {benefit.benefit_type === 'free_item' && (
-                          <span className="badge ms-2" style={{backgroundColor: '#3A92B5', color: 'white'}}>GRATIS</span>
-                        )}
-                        {benefit.benefit_type === 'upgrade' && (
-                          <span className="badge bg-warning text-dark ms-2">UPGRADE</span>
-                        )}
-                      </div>
-                      
-                      <h6 className="text-primary mb-2">
-                        📍 {benefit.publication.place_name}
-                      </h6>
-                      
-                      <p className="text-muted small mb-2">
-                        {benefit.publication.city}, {benefit.publication.province}
-                      </p>
-                      
-                      <p className="mb-3">{benefit.description}</p>
-                      
-                      <div className="bg-light p-2 rounded mb-3">
-                        <small className="text-muted">
-                          💎 <strong>Costo: {pointsCost} puntos</strong>
-                        </small>
-                      </div>
-                      
-                      {benefit.terms_conditions && (
+              (searchTerm || percentageFilter || pointsFilter || activityFilter
+                ? filteredBenefits
+                : premiumBenefits
+              ).map((benefit) => {
+                const pointsCost = calculatePointsCost(benefit);
+                const isObtained = obtainedBenefits.has(benefit.publication.id);
+
+                return (
+                  <div className="col-md-6 col-lg-4" key={benefit.id}>
+                    <div className="card shadow-sm h-100">
+                      <div className="card-body">
+                        <div className="d-flex align-items-start justify-content-between mb-3">
+                          <h5 className="card-title mb-0 flex-grow-1">
+                            {benefit.title}
+                          </h5>
+                          {benefit.discount_percentage && (
+                            <span className="badge bg-success ms-2">
+                              -{benefit.discount_percentage}%
+                            </span>
+                          )}
+                          {benefit.benefit_type === "free_item" && (
+                            <span
+                              className="badge ms-2"
+                              style={{
+                                backgroundColor: "#3A92B5",
+                                color: "white",
+                              }}
+                            >
+                              GRATIS
+                            </span>
+                          )}
+                          {benefit.benefit_type === "upgrade" && (
+                            <span className="badge bg-warning text-dark ms-2">
+                              UPGRADE
+                            </span>
+                          )}
+                        </div>
+
+                        <h6 className="text-primary mb-2">
+                          📍 {benefit.publication.place_name}
+                        </h6>
+
+                        <p className="text-muted small mb-2">
+                          {benefit.publication.city},{" "}
+                          {benefit.publication.province}
+                        </p>
+
+                        <p className="mb-3">{benefit.description}</p>
+
                         <div className="bg-light p-2 rounded mb-3">
                           <small className="text-muted">
-                            <strong>Términos:</strong> {benefit.terms_conditions}
+                            💎 <strong>Costo: {pointsCost} puntos</strong>
                           </small>
                         </div>
-                      )}
-                    </div>
-                    
-                    <div className="card-footer bg-transparent">
-                      <div className="d-grid gap-2">
-                        <button
-                          className="btn btn-outline-primary btn-sm"
-                          onClick={() => handleShowPublication(benefit.publication)}
-                        >
-                          Ver detalle de la publicación
-                        </button>
-                        
-                        {isObtained ? (
-                          <button className="btn btn-success btn-sm" disabled>
-                            ✅ ¡Obtenido!
-                          </button>
-                        ) : (
-                          <button
-                            className="btn btn-outline-custom btn-sm"
-                            onClick={() => handleObtainBenefit(benefit)}
-                            disabled={userPoints < pointsCost}
-                          >
-                            {userPoints < pointsCost ? 'Puntos insuficientes' : 'Obtener beneficio'}
-                          </button>
+
+                        {benefit.terms_conditions && (
+                          <div className="bg-light p-2 rounded mb-3">
+                            <small className="text-muted">
+                              <strong>Términos:</strong>{" "}
+                              {benefit.terms_conditions}
+                            </small>
+                          </div>
                         )}
+                      </div>
+
+                      <div className="card-footer bg-transparent">
+                        <div className="d-grid gap-2">
+                          <button
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() =>
+                              handleShowPublication(benefit.publication)
+                            }
+                          >
+                            Ver detalle de la publicación
+                          </button>
+
+                          {isObtained ? (
+                            <button className="btn btn-success btn-sm" disabled>
+                              ✅ ¡Obtenido!
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-outline-custom btn-sm"
+                              onClick={() => handleObtainBenefit(benefit)}
+                              disabled={userPoints < pointsCost}
+                            >
+                              {userPoints < pointsCost
+                                ? "Puntos insuficientes"
+                                : "Obtener beneficio"}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })
             )}
           </div>
         </div>
       )}
 
-      {activeView === 'my-benefits' && (
+      {activeView === "my-benefits" && (
         <div className="row g-4">
           {loading ? (
             <div className="col-12 text-center py-4">
-              <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+              <div
+                className="spinner-border spinner-border-sm me-2"
+                role="status"
+              ></div>
               Cargando mis beneficios...
             </div>
           ) : userBenefits.length === 0 ? (
@@ -573,7 +656,10 @@ export default function Benefits({ token, me }) {
               <div className="text-center py-4 text-muted">
                 <div className="mb-3">🎫</div>
                 <p>No tienes beneficios canjeados aún.</p>
-                <small>Ve a la pestaña "Beneficios disponibles" para obtener descuentos.</small>
+                <small>
+                  Ve a la pestaña "Beneficios disponibles" para obtener
+                  descuentos.
+                </small>
               </div>
             </div>
           ) : (
@@ -584,34 +670,42 @@ export default function Benefits({ token, me }) {
                   <div className="card shadow-sm h-100 border-success">
                     <div className="card-body">
                       <div className="d-flex align-items-start justify-content-between mb-3">
-                        <h5 className="card-title mb-0 flex-grow-1">{benefit.title}</h5>
+                        <h5 className="card-title mb-0 flex-grow-1">
+                          {benefit.title}
+                        </h5>
                         <span className="badge bg-success">ACTIVO</span>
                       </div>
-                      
+
                       <h6 className="text-primary mb-2">
                         📍 {benefit.publication.place_name}
                       </h6>
-                      
+
                       <p className="text-muted small mb-2">
-                        {benefit.publication.city}, {benefit.publication.province}
+                        {benefit.publication.city},{" "}
+                        {benefit.publication.province}
                       </p>
-                      
+
                       <p className="mb-3">{benefit.description}</p>
-                      
+
                       <div className="bg-light p-2 rounded mb-3">
                         <small className="text-muted">
-                          <strong>Obtenido:</strong> {new Date(userBenefit.obtained_at).toLocaleDateString('es-ES')}
+                          <strong>Obtenido:</strong>{" "}
+                          {new Date(userBenefit.obtained_at).toLocaleDateString(
+                            "es-ES",
+                          )}
                           <br />
                           <strong>Código:</strong> {userBenefit.voucher_code}
                         </small>
                       </div>
                     </div>
-                    
+
                     <div className="card-footer bg-transparent">
                       <div className="d-grid gap-2">
                         <button
                           className="btn btn-outline-primary btn-sm"
-                          onClick={() => handleShowPublication(benefit.publication)}
+                          onClick={() =>
+                            handleShowPublication(benefit.publication)
+                          }
                         >
                           Ver detalle de la publicación
                         </button>
@@ -631,7 +725,7 @@ export default function Benefits({ token, me }) {
         </div>
       )}
 
-      {activeView === 'movements' && (
+      {activeView === "movements" && (
         <div className="card shadow-sm">
           <div className="card-header">
             <h5 className="mb-0">📋 Historial de movimientos</h5>
@@ -639,14 +733,20 @@ export default function Benefits({ token, me }) {
           <div className="card-body">
             {loading ? (
               <div className="text-center py-4">
-                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                <div
+                  className="spinner-border spinner-border-sm me-2"
+                  role="status"
+                ></div>
                 Cargando movimientos...
               </div>
             ) : pointsMovements.length === 0 ? (
               <div className="text-center py-4 text-muted">
                 <div className="mb-3">📭</div>
                 <p>Aún no tenés movimientos de puntos.</p>
-                <small>Comenzá a escribir reseñas o invitar amigos para ganar tus primeros puntos.</small>
+                <small>
+                  Comenzá a escribir reseñas o invitar amigos para ganar tus
+                  primeros puntos.
+                </small>
               </div>
             ) : (
               <div className="table-responsive">
@@ -666,13 +766,18 @@ export default function Benefits({ token, me }) {
                         </td>
                         <td>
                           <div className="d-flex align-items-center">
-                            <span className="me-2">{getMovementIcon(movement.transaction_type)}</span>
+                            <span className="me-2">
+                              {getMovementIcon(movement.transaction_type)}
+                            </span>
                             <span>{getMovementDescription(movement)}</span>
                           </div>
                         </td>
                         <td className="text-end">
-                          <span className={`fw-bold ${movement.points > 0 ? 'text-success' : 'text-danger'}`}>
-                            {movement.points > 0 ? '+' : ''}{movement.points}
+                          <span
+                            className={`fw-bold ${movement.points > 0 ? "text-success" : "text-danger"}`}
+                          >
+                            {movement.points > 0 ? "+" : ""}
+                            {movement.points}
                           </span>
                         </td>
                       </tr>
@@ -686,7 +791,11 @@ export default function Benefits({ token, me }) {
       )}
 
       {showConfirmModal && selectedBenefit && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div
+          className="modal show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
@@ -700,20 +809,32 @@ export default function Benefits({ token, me }) {
               <div className="modal-body">
                 <div className="text-center mb-3">
                   <h5>{selectedBenefit.title}</h5>
-                  <p className="text-muted">📍 {selectedBenefit.publication.place_name}</p>
+                  <p className="text-muted">
+                    📍 {selectedBenefit.publication.place_name}
+                  </p>
                 </div>
-                
+
                 <div className="alert alert-warning">
-                  <strong>¿Estás seguro de querer obtener este beneficio?</strong>
+                  <strong>
+                    ¿Estás seguro de querer obtener este beneficio?
+                  </strong>
                   <br />
-                  Se descontarán <strong>{calculatePointsCost(selectedBenefit)} puntos</strong> de tu cuenta.
+                  Se descontarán{" "}
+                  <strong>
+                    {calculatePointsCost(selectedBenefit)} puntos
+                  </strong>{" "}
+                  de tu cuenta.
                 </div>
-                
+
                 <div className="bg-light p-3 rounded">
                   <small>
-                    <strong>Puntos actuales:</strong> {userPoints}<br />
-                    <strong>Costo del beneficio:</strong> -{calculatePointsCost(selectedBenefit)}<br />
-                    <strong>Puntos restantes:</strong> {userPoints - calculatePointsCost(selectedBenefit)}
+                    <strong>Puntos actuales:</strong> {userPoints}
+                    <br />
+                    <strong>Costo del beneficio:</strong> -
+                    {calculatePointsCost(selectedBenefit)}
+                    <br />
+                    <strong>Puntos restantes:</strong>{" "}
+                    {userPoints - calculatePointsCost(selectedBenefit)}
                   </small>
                 </div>
               </div>
@@ -731,7 +852,7 @@ export default function Benefits({ token, me }) {
                   onClick={() => redeemBenefit(selectedBenefit.id)}
                   disabled={loading}
                 >
-                  {loading ? 'Procesando...' : 'Sí, obtener beneficio'}
+                  {loading ? "Procesando..." : "Sí, obtener beneficio"}
                 </button>
               </div>
             </div>
@@ -740,7 +861,11 @@ export default function Benefits({ token, me }) {
       )}
 
       {showVoucherModal && selectedVoucher && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div
+          className="modal show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
@@ -753,103 +878,145 @@ export default function Benefits({ token, me }) {
               </div>
               <div className="modal-body text-center">
                 <div className="border rounded p-4 bg-light">
-                  <h4 className="mb-3" style={{color: '#3A92B5'}}>Plan&Go Premium</h4>
-                  
+                  <h4 className="mb-3" style={{ color: "#3A92B5" }}>
+                    Plan&Go Premium
+                  </h4>
+
                   {selectedVoucher.benefit.discount_percentage && (
                     <div className="badge bg-success fs-6 mb-3">
                       -{selectedVoucher.benefit.discount_percentage}% DESCUENTO
                     </div>
                   )}
-                  
+
                   <h5 className="mb-2">{selectedVoucher.benefit.title}</h5>
-                  
+
                   <p className="mb-2">
-                    <strong>📍 {selectedVoucher.benefit.publication.place_name}</strong>
+                    <strong>
+                      📍 {selectedVoucher.benefit.publication.place_name}
+                    </strong>
                   </p>
-                  
+
                   <p className="text-muted small mb-3">
-                    {selectedVoucher.benefit.publication.address}<br />
-                    {selectedVoucher.benefit.publication.city}, {selectedVoucher.benefit.publication.province}
+                    {selectedVoucher.benefit.publication.address}
+                    <br />
+                    {selectedVoucher.benefit.publication.city},{" "}
+                    {selectedVoucher.benefit.publication.province}
                   </p>
-                  
+
                   <hr />
-                  
+
                   <div className="row text-start">
                     <div className="col-6">
-                      <small><strong>Usuario:</strong></small>
+                      <small>
+                        <strong>Usuario:</strong>
+                      </small>
                     </div>
                     <div className="col-6">
-                      <small>{me?.username || 'Usuario Premium'}</small>
+                      <small>{me?.username || "Usuario Premium"}</small>
                     </div>
-                    
+
                     <div className="col-6">
-                      <small><strong>Código:</strong></small>
-                    </div>
-                    <div className="col-6">
-                      <small className="font-monospace">{selectedVoucher.voucher_code}</small>
-                    </div>
-                    
-                    <div className="col-6">
-                      <small><strong>N° Beneficio:</strong></small>
+                      <small>
+                        <strong>Código:</strong>
+                      </small>
                     </div>
                     <div className="col-6">
-                      <small>#{String(selectedVoucher.id).padStart(6, '0')}</small>
+                      <small className="font-monospace">
+                        {selectedVoucher.voucher_code}
+                      </small>
                     </div>
-                    
+
                     <div className="col-6">
-                      <small><strong>Válido desde:</strong></small>
+                      <small>
+                        <strong>N° Beneficio:</strong>
+                      </small>
                     </div>
                     <div className="col-6">
-                      <small>{new Date(selectedVoucher.obtained_at).toLocaleDateString('es-ES')}</small>
+                      <small>
+                        #{String(selectedVoucher.id).padStart(6, "0")}
+                      </small>
                     </div>
-                    
-                    {selectedVoucher.benefit.publication.original_price && selectedVoucher.benefit.discount_percentage && (
-                      <>
-                        <div className="col-6">
-                          <small><strong>Precio original:</strong></small>
-                        </div>
-                        <div className="col-6">
-                          <small>${selectedVoucher.benefit.publication.original_price}</small>
-                        </div>
-                        
-                        <div className="col-6">
-                          <small><strong>Precio con descuento:</strong></small>
-                        </div>
-                        <div className="col-6">
-                          <small className="text-success">
-                            <strong>${selectedVoucher.benefit.publication.discounted_price?.toFixed(2)}</strong>
-                          </small>
-                        </div>
-                      </>
-                    )}
+
+                    <div className="col-6">
+                      <small>
+                        <strong>Válido desde:</strong>
+                      </small>
+                    </div>
+                    <div className="col-6">
+                      <small>
+                        {new Date(
+                          selectedVoucher.obtained_at,
+                        ).toLocaleDateString("es-ES")}
+                      </small>
+                    </div>
+
+                    {selectedVoucher.benefit.publication.original_price &&
+                      selectedVoucher.benefit.discount_percentage && (
+                        <>
+                          <div className="col-6">
+                            <small>
+                              <strong>Precio original:</strong>
+                            </small>
+                          </div>
+                          <div className="col-6">
+                            <small>
+                              $
+                              {
+                                selectedVoucher.benefit.publication
+                                  .original_price
+                              }
+                            </small>
+                          </div>
+
+                          <div className="col-6">
+                            <small>
+                              <strong>Precio con descuento:</strong>
+                            </small>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-success">
+                              <strong>
+                                $
+                                {selectedVoucher.benefit.publication.discounted_price?.toFixed(
+                                  2,
+                                )}
+                              </strong>
+                            </small>
+                          </div>
+                        </>
+                      )}
                   </div>
-                  
+
                   <hr />
-                  
+
                   <div className="bg-white border rounded p-3 mb-3">
-                    <div style={{
-                      width: '120px',
-                      height: '120px',
-                      margin: '0 auto',
-                      backgroundColor: '#000',
-                      display: 'grid',
-                      gridTemplate: 'repeat(12, 1fr) / repeat(12, 1fr)',
-                      gap: '1px'
-                    }}>
-                      {Array.from({length: 144}).map((_, i) => (
-                        <div 
+                    <div
+                      style={{
+                        width: "120px",
+                        height: "120px",
+                        margin: "0 auto",
+                        backgroundColor: "#000",
+                        display: "grid",
+                        gridTemplate: "repeat(12, 1fr) / repeat(12, 1fr)",
+                        gap: "1px",
+                      }}
+                    >
+                      {Array.from({ length: 144 }).map((_, i) => (
+                        <div
                           key={i}
-                          style={{ 
-                            backgroundColor: Math.random() > 0.5 ? '#000' : '#fff' 
+                          style={{
+                            backgroundColor:
+                              Math.random() > 0.5 ? "#000" : "#fff",
                           }}
                         />
                       ))}
                     </div>
                     <small className="text-muted mt-2">Código QR único</small>
                   </div>
-                  
+
                   <small className="text-muted">
-                    Presenta este comprobante en el establecimiento para aplicar tu beneficio.
+                    Presenta este comprobante en el establecimiento para aplicar
+                    tu beneficio.
                   </small>
                 </div>
               </div>

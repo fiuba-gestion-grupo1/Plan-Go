@@ -2,6 +2,7 @@ import pytest
 from fastapi import status
 from backend.app import models
 
+
 def create_pub(db, **kw):
     """
     Crea una Publication con campos mínimos y los usados por el score().
@@ -43,6 +44,7 @@ def set_pref(db, user_id: int, **kw):
     db.refresh(pref)
     return pref
 
+
 def test_requires_auth(client):
     """
     Debe requerir autenticación (sin token => 401/403).
@@ -62,6 +64,7 @@ def test_no_preferences_returns_empty(client, db_session, test_user, auth_header
     assert r.status_code == 200
     assert r.json() == []
 
+
 def test_title_fallback_uses_place_name(client, db_session, test_user, auth_headers):
     """
     El título en la respuesta usa place_name cuando no existe title en el modelo.
@@ -72,4 +75,6 @@ def test_title_fallback_uses_place_name(client, db_session, test_user, auth_head
     r = client.get("/api/suggestions", headers=auth_headers)
     assert r.status_code == 200
     data = r.json()
-    assert any(item["id"] == pub.id and item["place_name"] == "Cataratas" for item in data)
+    assert any(
+        item["id"] == pub.id and item["place_name"] == "Cataratas" for item in data
+    )

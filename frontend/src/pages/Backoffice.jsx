@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 async function request(
   path,
-  { method = "GET", token, body, isForm = false } = {}
+  { method = "GET", token, body, isForm = false } = {},
 ) {
   const headers = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -25,9 +25,16 @@ function Stars({ value = 0 }) {
   const pct = Math.max(0, Math.min(100, (Number(value) / 5) * 100));
   return (
     <span className="position-relative" aria-label={`Rating ${value}/5`}>
-      <span className="text-muted" style={{ letterSpacing: 1 }}>★★★★★</span>
-      <span className="position-absolute top-0 start-0 overflow-hidden" style={{ width: `${pct}%` }}>
-        <span className="text-warning" style={{ letterSpacing: 1 }}>★★★★★</span>
+      <span className="text-muted" style={{ letterSpacing: 1 }}>
+        ★★★★★
+      </span>
+      <span
+        className="position-absolute top-0 start-0 overflow-hidden"
+        style={{ width: `${pct}%` }}
+      >
+        <span className="text-warning" style={{ letterSpacing: 1 }}>
+          ★★★★★
+        </span>
       </span>
     </span>
   );
@@ -59,7 +66,8 @@ export default function Backoffice({ me, view = "publications" }) {
   const [onReasonConfirm, setOnReasonConfirm] = useState(null);
 
   const [approveDeleteModal, setApproveDeleteModal] = useState(false);
-  const [deletionRequestToApprove, setDeletionRequestToApprove] = useState(null);
+  const [deletionRequestToApprove, setDeletionRequestToApprove] =
+    useState(null);
 
   function openPublicationDetail(p) {
     setCurrentPub(p);
@@ -94,7 +102,9 @@ export default function Backoffice({ me, view = "publications" }) {
     try {
       const [pending, deletions] = await Promise.all([
         request("/api/publications/pending", { token }).catch(() => []),
-        request("/api/publications/deletion-requests/pending", { token }).catch(() => [])
+        request("/api/publications/deletion-requests/pending", { token }).catch(
+          () => [],
+        ),
       ]);
       setPendingPubs(pending);
       setDeletionRequests(deletions);
@@ -149,7 +159,10 @@ export default function Backoffice({ me, view = "publications" }) {
     setLoading(true);
     setError("");
     try {
-      const data = await request("/api/publications/deletion-requests/pending", { token });
+      const data = await request(
+        "/api/publications/deletion-requests/pending",
+        { token },
+      );
       setDeletionRequests(data);
     } catch (e) {
       setError(e.message);
@@ -235,13 +248,17 @@ export default function Backoffice({ me, view = "publications" }) {
         await request(`/api/publications/${id}`, {
           method: "DELETE",
           token,
-          body: { reason: reason || undefined }
+          body: { reason: reason || undefined },
         });
         setOkMsg("Publicación marcada como eliminada.");
         setPubs((prev) => prev.filter((p) => p.id !== id));
-        setAllPubs((prev) => prev.map((p) =>
-          p.id === id ? { ...p, status: 'deleted', rejection_reason: reason } : p
-        ));
+        setAllPubs((prev) =>
+          prev.map((p) =>
+            p.id === id
+              ? { ...p, status: "deleted", rejection_reason: reason }
+              : p,
+          ),
+        );
       } catch (e) {
         setError(e.message);
       } finally {
@@ -256,7 +273,10 @@ export default function Backoffice({ me, view = "publications" }) {
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/${id}/approve`, { method: "PUT", token });
+      await request(`/api/publications/${id}/approve`, {
+        method: "PUT",
+        token,
+      });
       setOkMsg("Publicación aprobada.");
       setPendingPubs((prev) => prev.filter((p) => p.id !== id));
       await reloadStats();
@@ -276,7 +296,7 @@ export default function Backoffice({ me, view = "publications" }) {
         await request(`/api/publications/${id}/reject`, {
           method: "PUT",
           token,
-          body: { reason: reason || undefined }
+          body: { reason: reason || undefined },
         });
         setOkMsg("Publicación rechazada.");
         setPendingPubs((prev) => prev.filter((p) => p.id !== id));
@@ -302,9 +322,14 @@ export default function Backoffice({ me, view = "publications" }) {
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/publications/deletion-requests/${deletionRequestToApprove}/approve`, { method: "PUT", token });
+      await request(
+        `/api/publications/deletion-requests/${deletionRequestToApprove}/approve`,
+        { method: "PUT", token },
+      );
       setOkMsg("Solicitud aprobada. Publicación eliminada.");
-      setDeletionRequests((prev) => prev.filter((r) => r.id !== deletionRequestToApprove));
+      setDeletionRequests((prev) =>
+        prev.filter((r) => r.id !== deletionRequestToApprove),
+      );
       await reloadStats();
     } catch (e) {
       setError(e.message);
@@ -321,11 +346,14 @@ export default function Backoffice({ me, view = "publications" }) {
       setError("");
       setOkMsg("");
       try {
-        await request(`/api/publications/deletion-requests/${requestId}/reject`, {
-          method: "PUT",
-          token,
-          body: { reason: reason || undefined }
-        });
+        await request(
+          `/api/publications/deletion-requests/${requestId}/reject`,
+          {
+            method: "PUT",
+            token,
+            body: { reason: reason || undefined },
+          },
+        );
         setOkMsg("Solicitud de eliminación rechazada.");
         setDeletionRequests((prev) => prev.filter((r) => r.id !== requestId));
         await reloadStats();
@@ -343,7 +371,10 @@ export default function Backoffice({ me, view = "publications" }) {
     setError("");
     setOkMsg("");
     try {
-      await request(`/api/reviews/reports/${reportId}/approve`, { method: "PUT", token });
+      await request(`/api/reviews/reports/${reportId}/approve`, {
+        method: "PUT",
+        token,
+      });
       setOkMsg("Reporte aprobado. Reseña eliminada.");
       setReviewReports((prev) => prev.filter((r) => r.id !== reportId));
       await reloadStats();
@@ -363,7 +394,7 @@ export default function Backoffice({ me, view = "publications" }) {
         await request(`/api/reviews/reports/${reportId}/reject`, {
           method: "PUT",
           token,
-          body: { reason: reason || undefined }
+          body: { reason: reason || undefined },
         });
         setOkMsg("Reporte rechazado.");
         setReviewReports((prev) => prev.filter((r) => r.id !== reportId));
@@ -377,7 +408,7 @@ export default function Backoffice({ me, view = "publications" }) {
     openReasonModal("reject-review-report", null, reportId);
   }
 
-  if (subView === 'create') {
+  if (subView === "create") {
     return (
       <CreateView
         loading={loading}
@@ -392,32 +423,49 @@ export default function Backoffice({ me, view = "publications" }) {
   const renderViewWithStats = (content) => (
     <div className="container-fluid py-4">
       <div className="row">
-        <div className="col-12">
-          {content}
-        </div>
+        <div className="col-12">{content}</div>
       </div>
 
       {reasonModal && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
-          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 500, width: "90%" }}>
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}
+        >
+          <div
+            className="bg-white rounded-3 shadow-lg border"
+            style={{ maxWidth: 500, width: "90%" }}
+          >
             <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
               <h5 className="mb-0">
                 {reasonType === "delete-publication" && "Eliminar Publicación"}
                 {reasonType === "reject-publication" && "Rechazar Publicación"}
-                {reasonType === "reject-deletion" && "Rechazar Solicitud de Eliminación"}
-                {reasonType === "reject-review-report" && "Rechazar Reporte de Reseña"}
+                {reasonType === "reject-deletion" &&
+                  "Rechazar Solicitud de Eliminación"}
+                {reasonType === "reject-review-report" &&
+                  "Rechazar Reporte de Reseña"}
               </h5>
-              <button className="btn-close" onClick={() => setReasonModal(false)}></button>
+              <button
+                className="btn-close"
+                onClick={() => setReasonModal(false)}
+              ></button>
             </div>
             <div className="p-3">
               <p className="text-muted mb-3">
-                {reasonType === "delete-publication" && "Por favor, explica por qué eliminas esta publicación. El usuario verá este mensaje."}
-                {reasonType === "reject-publication" && "Por favor, explica por qué rechazas esta publicación. El usuario verá este mensaje."}
-                {reasonType === "reject-deletion" && "Por favor, explica por qué rechazas esta solicitud de eliminación. El usuario verá este mensaje."}
-                {reasonType === "reject-review-report" && "Por favor, explica por qué rechazas este reporte de reseña. El usuario que reportó verá este mensaje."}
+                {reasonType === "delete-publication" &&
+                  "Por favor, explica por qué eliminas esta publicación. El usuario verá este mensaje."}
+                {reasonType === "reject-publication" &&
+                  "Por favor, explica por qué rechazas esta publicación. El usuario verá este mensaje."}
+                {reasonType === "reject-deletion" &&
+                  "Por favor, explica por qué rechazas esta solicitud de eliminación. El usuario verá este mensaje."}
+                {reasonType === "reject-review-report" &&
+                  "Por favor, explica por qué rechazas este reporte de reseña. El usuario que reportó verá este mensaje."}
               </p>
-              <form onSubmit={(e) => { e.preventDefault(); submitReasonModal(); }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitReasonModal();
+                }}
+              >
                 <div className="mb-3">
                   <label className="form-label">Motivo</label>
                   <textarea
@@ -458,12 +506,19 @@ export default function Backoffice({ me, view = "publications" }) {
       )}
 
       {approveDeleteModal && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
-          <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 400, width: "90%" }}>
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}
+        >
+          <div
+            className="bg-white rounded-3 shadow-lg border"
+            style={{ maxWidth: 400, width: "90%" }}
+          >
             <div className="p-4 text-center">
               <h5 className="mb-3">¿Aprobar esta solicitud de eliminación?</h5>
-              <p className="text-muted mb-3">La publicación será eliminada permanentemente.</p>
+              <p className="text-muted mb-3">
+                La publicación será eliminada permanentemente.
+              </p>
               <div className="d-flex gap-2 justify-content-center">
                 <button
                   className="btn btn-outline-secondary"
@@ -495,8 +550,8 @@ export default function Backoffice({ me, view = "publications" }) {
         searchQuery={searchQuery}
         onDelete={handleDelete}
         onSearch={handleSearch}
-        onCreate={() => setSubView('create')}
-      />
+        onCreate={() => setSubView("create")}
+      />,
     );
   }
 
@@ -508,7 +563,7 @@ export default function Backoffice({ me, view = "publications" }) {
         error={error}
         okMsg={okMsg}
         onDelete={handleDelete}
-      />
+      />,
     );
   }
 
@@ -521,7 +576,7 @@ export default function Backoffice({ me, view = "publications" }) {
         okMsg={okMsg}
         onApprove={handleApprove}
         onReject={handleReject}
-      />
+      />,
     );
   }
 
@@ -534,7 +589,7 @@ export default function Backoffice({ me, view = "publications" }) {
         okMsg={okMsg}
         onApprove={handleApproveDeletion}
         onReject={handleRejectDeletion}
-      />
+      />,
     );
   }
 
@@ -547,16 +602,23 @@ export default function Backoffice({ me, view = "publications" }) {
         okMsg={okMsg}
         onApprove={handleApproveReviewReport}
         onReject={handleRejectReviewReport}
-      />
+      />,
     );
   }
 
   return null;
 }
 
-
-
-function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch, onCreate }) {
+function ListView({
+  pubs,
+  loading,
+  error,
+  okMsg,
+  searchQuery,
+  onDelete,
+  onSearch,
+  onCreate,
+}) {
   const [openDetailModal, setOpenDetailModal] = React.useState(false);
   const [currentPub, setCurrentPub] = React.useState(null);
   const token = React.useMemo(() => localStorage.getItem("token") || "", []);
@@ -569,7 +631,10 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
   function RatingBadge({ avg = 0, count = 0 }) {
     return (
       <span className="badge bg-light text-dark border">
-        <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
+        <Stars value={avg} />{" "}
+        <span className="ms-1">
+          {Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}
+        </span>
       </span>
     );
   }
@@ -584,7 +649,11 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
     <div>
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h3 className="mb-0">Gestión de Publicaciones</h3>
-        <button className="btn" style={{ borderColor: '#3A92B5', color: '#3A92B5' }} onClick={onCreate}>
+        <button
+          className="btn"
+          style={{ borderColor: "#3A92B5", color: "#3A92B5" }}
+          onClick={onCreate}
+        >
           + Agregar Publicación
         </button>
       </div>
@@ -601,9 +670,14 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
       </form>
 
       {searchQuery && (
-        <div className="alert alert-info d-flex justify-content-between align-items-center mt-3" role="alert">
+        <div
+          className="alert alert-info d-flex justify-content-between align-items-center mt-3"
+          role="alert"
+        >
           <span>
-            <strong>Búsqueda:</strong> "{searchQuery}" - {pubs.length} resultado{pubs.length !== 1 ? 's' : ''} encontrado{pubs.length !== 1 ? 's' : ''}
+            <strong>Búsqueda:</strong> "{searchQuery}" - {pubs.length} resultado
+            {pubs.length !== 1 ? "s" : ""} encontrado
+            {pubs.length !== 1 ? "s" : ""}
           </span>
           <button
             className="btn btn-sm btn-outline-secondary"
@@ -630,16 +704,28 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                    <small className="text-muted">
+                      📍 {p.address ? `${p.address}, ` : ""}
+                      {p.city}, {p.province}
+                      {p.country ? `, ${p.country}` : ""}
+                    </small>
 
                     <div className="mt-2">
                       <div className="mb-2">
-                        <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                        <RatingBadge
+                          avg={p.rating_avg}
+                          count={p.rating_count}
+                        />
                       </div>
 
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
-                          <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                          <span
+                            key={c}
+                            className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                          >
+                            {c}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -665,7 +751,10 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
                       <li>
                         <button
                           className="dropdown-item text-danger"
-                          onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(p.id);
+                          }}
                         >
                           Eliminar publicación
                         </button>
@@ -742,10 +831,15 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
               )}
 
               <div className="card-footer bg-white d-flex justify-content-between align-items-center">
-                <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
+                <small className="text-muted">
+                  Creado: {new Date(p.created_at).toLocaleString()}
+                </small>
                 <button
                   className="btn btn-sm btn-celeste"
-                  onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openPublicationDetail(p);
+                  }}
                 >
                   Ver Detalles
                 </button>
@@ -782,7 +876,9 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
         </button>
       </div>
 
-      {loading && <div className="alert alert-info mt-3 mb-0">Guardando...</div>}
+      {loading && (
+        <div className="alert alert-info mt-3 mb-0">Guardando...</div>
+      )}
       {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
       {okMsg && <div className="alert alert-success mt-3 mb-0">{okMsg}</div>}
 
@@ -790,17 +886,32 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
         <div className="row g-3">
           <div className="col-12">
             <label className="form-label">Nombre del lugar *</label>
-            <input name="place_name" type="text" className="form-control" required />
+            <input
+              name="place_name"
+              type="text"
+              className="form-control"
+              required
+            />
           </div>
 
           <div className="col-md-6">
             <label className="form-label">País *</label>
-            <input name="country" type="text" className="form-control" required />
+            <input
+              name="country"
+              type="text"
+              className="form-control"
+              required
+            />
           </div>
 
           <div className="col-md-6">
             <label className="form-label">Provincia/Estado *</label>
-            <input name="province" type="text" className="form-control" required />
+            <input
+              name="province"
+              type="text"
+              className="form-control"
+              required
+            />
           </div>
 
           <div className="col-md-6">
@@ -810,20 +921,34 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
 
           <div className="col-md-6">
             <label className="form-label">Dirección (calle y número) *</label>
-            <input name="address" type="text" className="form-control" required />
+            <input
+              name="address"
+              type="text"
+              className="form-control"
+              required
+            />
           </div>
 
           <div className="col-12">
             <label className="form-label">Categorías (CSV) *</label>
-            <input name="categories" type="text" className="form-control" placeholder="ej: aventura,cultura" required />
-            <div className="form-text">Usá slugs: aventura, cultura, gastronomia</div>
+            <input
+              name="categories"
+              type="text"
+              className="form-control"
+              placeholder="ej: aventura,cultura"
+              required
+            />
+            <div className="form-text">
+              Usá slugs: aventura, cultura, gastronomia
+            </div>
           </div>
 
           <hr className="my-3" />
           <div className="col-12">
             <h6 className="text-muted mb-0">Informacion del destino</h6>
             <small className="text-muted">
-              Estos campos ayudan al sistema a recomendar destinos según las preferencias de los usuarios.
+              Estos campos ayudan al sistema a recomendar destinos según las
+              preferencias de los usuarios.
             </small>
           </div>
 
@@ -858,7 +983,9 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
               className="form-control"
               placeholder="ej: playa,gastronomía,noche"
             />
-            <div className="form-text">Separá por comas. Se guardan en minúsculas.</div>
+            <div className="form-text">
+              Separá por comas. Se guardan en minúsculas.
+            </div>
           </div>
 
           <div className="col-md-6">
@@ -906,7 +1033,7 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
             Cancelar
           </button>
           <button type="submit" className="btn " disabled={loading}>
-            {loading ? 'Creando...' : 'Crear'}
+            {loading ? "Creando..." : "Crear"}
           </button>
         </div>
       </form>
@@ -927,7 +1054,10 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
   function RatingBadge({ avg = 0, count = 0 }) {
     return (
       <span className="badge bg-light text-dark border">
-        <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
+        <Stars value={avg} />{" "}
+        <span className="ms-1">
+          {Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}
+        </span>
       </span>
     );
   }
@@ -954,19 +1084,33 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                    <small className="text-muted">
+                      📍 {p.address ? `${p.address}, ` : ""}
+                      {p.city}, {p.province}
+                      {p.country ? `, ${p.country}` : ""}
+                    </small>
 
                     <div className="mt-2">
                       <div className="mb-2">
                         <div className="d-flex gap-2 align-items-center">
-                          <span className="badge bg-warning text-dark">⏳ Pendiente</span>
-                          <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                          <span className="badge bg-warning text-dark">
+                            ⏳ Pendiente
+                          </span>
+                          <RatingBadge
+                            avg={p.rating_avg}
+                            count={p.rating_count}
+                          />
                         </div>
                       </div>
 
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
-                          <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                          <span
+                            key={c}
+                            className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                          >
+                            {c}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -1009,7 +1153,9 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
                         type="button"
                         data-bs-target={`#pending-carousel-${p.id}`}
                         data-bs-slide="prev"
-                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                        style={{
+                          filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                        }}
                         aria-label="Anterior"
                         title="Anterior"
                       >
@@ -1020,7 +1166,9 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
                         type="button"
                         data-bs-target={`#pending-carousel-${p.id}`}
                         data-bs-slide="next"
-                        style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                        style={{
+                          filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                        }}
                         aria-label="Siguiente"
                         title="Siguiente"
                       >
@@ -1040,13 +1188,19 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
                 <div className="d-flex gap-2">
                   <button
                     className="btn btn-success btn-sm flex-fill"
-                    onClick={(e) => { e.stopPropagation(); onApprove(p.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApprove(p.id);
+                    }}
                   >
                     ✓ Aprobar
                   </button>
                   <button
                     className="btn btn-danger btn-sm flex-fill"
-                    onClick={(e) => { e.stopPropagation(); onReject(p.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReject(p.id);
+                    }}
                   >
                     ✗ Rechazar
                   </button>
@@ -1074,7 +1228,14 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
   );
 }
 
-function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onReject }) {
+function DeletionRequestsView({
+  requests,
+  loading,
+  error,
+  okMsg,
+  onApprove,
+  onReject,
+}) {
   const [openDetailModal, setOpenDetailModal] = React.useState(false);
   const [currentPub, setCurrentPub] = React.useState(null);
   const token = React.useMemo(() => localStorage.getItem("token") || "", []);
@@ -1087,7 +1248,10 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
   function RatingBadge({ avg = 0, count = 0 }) {
     return (
       <span className="badge bg-light text-dark border">
-        <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
+        <Stars value={avg} />{" "}
+        <span className="ms-1">
+          {Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}
+        </span>
       </span>
     );
   }
@@ -1116,19 +1280,33 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
                   <div className="d-flex justify-content-between align-items-start">
                     <div className="flex-grow-1">
                       <h5 className="card-title mb-1">{p.place_name}</h5>
-                      <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                      <small className="text-muted">
+                        📍 {p.address ? `${p.address}, ` : ""}
+                        {p.city}, {p.province}
+                        {p.country ? `, ${p.country}` : ""}
+                      </small>
 
                       <div className="mt-2">
                         <div className="mb-2">
                           <div className="d-flex gap-2 align-items-center">
-                            <span className="badge bg-danger">🗑️ Eliminación solicitada</span>
-                            <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                            <span className="badge bg-danger">
+                              🗑️ Eliminación solicitada
+                            </span>
+                            <RatingBadge
+                              avg={p.rating_avg}
+                              count={p.rating_count}
+                            />
                           </div>
                         </div>
 
                         <div className="d-flex flex-wrap gap-1">
                           {(p.categories || []).map((c) => (
-                            <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                            <span
+                              key={c}
+                              className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                            >
+                              {c}
+                            </span>
                           ))}
                         </div>
                       </div>
@@ -1171,7 +1349,9 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
                           type="button"
                           data-bs-target={`#deletion-carousel-${p.id}`}
                           data-bs-slide="prev"
-                          style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                          style={{
+                            filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                          }}
                           aria-label="Anterior"
                           title="Anterior"
                         >
@@ -1182,7 +1362,9 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
                           type="button"
                           data-bs-target={`#deletion-carousel-${p.id}`}
                           data-bs-slide="next"
-                          style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))" }}
+                          style={{
+                            filter: "drop-shadow(0 0 6px rgba(0,0,0,.4))",
+                          }}
                           aria-label="Siguiente"
                           title="Siguiente"
                         >
@@ -1201,20 +1383,28 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
                   </small>
                   {req.reason && (
                     <div className="mb-2 p-2 bg-light rounded">
-                      <small className="text-muted d-block"><strong>Motivo:</strong></small>
+                      <small className="text-muted d-block">
+                        <strong>Motivo:</strong>
+                      </small>
                       <small className="text-dark">{req.reason}</small>
                     </div>
                   )}
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-success btn-sm flex-fill"
-                      onClick={(e) => { e.stopPropagation(); onApprove(req.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onApprove(req.id);
+                      }}
                     >
                       ✓ Aprobar
                     </button>
                     <button
                       className="btn btn-secondary btn-sm flex-fill"
-                      onClick={(e) => { e.stopPropagation(); onReject(req.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReject(req.id);
+                      }}
                     >
                       ✗ Rechazar
                     </button>
@@ -1256,16 +1446,23 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
   function RatingBadge({ avg = 0, count = 0 }) {
     return (
       <span className="badge bg-light text-dark border">
-        <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
+        <Stars value={avg} />{" "}
+        <span className="ms-1">
+          {Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}
+        </span>
       </span>
     );
   }
 
   const getStatusBadge = (status) => {
-    if (status === "approved") return <span className="badge bg-success">✓ Aprobada</span>;
-    if (status === "pending") return <span className="badge bg-warning text-dark">⏳ Pendiente</span>;
-    if (status === "rejected") return <span className="badge bg-danger">✗ Rechazada</span>;
-    if (status === "deleted") return <span className="badge bg-dark">🗑️ Eliminada</span>;
+    if (status === "approved")
+      return <span className="badge bg-success">✓ Aprobada</span>;
+    if (status === "pending")
+      return <span className="badge bg-warning text-dark">⏳ Pendiente</span>;
+    if (status === "rejected")
+      return <span className="badge bg-danger">✗ Rechazada</span>;
+    if (status === "deleted")
+      return <span className="badge bg-dark">🗑️ Eliminada</span>;
     return <span className="badge bg-secondary">{status}</span>;
   };
 
@@ -1291,19 +1488,31 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
                     <h5 className="card-title mb-1">{p.place_name}</h5>
-                    <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                    <small className="text-muted">
+                      📍 {p.address ? `${p.address}, ` : ""}
+                      {p.city}, {p.province}
+                      {p.country ? `, ${p.country}` : ""}
+                    </small>
 
                     <div className="mt-2">
                       <div className="mb-2">
                         <div className="d-flex gap-2 align-items-center">
                           {getStatusBadge(p.status)}
-                          <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                          <RatingBadge
+                            avg={p.rating_avg}
+                            count={p.rating_count}
+                          />
                         </div>
                       </div>
 
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
-                          <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                          <span
+                            key={c}
+                            className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                          >
+                            {c}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -1329,7 +1538,10 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
                       <li>
                         <button
                           className="dropdown-item text-danger"
-                          onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(p.id);
+                          }}
                         >
                           Eliminar publicación
                         </button>
@@ -1406,10 +1618,15 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
               )}
 
               <div className="card-footer bg-white d-flex justify-content-between align-items-center">
-                <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
+                <small className="text-muted">
+                  Creado: {new Date(p.created_at).toLocaleString()}
+                </small>
                 <button
                   className="btn btn-sm btn-celeste"
-                  onClick={(e) => { e.stopPropagation(); openPublicationDetail(p); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openPublicationDetail(p);
+                  }}
                 >
                   Ver Detalles
                 </button>
@@ -1420,9 +1637,7 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
       </div>
 
       {!loading && pubs.length === 0 && (
-        <div className="alert alert-secondary mt-3">
-          No hay publicaciones.
-        </div>
+        <div className="alert alert-secondary mt-3">No hay publicaciones.</div>
       )}
 
       <PublicationDetailModal
@@ -1442,113 +1657,165 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
   function RatingBadge({ avg = 0, count = 0 }) {
     return (
       <span className="badge bg-light text-dark border">
-        <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
+        <Stars value={avg} />{" "}
+        <span className="ms-1">
+          {Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}
+        </span>
       </span>
     );
   }
 
-    const [list, setList] = React.useState([]);
-    const [loading, setLoading] = React.useState(false);
-    const [err, setErr] = React.useState("");
-    const [rating, setRating] = React.useState(5);
-    const [comment, setComment] = React.useState("");
-    const token = React.useMemo(() => localStorage.getItem("token") || "", []);
-  
-    const isPremium = me?.role === "premium" || me?.username === "admin";
-  
-    React.useEffect(() => {
-      if (!open || !pub?.id) {
-        setList([]);
-        setErr("");
-        return;
-      }
-      let cancel = false;
-      (async () => {
-        setLoading(true);
-        setErr("");
-        try {
-          const rows = await request(`/api/publications/${pub.id}/reviews`);
-          if (!cancel) setList(rows);
-        } catch (e) {
-          if (!cancel) setErr(e.message);
-        } finally {
-          if (!cancel) setLoading(false);
-        }
-      })();
-      return () => { cancel = true; };
-    }, [open, pub?.id]);
-  
-    async function submitReview(e) {
-      e.preventDefault();
-      if (!isPremium) { return; }
-      if (!token) { alert("Iniciá sesión para publicar una reseña."); return; }
-      try {
-        await request(`/api/publications/${pub.id}/reviews`, {
-          method: "POST",
-          token,
-          body: { rating: Number(rating), comment: comment || undefined }
-        });
-        setComment(""); setRating(5);
-        const rows = await request(`/api/publications/${pub.id}/reviews`);
-        setList(rows);
-      } catch (e) {
-        alert(`Error creando reseña: ${e.message}`);
-      }
-    }
-  return (
-    <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-      style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
-      <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 600, maxHeight: "90vh", width: "90%", display: "flex", flexDirection: "column" }}>
+  const [list, setList] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [err, setErr] = React.useState("");
+  const [rating, setRating] = React.useState(5);
+  const [comment, setComment] = React.useState("");
+  const token = React.useMemo(() => localStorage.getItem("token") || "", []);
 
+  const isPremium = me?.role === "premium" || me?.username === "admin";
+
+  React.useEffect(() => {
+    if (!open || !pub?.id) {
+      setList([]);
+      setErr("");
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      setLoading(true);
+      setErr("");
+      try {
+        const rows = await request(`/api/publications/${pub.id}/reviews`);
+        if (!cancel) setList(rows);
+      } catch (e) {
+        if (!cancel) setErr(e.message);
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, pub?.id]);
+
+  async function submitReview(e) {
+    e.preventDefault();
+    if (!isPremium) {
+      return;
+    }
+    if (!token) {
+      alert("Iniciá sesión para publicar una reseña.");
+      return;
+    }
+    try {
+      await request(`/api/publications/${pub.id}/reviews`, {
+        method: "POST",
+        token,
+        body: { rating: Number(rating), comment: comment || undefined },
+      });
+      setComment("");
+      setRating(5);
+      const rows = await request(`/api/publications/${pub.id}/reviews`);
+      setList(rows);
+    } catch (e) {
+      alert(`Error creando reseña: ${e.message}`);
+    }
+  }
+  return (
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}
+    >
+      <div
+        className="bg-white rounded-3 shadow-lg border"
+        style={{
+          maxWidth: 600,
+          maxHeight: "90vh",
+          width: "90%",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
           <h5 className="mb-0">{pub.place_name}</h5>
           <button className="btn-close" onClick={onClose}></button>
         </div>
 
-        <div style={{ overflowY: "scroll", flex: 1, padding: "1rem", minHeight: 0 }}>
-
+        <div
+          style={{
+            overflowY: "scroll",
+            flex: 1,
+            padding: "1rem",
+            minHeight: 0,
+          }}
+        >
           <div className="mb-3">
             {pub.photos?.length > 0 ? (
-              <div id={`carousel-${pub.id}`} className="carousel slide" data-bs-ride="carousel">
+              <div
+                id={`carousel-${pub.id}`}
+                className="carousel slide"
+                data-bs-ride="carousel"
+              >
                 <div className="carousel-inner">
                   {pub.photos.map((img, i) => (
-                    <div key={i} className={`carousel-item ${i === 0 ? 'active' : ''}`}>
-                      <img src={img} className="d-block w-100 rounded" alt={`Imagen ${i + 1}`}
-                        style={{ height: "300px", objectFit: "cover" }} />
+                    <div
+                      key={i}
+                      className={`carousel-item ${i === 0 ? "active" : ""}`}
+                    >
+                      <img
+                        src={img}
+                        className="d-block w-100 rounded"
+                        alt={`Imagen ${i + 1}`}
+                        style={{ height: "300px", objectFit: "cover" }}
+                      />
                     </div>
                   ))}
                 </div>
                 {pub.photos.length > 1 && (
                   <>
-                    <button className="carousel-control-prev" type="button"
-                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="prev">
+                    <button
+                      className="carousel-control-prev"
+                      type="button"
+                      data-bs-target={`#carousel-${pub.id}`}
+                      data-bs-slide="prev"
+                    >
                       <span className="carousel-control-prev-icon"></span>
                     </button>
-                    <button className="carousel-control-next" type="button"
-                      data-bs-target={`#carousel-${pub.id}`} data-bs-slide="next">
+                    <button
+                      className="carousel-control-next"
+                      type="button"
+                      data-bs-target={`#carousel-${pub.id}`}
+                      data-bs-slide="next"
+                    >
                       <span className="carousel-control-next-icon"></span>
                     </button>
                   </>
                 )}
               </div>
             ) : (
-              <div className="text-muted text-center p-4">Sin imágenes disponibles</div>
+              <div className="text-muted text-center p-4">
+                Sin imágenes disponibles
+              </div>
             )}
           </div>
 
           <div className="mb-3">
-
             {pub.description && (
               <>
                 <h6 className="mt-3 mb-2">Descripción</h6>
-                <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
+                <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>
+                  {pub.description}
+                </p>
               </>
             )}
 
             <h6 className="mt-3 mb-2">Categorías</h6>
             <div className="d-flex flex-wrap gap-1 mb-3">
-              {pub.categories?.map(cat => (
-                <span key={cat} className="badge bg-secondary-subtle text-secondary border text-capitalize">
+              {pub.categories?.map((cat) => (
+                <span
+                  key={cat}
+                  className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                >
                   {cat}
                 </span>
               ))}
@@ -1560,9 +1827,7 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
             </p>
 
             <h6 className="mt-3 mb-2">Precio</h6>
-            <p className="mb-2">
-              ${pub.cost_per_day} por día
-            </p>
+            <p className="mb-2">${pub.cost_per_day} por día</p>
 
             <hr />
             <h6 className="mt-3 mb-2">Reseñas</h6>
@@ -1570,7 +1835,9 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
             <div style={{ maxHeight: 250, overflow: "auto" }}>
               {loading && <div className="text-muted">Cargando…</div>}
               {err && <div className="alert alert-danger">{err}</div>}
-              {!loading && !err && list.length === 0 && <div className="text-muted">Sin reseñas todavía.</div>}
+              {!loading && !err && list.length === 0 && (
+                <div className="text-muted">Sin reseñas todavía.</div>
+              )}
               <ul className="list-unstyled mb-0">
                 {list.map((r) => (
                   <li key={r.id} className="border rounded-3 p-3 mb-2">
@@ -1583,10 +1850,14 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
                           </span>
                         )}
                       </div>
-                      <small className="text-muted">{new Date(r.created_at).toLocaleString()}</small>
+                      <small className="text-muted">
+                        {new Date(r.created_at).toLocaleString()}
+                      </small>
                     </div>
                     {r.comment && <div className="mt-1">{r.comment}</div>}
-                    <small className="text-muted d-block mt-1">por {r.author_username}</small>
+                    <small className="text-muted d-block mt-1">
+                      por {r.author_username}
+                    </small>
                   </li>
                 ))}
               </ul>
@@ -1597,27 +1868,44 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
                 <div className="row g-2">
                   <div className="col-12 col-md-2">
                     <label className="form-label mb-1">Rating</label>
-                    <select className="form-select" value={rating} onChange={(e) => setRating(e.target.value)}>
-                      {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v}</option>)}
+                    <select
+                      className="form-select"
+                      value={rating}
+                      onChange={(e) => setRating(e.target.value)}
+                    >
+                      {[5, 4, 3, 2, 1].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-12 col-md-8">
-                    <label className="form-label mb-1">Comentario (opcional)</label>
-                    <input className="form-control" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Contanos tu experiencia" />
+                    <label className="form-label mb-1">
+                      Comentario (opcional)
+                    </label>
+                    <input
+                      className="form-control"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Contanos tu experiencia"
+                    />
                   </div>
                   <div className="col-12 col-md-2 d-flex align-items-end">
-                    <button className="btn btn-celeste w-100" type="submit">Publicar</button>
+                    <button className="btn btn-celeste w-100" type="submit">
+                      Publicar
+                    </button>
                   </div>
                 </div>
               </form>
             ) : (
               <div className="p-3 border-top">
                 <div className="alert alert-secondary mb-0">
-                  Solo los <strong>usuarios premium</strong> pueden publicar reseñas.
+                  Solo los <strong>usuarios premium</strong> pueden publicar
+                  reseñas.
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
@@ -1625,7 +1913,14 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
   );
 }
 
-function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject }) {
+function ReviewReportsView({
+  reports,
+  loading,
+  error,
+  okMsg,
+  onApprove,
+  onReject,
+}) {
   const [openDetailModal, setOpenDetailModal] = React.useState(false);
   const [currentPub, setCurrentPub] = React.useState(null);
 
@@ -1637,7 +1932,10 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
   function RatingBadge({ avg = 0, count = 0 }) {
     return (
       <span className="badge bg-light text-dark border">
-        <Stars value={avg} /> <span className="ms-1">{Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}</span>
+        <Stars value={avg} />{" "}
+        <span className="ms-1">
+          {Number(avg).toFixed(1)} • {count} reseña{count === 1 ? "" : "s"}
+        </span>
       </span>
     );
   }
@@ -1660,7 +1958,7 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
             <div className="col" key={report.id}>
               <div className="card shadow-sm h-100">
                 <div className="card-body">
-                  <div 
+                  <div
                     className="border rounded p-3 mb-3"
                     onClick={() => openPublicationDetail(p)}
                     style={{ cursor: "pointer" }}
@@ -1670,16 +1968,28 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
                         <div className="d-flex justify-content-between align-items-start">
                           <div className="flex-grow-1">
                             <h5 className="card-title mb-1">{p.place_name}</h5>
-                            <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
+                            <small className="text-muted">
+                              📍 {p.address ? `${p.address}, ` : ""}
+                              {p.city}, {p.province}
+                              {p.country ? `, ${p.country}` : ""}
+                            </small>
 
                             <div className="mt-2">
                               <div className="mb-2">
-                                <RatingBadge avg={p.rating_avg} count={p.rating_count} />
+                                <RatingBadge
+                                  avg={p.rating_avg}
+                                  count={p.rating_count}
+                                />
                               </div>
 
                               <div className="d-flex flex-wrap gap-1">
                                 {(p.categories || []).map((c) => (
-                                  <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
+                                  <span
+                                    key={c}
+                                    className="badge bg-secondary-subtle text-secondary border text-capitalize"
+                                  >
+                                    {c}
+                                  </span>
                                 ))}
                               </div>
                             </div>
@@ -1698,10 +2008,16 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
                             src={p.photos[0]}
                             className="img-fluid rounded"
                             alt={p.place_name}
-                            style={{ height: 120, width: "100%", objectFit: "cover" }}
+                            style={{
+                              height: 120,
+                              width: "100%",
+                              objectFit: "cover",
+                            }}
                           />
                         ) : (
-                          <div className="text-muted text-center p-4 border rounded">Sin fotos</div>
+                          <div className="text-muted text-center p-4 border rounded">
+                            Sin fotos
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1709,17 +2025,25 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
 
                   <div className="border rounded p-3 mb-3 bg-light">
                     <h6 className="mb-2">
-                      <span className="badge bg-warning text-dark">🚨 Reseña Reportada</span>
+                      <span className="badge bg-warning text-dark">
+                        🚨 Reseña Reportada
+                      </span>
                     </h6>
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div>
                         <Stars value={review.rating} />
-                        <small className="text-muted ms-2">por {review.author_username}</small>
+                        <small className="text-muted ms-2">
+                          por {review.author_username}
+                        </small>
                       </div>
-                      <small className="text-muted">{new Date(review.created_at).toLocaleString()}</small>
+                      <small className="text-muted">
+                        {new Date(review.created_at).toLocaleString()}
+                      </small>
                     </div>
                     {review.comment && (
-                      <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{review.comment}</p>
+                      <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>
+                        {review.comment}
+                      </p>
                     )}
                   </div>
 
@@ -1729,15 +2053,22 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
                       <strong>Reportado por:</strong> {report.reporter_username}
                     </div>
                     <div className="mb-2">
-                      <strong>Fecha del reporte:</strong> {new Date(report.created_at).toLocaleString()}
+                      <strong>Fecha del reporte:</strong>{" "}
+                      {new Date(report.created_at).toLocaleString()}
                     </div>
                     <div className="mb-2">
-                      <strong>Motivo:</strong> <span className="badge bg-danger">{report.reason}</span>
+                      <strong>Motivo:</strong>{" "}
+                      <span className="badge bg-danger">{report.reason}</span>
                     </div>
                     {report.comments && (
                       <div>
                         <strong>Comentarios adicionales:</strong>
-                        <p className="mt-1 mb-0" style={{ whiteSpace: "pre-wrap" }}>{report.comments}</p>
+                        <p
+                          className="mt-1 mb-0"
+                          style={{ whiteSpace: "pre-wrap" }}
+                        >
+                          {report.comments}
+                        </p>
                       </div>
                     )}
                   </div>

@@ -17,7 +17,7 @@ def reset_publications_data():
     Mantiene usuarios y otros datos del sistema.
     """
     print("🗑️  Iniciando limpieza de publicaciones...")
-    
+
     db = SessionLocal()
     try:
         review_count = db.query(models.Review).count()
@@ -54,14 +54,18 @@ def reset_publications_data():
             print(f"   ✅ Eliminadas {pub_count} publicaciones")
 
         try:
-            db.execute("DELETE FROM sqlite_sequence WHERE name IN ('publications', 'reviews', 'publication_photos', 'favorites')")
+            db.execute(
+                "DELETE FROM sqlite_sequence WHERE name IN ('publications', 'reviews', 'publication_photos', 'favorites')"
+            )
             print("   ✅ IDs de autoincremento reseteados")
         except Exception:
-            print("   ⚠️  No se pudieron resetear los IDs (puede ser normal en PostgreSQL)")
+            print(
+                "   ⚠️  No se pudieron resetear los IDs (puede ser normal en PostgreSQL)"
+            )
 
         db.commit()
         print("✅ Limpieza completada exitosamente")
-        
+
     except Exception as e:
         print(f"❌ Error durante la limpieza: {e}")
         db.rollback()
@@ -75,17 +79,17 @@ def reload_publications():
     Recarga las publicaciones ejecutando el script de seed
     """
     print("🌱 Recargando publicaciones desde seeds...")
-    
+
     try:
         from backend.app.seed_db import seed_publications
-        
+
         db = SessionLocal()
         try:
             seed_publications(db)
             print("✅ Publicaciones recargadas exitosamente")
         finally:
             db.close()
-            
+
     except Exception as e:
         print(f"❌ Error recargando publicaciones: {e}")
         raise
@@ -94,18 +98,20 @@ def reload_publications():
 if __name__ == "__main__":
     print("🔄 RESET Y RECARGA DE PUBLICACIONES")
     print("=" * 50)
-    
+
     try:
         reset_publications_data()
-        
+
         print()
-        
+
         reload_publications()
-        
+
         print()
         print("🎉 Proceso completado exitosamente!")
-        print("📝 Las publicaciones han sido actualizadas con los datos más recientes del seed.")
-        
+        print(
+            "📝 Las publicaciones han sido actualizadas con los datos más recientes del seed."
+        )
+
     except Exception as e:
         print(f"💥 El proceso falló: {e}")
         exit(1)

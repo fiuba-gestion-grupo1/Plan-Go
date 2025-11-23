@@ -6,9 +6,9 @@ La aplicación se instanciará en http://localhost:8000.
 
 **ATENCION**
 
-Es necesario que previa a la ejecucion de la aplicacion se cree un archivo ```.env``` en la raiz del directorio. Adjunto en el repositorio hay un archivo ```.env.example``` con el formato que debe tener el archivo ```.env```
+Es necesario que previa a la ejecucion de la aplicacion se cree un archivo `.env` en la raiz del directorio. Adjunto en el repositorio hay un archivo `.env.example` con el formato que debe tener el archivo `.env`
 
-Esta es una medida de seguridad ya que en el archivo ```.env``` se almacena el JWT Token propio de cada usuario. No debe ser compartido.
+Esta es una medida de seguridad ya que en el archivo `.env` se almacena el JWT Token propio de cada usuario. No debe ser compartido.
 
 ### Construir la imagen de la Aplicación
 

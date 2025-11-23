@@ -10,10 +10,14 @@ from .auth import get_current_user
 
 router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
+
 class InvitationPayload(BaseModel):
     email: EmailStr
 
-def _build_email_html(invitee_email: str, inviter_name: str | None, app_url: str, invitation_code: str) -> str:
+
+def _build_email_html(
+    invitee_email: str, inviter_name: str | None, app_url: str, invitation_code: str
+) -> str:
     inviter = inviter_name or "un amigo"
     register_url = f"{app_url}/register?invitation_code={invitation_code}"
     return f"""
@@ -54,6 +58,7 @@ def _build_email_html(invitee_email: str, inviter_name: str | None, app_url: str
 </html>
 """.strip()
 
+
 @router.post("/send")
 def send_invitation(
     payload: InvitationPayload,
@@ -62,38 +67,40 @@ def send_invitation(
 ):
     if current_user.role != "premium":
         raise HTTPException(
-            status_code=403,
-            detail="Función disponible solo para usuarios premium."
+            status_code=403, detail="Función disponible solo para usuarios premium."
         )
 
-    existing_invitation = db.query(models.Invitation).filter(
-        models.Invitation.invitee_email == payload.email,
-        models.Invitation.used == False
-    ).first()
-    
+    existing_invitation = (
+        db.query(models.Invitation)
+        .filter(
+            models.Invitation.invitee_email == payload.email,
+            models.Invitation.used == False,
+        )
+        .first()
+    )
+
     if existing_invitation:
         raise HTTPException(
             status_code=400,
-            detail="Ya existe una invitación pendiente para este email."
-        )
-    
-    existing_user = db.query(models.User).filter(
-        models.User.email == payload.email
-    ).first()
-    
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Este email ya está registrado en la aplicación."
+            detail="Ya existe una invitación pendiente para este email.",
         )
 
-    invitation_code = str(uuid.uuid4()).replace('-', '')[:12].upper()
-    
+    existing_user = (
+        db.query(models.User).filter(models.User.email == payload.email).first()
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400, detail="Este email ya está registrado en la aplicación."
+        )
+
+    invitation_code = str(uuid.uuid4()).replace("-", "")[:12].upper()
+
     invitation = models.Invitation(
         inviter_id=current_user.id,
         invitee_email=payload.email,
         invitation_code=invitation_code,
-        used=False
+        used=False,
     )
     db.add(invitation)
     db.commit()
@@ -104,7 +111,11 @@ def send_invitation(
         invitee_email=payload.email,
         inviter_name=current_user.username,
         app_url=app_url,
-        invitation_code=invitation_code
+        invitation_code=invitation_code,
     )
     send_email_html(payload.email, subject, html)
-    return {"ok": True, "message": "Invitación enviada", "invitation_code": invitation_code}
+    return {
+        "ok": True,
+        "message": "Invitación enviada",
+        "invitation_code": invitation_code,
+    }

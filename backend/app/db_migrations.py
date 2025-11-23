@@ -91,52 +91,54 @@ def ensure_min_schema(engine):
         itinerary_check = conn.exec_driver_sql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='itineraries'"
         ).fetchone()
-        
+
         if itinerary_check:
-            pragma_itinerary = conn.exec_driver_sql("PRAGMA table_info(itineraries)").fetchall()
+            pragma_itinerary = conn.exec_driver_sql(
+                "PRAGMA table_info(itineraries)"
+            ).fetchall()
             existing_itinerary = {row[1] for row in pragma_itinerary}
-            
+
             if "publication_ids" not in existing_itinerary:
                 conn.exec_driver_sql(
                     "ALTER TABLE itineraries ADD COLUMN publication_ids TEXT"
                 )
-            
+
             if "cant_persons" not in existing_itinerary:
                 conn.exec_driver_sql(
                     "ALTER TABLE itineraries ADD COLUMN cant_persons INTEGER DEFAULT 1"
                 )
-                
-            if "comments" not in existing_itinerary:
-                conn.exec_driver_sql(
-                    "ALTER TABLE itineraries ADD COLUMN comments TEXT"
-                )
 
-        pragma_deletion = conn.exec_driver_sql("PRAGMA table_info(deletion_requests)").fetchall()
+            if "comments" not in existing_itinerary:
+                conn.exec_driver_sql("ALTER TABLE itineraries ADD COLUMN comments TEXT")
+
+        pragma_deletion = conn.exec_driver_sql(
+            "PRAGMA table_info(deletion_requests)"
+        ).fetchall()
         existing_deletion = {row[1] for row in pragma_deletion}
-        
+
         if "rejection_reason" not in existing_deletion:
             conn.exec_driver_sql(
                 "ALTER TABLE deletion_requests ADD COLUMN rejection_reason TEXT"
             )
-        
+
         if "reason" not in existing_deletion:
-            conn.exec_driver_sql(
-                "ALTER TABLE deletion_requests ADD COLUMN reason TEXT"
-            )
+            conn.exec_driver_sql("ALTER TABLE deletion_requests ADD COLUMN reason TEXT")
 
         user_points_check = conn.exec_driver_sql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='user_points'"
         ).fetchone()
-        
+
         if not user_points_check:
-            conn.exec_driver_sql("""
+            conn.exec_driver_sql(
+                """
                 CREATE TABLE user_points (
                     user_id INTEGER PRIMARY KEY,
                     total_points INTEGER NOT NULL DEFAULT 0,
                     updated_at TIMESTAMP DEFAULT (datetime('now')),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 )
-            """)
+            """
+            )
             conn.exec_driver_sql(
                 "CREATE INDEX IF NOT EXISTS idx_user_points_user_id ON user_points(user_id)"
             )
@@ -144,9 +146,10 @@ def ensure_min_schema(engine):
         points_transactions_check = conn.exec_driver_sql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='points_transactions'"
         ).fetchone()
-        
+
         if not points_transactions_check:
-            conn.exec_driver_sql("""
+            conn.exec_driver_sql(
+                """
                 CREATE TABLE points_transactions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
@@ -157,7 +160,8 @@ def ensure_min_schema(engine):
                     created_at TIMESTAMP DEFAULT (datetime('now')),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                 )
-            """)
+            """
+            )
             conn.exec_driver_sql(
                 "CREATE INDEX IF NOT EXISTS idx_points_transactions_user_id ON points_transactions(user_id)"
             )

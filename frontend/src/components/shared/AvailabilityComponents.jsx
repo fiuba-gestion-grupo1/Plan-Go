@@ -1,33 +1,37 @@
-import React from 'react';
+import React from "react";
 
 export function AvailabilityDays({ availableDays }) {
   const allDays = [
-    { key: 'domingo', short: 'Dom', label: 'Domingo' },
-    { key: 'lunes', short: 'Lun', label: 'Lunes' },
-    { key: 'martes', short: 'Mar', label: 'Martes' },
-    { key: 'miércoles', short: 'Mié', label: 'Miércoles' },
-    { key: 'jueves', short: 'Jue', label: 'Jueves' },
-    { key: 'viernes', short: 'Vie', label: 'Viernes' },
-    { key: 'sábado', short: 'Sáb', label: 'Sábado' }
+    { key: "domingo", short: "Dom", label: "Domingo" },
+    { key: "lunes", short: "Lun", label: "Lunes" },
+    { key: "martes", short: "Mar", label: "Martes" },
+    { key: "miércoles", short: "Mié", label: "Miércoles" },
+    { key: "jueves", short: "Jue", label: "Jueves" },
+    { key: "viernes", short: "Vie", label: "Viernes" },
+    { key: "sábado", short: "Sáb", label: "Sábado" },
   ];
 
   if (!availableDays || availableDays.length === 0) {
     return null;
   }
 
-  const normalizedAvailableDays = availableDays.map(day => day.toLowerCase().trim());
+  const normalizedAvailableDays = availableDays.map((day) =>
+    day.toLowerCase().trim(),
+  );
 
   return (
     <div className="mb-2">
       <small className="text-muted d-block mb-1">📅 Disponible:</small>
       <div className="d-flex gap-1 flex-wrap">
-        {allDays.map(day => {
-          const isAvailable = normalizedAvailableDays.includes(day.key.toLowerCase());
+        {allDays.map((day) => {
+          const isAvailable = normalizedAvailableDays.includes(
+            day.key.toLowerCase(),
+          );
           return (
             <span
               key={day.key}
-              className={`badge ${isAvailable ? 'bg-success' : 'bg-light text-muted'} small`}
-              style={{ fontSize: '0.7rem', minWidth: '35px' }}
+              className={`badge ${isAvailable ? "bg-success" : "bg-light text-muted"} small`}
+              style={{ fontSize: "0.7rem", minWidth: "35px" }}
               title={day.label}
             >
               {day.short}
@@ -38,7 +42,6 @@ export function AvailabilityDays({ availableDays }) {
     </div>
   );
 }
-
 
 export function AvailabilityHours({ availableHours }) {
   if (!availableHours || availableHours.length === 0) {
@@ -53,7 +56,11 @@ export function AvailabilityHours({ availableHours }) {
           <span
             key={index}
             className="badge small"
-            style={{ fontSize: '0.7rem', backgroundColor: '#3A92B5', color: 'white' }}
+            style={{
+              fontSize: "0.7rem",
+              backgroundColor: "#3A92B5",
+              color: "white",
+            }}
           >
             {hour}
           </span>
@@ -62,7 +69,6 @@ export function AvailabilityHours({ availableHours }) {
     </div>
   );
 }
-
 
 export function DurationBadge({ durationMin }) {
   if (!durationMin || durationMin <= 0) {
@@ -85,18 +91,21 @@ export function DurationBadge({ durationMin }) {
 
   return (
     <div className="mb-2">
-      <span className="badge bg-info text-white" style={{ fontSize: '0.8rem' }}>
+      <span className="badge bg-info text-white" style={{ fontSize: "0.8rem" }}>
         ⏱️ {formatDuration(durationMin)}
       </span>
     </div>
   );
 }
 
-
 export function PublicationAvailability({ publication }) {
   const { duration_min, available_days, available_hours } = publication;
 
-  if (!duration_min && (!available_days || available_days.length === 0) && (!available_hours || available_hours.length === 0)) {
+  if (
+    !duration_min &&
+    (!available_days || available_days.length === 0) &&
+    (!available_hours || available_hours.length === 0)
+  ) {
     return null;
   }
 
