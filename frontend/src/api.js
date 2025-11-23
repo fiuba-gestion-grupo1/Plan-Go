@@ -1,9 +1,6 @@
-// src/api.js
-export const BASE_URL = 'http://localhost:8000'; // URL del backend
+export const BASE_URL = 'http://localhost:8000';
 
 export async function api(path, { method = 'GET', body, token, useAuth = true } = {}) {
-  // 👉 Si no me pasan token explícitamente, lo busco en localStorage
-  //    Probamos con 'access_token' y con 'token' por las dudas.
   const storedToken =
     typeof window !== 'undefined'
       ? (localStorage.getItem('access_token') || localStorage.getItem('token'))
@@ -21,7 +18,6 @@ export async function api(path, { method = 'GET', body, token, useAuth = true } 
     finalBody = JSON.stringify(body);
   }
 
-  // Construir URL completa
   const fullUrl = path.startsWith('http') ? path : `${BASE_URL}${path}`;
 
   const res = await fetch(fullUrl, {

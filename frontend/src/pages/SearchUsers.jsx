@@ -1,4 +1,3 @@
-// src/pages/SearchUsers.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { request } from "../utils/api";
@@ -18,7 +17,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
   const [destinationOptions, setDestinationOptions] = useState([]);
   const [styleOptions, setStyleOptions] = useState([]);
 
-  // helper para normalizar strings (lowercase + sin tildes)
   const normalize = (s) =>
     (s || "")
       .toString()
@@ -26,7 +24,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
-  // Cargar viajeros reales desde el backend
   useEffect(() => {
     if (!token) return;
 
@@ -37,7 +34,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
       setError("");
 
       try {
-        // Armamos query params para el backend
         const params = new URLSearchParams();
 
         if (searchText) {
@@ -47,7 +43,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
           params.set("destination_interest", filterDestination);
         }
         if (filterStyle !== "todos") {
-          // lo mando como lista "styles"
           params.append("styles", filterStyle);
         }
 
@@ -77,7 +72,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
 
             tags: u.tags || [],
 
-            // viene del backend como matches_with_you / match_percentage
             matchesWithYou:
               u.matches_with_you ??
               u.match_percentage ??
@@ -85,7 +79,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
           };
         });
 
-        // armo opciones dinámicas de destinos y estilos
         const destSet = new Set();
         const styleSet = new Set();
 
@@ -128,7 +121,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
     };
   }, [token, searchText, filterDestination, filterStyle]);
 
-  // Filtros (idéntico a la versión con mocks, pero usando travelers reales)
   const filteredTravelers = useMemo(() => {
     const text = normalize(searchText);
     const filterDestNorm = normalize(filterDestination);
@@ -156,7 +148,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
 
   return (
     <div className="container-fluid py-4">
-      {/* Cabecera */}
       <div className="mb-4 px-1">
         <div className="d-flex justify-content-between align-items-start">
           <div>
@@ -187,14 +178,12 @@ function SearchUsers({ me, onOpenMyProfile }) {
         </div>
       </div>
 
-      {/* Errores / loading */}
       {error && (
         <div className="alert alert-danger py-2">
           {error || "Ocurrió un error al cargar los viajeros."}
         </div>
       )}
 
-      {/* Buscador + filtros */}
       <div className="card shadow-sm mb-4 rounded-4 border-0">
         <div className="card-body">
           <div className="row g-3 align-items-end">
@@ -263,13 +252,11 @@ function SearchUsers({ me, onOpenMyProfile }) {
         </div>
       </div>
 
-      {/* Resultados */}
       <div className="row g-3">
         {filteredTravelers.map((t) => (
           <div key={t.id} className="col-12 col-md-6 col-lg-4">
             <div className="card traveler-card h-100 border-0 shadow-sm rounded-4">
               <div className="card-body d-flex flex-column">
-                {/* Header con avatar + nombre */}
                 <div className="d-flex align-items-center mb-2">
                   <div className="traveler-avatar me-3 d-flex align-items-center justify-content-center">
                     <span className="fw-bold text-white">
@@ -283,7 +270,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
                   </div>
                 </div>
 
-                {/* Destinos / estilo */}
                 <div className="mb-2">
                   <div className="small text-muted mb-1">
                     Destinos favoritos:
@@ -315,10 +301,8 @@ function SearchUsers({ me, onOpenMyProfile }) {
                   )}
                 </div>
 
-                {/* About */}
                 <p className="small text-muted flex-grow-1 mb-2">{t.about}</p>
 
-                {/* Tags */}
                 <div className="mb-2 d-flex flex-wrap gap-1">
                   {t.tags.map((tag) => (
                     <span
@@ -335,7 +319,6 @@ function SearchUsers({ me, onOpenMyProfile }) {
                   )}
                 </div>
 
-                {/* Match + botón */}
                 <div className="d-flex justify-content-between align-items-center mt-2">
                   <div className="d-flex align-items-center gap-1">
                     <span className="small text-muted">Coincidencia</span>
@@ -344,7 +327,7 @@ function SearchUsers({ me, onOpenMyProfile }) {
                     </span>
                   </div>
                   <Link
-                    to={`/viajeros/${t.id}`} // 👈 coincide con la ruta de App.jsx
+                    to={`/viajeros/${t.id}`}
                     className="btn btn-sm btn-outline-custom rounded-pill px-3"
                   >
                     Ver perfil

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script de prueba para el endpoint /api/itineraries/custom
 """
@@ -12,7 +11,6 @@ def test_custom_itinerary():
     
     base_url = "http://localhost:8000"
     
-    # Primero hacer login
     login_data = {
         "identifier": "premium@fi.uba.ar",
         "password": "password"
@@ -27,7 +25,6 @@ def test_custom_itinerary():
     token = login_response.json().get("access_token")
     headers = {"Authorization": f"Bearer {token}"}
     
-    # Datos de prueba para el itinerario personalizado
     today = datetime.now().date()
     tomorrow = today + timedelta(days=1)
     
@@ -68,7 +65,6 @@ def test_custom_itinerary():
     print("🧪 Probando endpoint /api/itineraries/custom...")
     print(f"📅 Fechas: {today} → {tomorrow}")
     
-    # Hacer la petición
     response = requests.post(
         f"{base_url}/api/itineraries/custom",
         json=test_data,

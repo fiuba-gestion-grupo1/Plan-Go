@@ -1,8 +1,5 @@
 import React from "react";
 
-/**
- * Tarjeta individual de estadística
- */
 function StatCard({ icon, label, value }) {
   return (
     <div className="card border-0 shadow-sm mb-3">
@@ -15,9 +12,6 @@ function StatCard({ icon, label, value }) {
   );
 }
 
-/**
- * Sidebar de estadísticas
- */
 export default function StatsSidebar({ stats = [] }) {
   if (stats.length === 0) return null;
 

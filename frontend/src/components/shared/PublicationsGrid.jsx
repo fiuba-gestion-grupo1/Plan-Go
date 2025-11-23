@@ -2,9 +2,6 @@ import React from "react";
 import PublicationCard from "./PublicationCard";
 import { LoadingSpinner, EmptyState } from "./UIComponents";
 
-/**
- * Grid reutilizable para mostrar publicaciones
- */
 export default function PublicationsGrid({
   publications = [],
   loading = false,

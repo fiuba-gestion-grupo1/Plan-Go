@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import requests
 import json
 from datetime import datetime, timedelta
@@ -14,7 +12,6 @@ def test_ai_validation():
     print("🚀 TEST: Sistema de Validación de Itinerarios IA")
     print("=" * 50)
     
-    # Login
     print("\n1. Autenticando usuario...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     if login_response.status_code != 200:
@@ -25,7 +22,6 @@ def test_ai_validation():
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # Preparar request
     tomorrow = datetime.now() + timedelta(days=1)
     end_date = tomorrow + timedelta(days=3)
     
@@ -45,7 +41,6 @@ def test_ai_validation():
     print(f"   Destino: {itinerary_request['destination']}")
     print(f"   Presupuesto: US${itinerary_request['budget']}")
     
-    # Solicitar itinerario
     response = requests.post(
         f"{BASE_URL}/api/itineraries/request",
         json=itinerary_request,
@@ -60,7 +55,6 @@ def test_ai_validation():
     result = response.json()
     print("✅ Itinerario generado")
     
-    # Analizar validación
     print(f"\n3. Analizando validación...")
     print(f"   Status: {result['status']}")
     
@@ -83,14 +77,12 @@ def test_ai_validation():
     for indicator in found_validation:
         print(f"   ✅ {indicator}")
     
-    # Mostrar fragmento
     print(f"\n4. Fragmento del itinerario:")
     lines = generated_text.split('\n')[:10]
     for line in lines:
         if line.strip():
             print(f"   {line}")
     
-    # Información de costos
     cost_lines = []
     for line in generated_text.split('\n'):
         if any(keyword in line for keyword in ["COSTO", "US$", "presupuesto"]):
@@ -101,7 +93,6 @@ def test_ai_validation():
         for line in cost_lines:
             print(f"   {line}")
     
-    # Resumen
     validation_score = len(found_validation)
     print(f"\n🎉 RESUMEN:")
     print(f"   ✅ Generación: EXITOSA")

@@ -25,7 +25,6 @@ export default function Register({ setView }) {
     const [registrationSuccess, setRegistrationSuccess] = useState(false);
     const [invitationInfo, setInvitationInfo] = useState(null);
 
-    // Detectar código de invitación desde URL
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const invitationCode = urlParams.get('invitation_code');
@@ -68,7 +67,6 @@ export default function Register({ setView }) {
 
         try {
             await api('/api/auth/register', { method: 'POST', body: { ...payload, password } });
-            //actualizo esto apra que aparezca un mensaje de exito en vez de una alerta de localhost
             setRegistrationSuccess(true);
         } catch (err) {
             setError(err.detail || 'Error en el registro.');
@@ -78,7 +76,6 @@ export default function Register({ setView }) {
     const available_q2 = SECURITY_QUESTIONS.filter(q => q !== formData.security_question_1);
     const available_q1 = SECURITY_QUESTIONS.filter(q => q !== formData.security_question_2);
 
-    //Si el registro fue exitoso, muestra el mensaje de confirmación
     if (registrationSuccess) {
         return (
             <div className="text-center">
@@ -94,12 +91,10 @@ export default function Register({ setView }) {
         );
     }
 
-    //caso registro no exitoso, sigue mostrando el formulario
     return (
         <form onSubmit={handleSubmit}>
             <h3 className="mb-4">Crear cuenta</h3>
 
-            {/* Mostrar información de invitación */}
             {invitationInfo && (
                 <div className="alert alert-success" role="alert">
                     <div className="d-flex align-items-center">

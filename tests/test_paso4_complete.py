@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script de Testing Completo - PASO 4: Pegar Itinerario de IA
 Documenta y valida todo el flujo de funcionalidad
@@ -7,14 +6,12 @@ import requests
 import json
 import time
 
-# Configuración
 BASE_URL = "http://localhost:8000"
 FRONTEND_URL = "http://localhost:5173"
 LOGIN_URL = f"{BASE_URL}/api/auth/login"
 AI_LIST_URL = f"{BASE_URL}/api/itineraries/ai-list"
 CONVERT_URL_BASE = f"{BASE_URL}/api/itineraries"
 
-# Usuario de prueba
 TEST_EMAIL = "normal@fi.uba.ar"
 TEST_PASSWORD = "password"
 
@@ -104,16 +101,13 @@ def comprehensive_test():
     print("🚀 TESTING COMPLETO - PASO 4: Pegar Itinerario de IA")
     print("=" * 70)
     
-    # 1. Autenticación
     token = get_auth_token()
     if not token:
         print("\n❌ No se pudo obtener token. Abortando pruebas.")
         return
     
-    # 2. Listar itinerarios de IA
     ai_itineraries = test_ai_list_endpoint(token)
     
-    # 3. Probar conversión si hay itinerarios disponibles
     if ai_itineraries:
         test_itinerary = ai_itineraries[0]
         conversion_result = test_conversion_endpoint(token, test_itinerary['id'])
@@ -125,7 +119,6 @@ def comprehensive_test():
             print(f"   💰 Presupuesto: US${test_itinerary['budget']}")
             print(f"   👥 Personas: {test_itinerary['cant_persons']}")
     
-    # 4. Documentar flujo manual
     test_manual_flow()
     
     print("\n" + "=" * 70)

@@ -2,19 +2,15 @@ import React, { useState } from 'react';
 import { api } from '../api';
 
 export default function ForgotPassword({ setView }) {
-    // 1. Estados
-    const [step, setStep] = useState('enter-email'); // 'enter-email', 'answer-questions', 'set-password', 'success'
+    const [step, setStep] = useState('enter-email');
     const [identifier, setIdentifier] = useState('');
-    const [questions, setQuestions] = useState(null); // { username, question_1, question_2 }
+    const [questions, setQuestions] = useState(null);
     const [answers, setAnswers] = useState({ security_answer_1: '', security_answer_2: '' });
-    const [resetToken, setResetToken] = useState(''); // El token temporal
+    const [resetToken, setResetToken] = useState('');
     const [passwords, setPasswords] = useState({ new_password: '', confirm_password: '' });
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
 
-    // 2. Manejadores de cada paso
-    
-    // PASO 1: Pedir las preguntas
     async function handleEmailSubmit(e) {
         e.preventDefault();
         setError('');
@@ -27,7 +23,6 @@ export default function ForgotPassword({ setView }) {
         }
     }
 
-    // PASO 2: Verificar las respuestas
     async function handleAnswersSubmit(e) {
         e.preventDefault();
         setError('');
@@ -43,7 +38,6 @@ export default function ForgotPassword({ setView }) {
         }
     }
     
-    // PASO 3: Establecer nueva contraseña
     async function handlePasswordSubmit(e) {
         e.preventDefault();
         setError('');
@@ -54,7 +48,7 @@ export default function ForgotPassword({ setView }) {
         try {
             const data = await api('/api/auth/forgot-password/set-new-password', {
                 method: 'POST',
-                token: resetToken, // Usamos el token temporal
+                token: resetToken,
                 body: { new_password: passwords.new_password }
             });
             setMessage(data.message);
@@ -64,8 +58,6 @@ export default function ForgotPassword({ setView }) {
         }
     }
     
-    // 3. Renderizado condicional
-
     if (step === 'success') {
         return (
             <div>

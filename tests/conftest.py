@@ -1,9 +1,5 @@
-# tests/conftest.py
 import os
 
-# --- IMPORTANTÍSIMO ---
-# En CI no hay .env. Si DATABASE_URL no viene seteada, inyectamos una SQLite local
-# antes de importar cualquier módulo del backend que la lea.
 if "DATABASE_URL" not in os.environ:
     os.environ["DATABASE_URL"] = "sqlite:///./ci_test.db"
 
@@ -17,13 +13,12 @@ from backend.app.db import Base, get_db
 from backend.app.main import app
 from backend.app import models, security
 
-# Base de datos SQLite en memoria para los tests (aislada del DATABASE_URL de app)
 DATABASE_URL_TEST = "sqlite:///:memory:"
 
 engine = create_engine(
     DATABASE_URL_TEST,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool,  # Usar StaticPool para SQLite en memoria
+    poolclass=StaticPool,
 )
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -35,7 +30,6 @@ def override_get_db():
     finally:
         db.close()
 
-# Forzamos a la app a usar la sesión de test
 app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(scope="session", autouse=True)

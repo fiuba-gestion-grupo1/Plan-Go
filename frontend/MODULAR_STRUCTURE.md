@@ -145,14 +145,14 @@ Sidebar con estadísticas:
 ```javascript
 import { request, useToken } from '../utils/api';
 
-// Hacer peticiones
+// Hacer peticiones.
 const data = await request('/api/endpoint', { 
   method: 'POST', 
   token, 
   body: { key: 'value' } 
 });
 
-// Obtener token
+// Obtener token.
 const token = useToken();
 ```
 

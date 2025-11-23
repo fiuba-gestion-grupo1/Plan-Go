@@ -3,9 +3,6 @@ import PhotoCarousel from "./PhotoCarousel";
 import { StatusBadge, RatingBadge } from "./UIComponents";
 import { PublicationAvailability } from "./AvailabilityComponents";
 
-/**
- * Componente de tarjeta de publicación reutilizable
- */
 export default function PublicationCard({
   publication,
   carouselPrefix = "carousel",
@@ -23,7 +20,6 @@ export default function PublicationCard({
 
   return (
     <div className={`card shadow-sm h-100 ${p.status === 'deleted' ? 'border-dark' : ''}`}>
-      {/* Header de la tarjeta */}
       <div className="card-body pb-0">
         <div className="d-flex justify-content-between align-items-start mb-2">
           <div className="flex-grow-1">
@@ -34,15 +30,12 @@ export default function PublicationCard({
           </div>
           
           <div className="d-flex flex-column align-items-end gap-2">
-            {/* Badge de estado */}
             {showStatus && <StatusBadge status={p.status} />}
             
-            {/* Rating */}
             {showRating && p.avg_rating != null && (
               <RatingBadge avg={p.avg_rating} count={p.review_count || 0} />
             )}
             
-            {/* Botón de favorito */}
             {showFavorite && (
               <button
                 className="btn btn-sm btn-link p-0"
@@ -55,23 +48,19 @@ export default function PublicationCard({
               </button>
             )}
             
-            {/* Menú de acciones */}
             {showActions && actions}
           </div>
         </div>
 
-        {/* Información de disponibilidad */}
         <PublicationAvailability publication={p} />
       </div>
 
-      {/* Carrusel de fotos */}
       <PhotoCarousel 
         photos={p.photos} 
         publicationId={p.id} 
         carouselPrefix={carouselPrefix}
       />
 
-      {/* Footer de la tarjeta */}
       {(footer || showDetails || (p.status === "rejected" || p.status === "deleted") && p.rejection_reason) && (
         <div className="card-footer bg-white">
           {showDetails && (
@@ -80,21 +69,18 @@ export default function PublicationCard({
             </small>
           )}
           
-          {/* Mensaje de rechazo */}
           {p.status === "rejected" && p.rejection_reason && (
             <small className="text-danger d-block mt-1">
               ❌ <strong>Motivo:</strong> {p.rejection_reason}
             </small>
           )}
           
-          {/* Mensaje de eliminación */}
           {p.status === "deleted" && p.rejection_reason && (
             <small className="text-dark d-block mt-1">
               🗑️ <strong>Motivo:</strong> {p.rejection_reason}
             </small>
           )}
           
-          {/* Footer personalizado */}
           {footer}
         </div>
       )}

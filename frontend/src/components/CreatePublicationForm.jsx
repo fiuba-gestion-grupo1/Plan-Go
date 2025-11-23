@@ -21,13 +21,11 @@ export default function CreatePublicationForm({ onSubmit, onCancel, loading, err
                 <input name="place_name" className="form-control" required />
               </div>
 
-              {/* --- BLOQUE AÑADIDO --- */}
               <div className="col-md-12">
                 <label className="form-label">Descripción *</label>
                 <textarea name="description" className="form-control" rows="3" required placeholder="Describe brevemente el lugar, qué se puede hacer, etc."></textarea>
                 <small className="text-muted">Esta descripción será visible en la página de detalle.</small>
               </div>
-              {/* --- FIN BLOQUE AÑADIDO --- */}
               <div className="col-md-6">
                 <label className="form-label">País *</label>
                 <input name="country" className="form-control" required />

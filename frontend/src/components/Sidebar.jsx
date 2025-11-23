@@ -19,22 +19,14 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
     { id: 'review-reports', label: 'Reportes de reseñas' },
   ] : [
     { id: 'publications', label: '📰 Publicaciones' },
-    // Mostrar "Mis publicaciones" solo si el usuario es premium
     ...(isPremium ? [{ id: 'my-publications', label: '✏️ Mis publicaciones' }] : []),
     
-    // --- NUEVO HUB DE EXPERIENCIA VIAJERA ---
-    // Este nuevo item reemplaza a 'favorites', 'my-itineraries' y 'expenses'
     { id: 'traveler-experience-hub', label: '🗺️ Experiencia Viajera' },
 
-    // { id: 'favorites', label: '❤️ Mis favoritos' }, <-- ELIMINADO/MOVIDO
     { id: 'suggestions', label: '💡 Sugerencias' },
     { id: 'itinerary', label: '🗺️ Generar Itinerario' },
-    // { id: 'my-itineraries', label: '📅 Mis itinerarios' }, <-- ELIMINADO/MOVIDO
-    // { id: 'expenses', label: '💰 Mis gastos' }, <-- ELIMINADO/MOVIDO
     
-    // Mostrar "Beneficios" solo si el usuario es premium
     ...(isPremium ? [{ id: 'benefits', label: '🎁 Beneficios' }] : []),
-    // Mostrar "Invitar amigos" solo si el usuario es premium
     ...(isPremium ? [{ id: 'invite-friends', label: '✉️ Invitar amigos' }] : [])
   ];
 
@@ -51,11 +43,9 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
         backdropFilter: 'blur(10px)'
       }}
     >
-      {/* Header con logo y menú de usuario */}
       <div className="d-flex justify-content-between align-items-center p-3 border-bottom" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
         <img src={logo} alt="Plan&Go Logo" style={{ width: '120px' }} />
         
-        {/* Menú desplegable de usuario */}
         <div className="position-relative" ref={menuRef}>
           <button
             className="btn btn-light p-2 rounded-circle"
@@ -122,7 +112,6 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
         </div>
       </div>
 
-      {/* Menu items */}
       <nav className="flex-grow-1 p-2">
         <div className="mb-2 px-3 text-uppercase small text-muted fw-bold">Menú</div>
         {menuItems.map((item) => (
@@ -137,7 +126,6 @@ export default function Sidebar({ me, onNavigate, onLogout, activeView }) {
             }}
           >
             <span className="me-2">{item.label.split(' ')[0]}</span> 
-            {/* Aquí se asume que el primer elemento es el emoji */}
             <span>{item.label.substring(item.label.split(' ')[0].length).trim()}</span>
           </button>
         ))}

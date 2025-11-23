@@ -1,8 +1,5 @@
 import React from "react";
 
-/**
- * Componente de carrusel de fotos reutilizable
- */
 export default function PhotoCarousel({ 
   photos = [], 
   publicationId, 

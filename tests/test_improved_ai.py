@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script de prueba para el nuevo prompt mejorado de IA con validaciones
 """
@@ -12,7 +11,6 @@ def test_improved_ai_itinerary():
     
     base_url = "http://localhost:8000"
     
-    # Login
     login_data = {
         "identifier": "premium@fi.uba.ar",
         "password": "password"
@@ -26,7 +24,6 @@ def test_improved_ai_itinerary():
     token = login_response.json().get("access_token")
     headers = {"Authorization": f"Bearer {token}"}
     
-    # Datos para generar itinerario con IA
     today = datetime.now().date()
     end_date = today + timedelta(days=2)
     
@@ -45,7 +42,6 @@ def test_improved_ai_itinerary():
     print(f"💰 Presupuesto: US${ai_request['budget']}")
     print(f"👥 Personas: {ai_request['cant_persons']}")
     
-    # Hacer la petición
     response = requests.post(
         f"{base_url}/api/itineraries/request",
         json=ai_request,
@@ -62,12 +58,10 @@ def test_improved_ai_itinerary():
         print(f"📋 Estado: {result['status']}")
         print(f"📄 Publicaciones encontradas: {len(result['publications'])}")
         
-        # Mostrar un preview del itinerario
         itinerary_text = result.get('generated_itinerary', '')
         preview = itinerary_text[:300] + "..." if len(itinerary_text) > 300 else itinerary_text
         print(f"📝 Preview del itinerario:\n{preview}")
         
-        # Mostrar las publicaciones utilizadas
         if result['publications']:
             print("\n🏛️ Publicaciones utilizadas:")
             for pub in result['publications']:

@@ -1,4 +1,3 @@
-/* Botón con borde azul que se pinta completamente al hacer hover */
 .btn-outline-custom {
   border-color: #3A92B5;
   color: #3A92B5;
@@ -30,7 +29,6 @@
 .btn-celeste:hover,
 .btn-celeste:focus {
   background-color: #f4fbfd;
-  /* suave cambio al pasar el mouse */
   color: #2f7f98;
   border-color: #2f7f98;
   text-decoration: none;
@@ -41,12 +39,10 @@
   box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.05);
 }
 
-/* Asegura que la flecha del dropdown también se vea en celeste */
 .btn-celeste.dropdown-toggle::after {
   border-top-color: #3A92B5;
 }
 
-/* Suaviza los bordes de filas en la tabla de viajes */
 .table tbody tr td {
   border-top: 1px solid #f0f2f5 !important;
 }
@@ -65,4 +61,3 @@
 .table td:first-child {
   text-align: left;
 }
-

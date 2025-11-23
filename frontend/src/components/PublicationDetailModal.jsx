@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-// Importamos nuestros helpers centralizados
-import { request } from '../utils/api'; // Ajusta la ruta si es necesario
-import { Stars, RatingBadge } from './shared/UIComponents'; // Ajusta la ruta si es necesario
+import { request } from '../utils/api';
+import { Stars, RatingBadge } from './shared/UIComponents';
 
 export default function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me, token }) {
     if (!open || !pub) return null;
@@ -9,7 +8,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
     const [isFav, setIsFav] = useState(pub.is_favorite || false);
     useEffect(() => { setIsFav(pub.is_favorite || false); }, [pub?.id, pub?.is_favorite]);
 
-    // --- logica de reseñas---
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState("");
@@ -21,13 +19,11 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
 
     const isPremium = me?.role === "premium" || me?.username === "admin";
 
-    //Estado para el modal de reporte ---
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [reportingReview, setReportingReview] = useState(null); // La reseña que se está reportando
+    const [reportingReview, setReportingReview] = useState(null);
     const [reportReason, setReportReason] = useState("");
     const [reportComment, setReportComment] = useState("");
 
-    // Efecto para cargar reseñas
     useEffect(() => {
         if (!open || !pub?.id) {
             setList([]);
@@ -50,7 +46,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
         return () => { cancel = true; };
     }, [open, pub?.id, token]);
 
-    // Función para enviar reseña
     async function submitReview(e) {
         e.preventDefault();
         if (!isPremium) { return; }
@@ -69,7 +64,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
         }
     }
 
-    //FUNCION LIKE REVIEW
     async function handleLikeReview(reviewId) {
         if (!isPremium) {
             alert("Solo los usuarios premium pueden dar me gusta a las reseñas.");
@@ -102,7 +96,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
         }
     }
 
-    //FUNCION COMENTAR RESEÑA
     async function submitComment(e, reviewId) {
         e.preventDefault();
         const commentText = commentInputs[reviewId];
@@ -131,7 +124,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
         }
     }
 
-    // --- NUEVAS FUNCIONES PARA REPORTE ---
     const handleOpenReportModal = (review) => {
         setReportingReview(review);
         setIsReportModalOpen(true);
@@ -152,7 +144,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
         }
 
         try {
-            // Enviar reporte al backend
             await request(`/api/publications/${pub.id}/reviews/${reportingReview.id}/report`, {
                 method: "POST",
                 token,
@@ -160,7 +151,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
             });
             alert("Reporte enviado con éxito. Gracias por tu colaboración.");
             
-            // Recargar las reseñas para ver el estado actualizado
             const rows = await request(`/api/publications/${pub.id}/reviews`, { token });
             setList(rows);
         } catch (err) {
@@ -170,7 +160,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
         handleCloseReportModal();
     }
 
-    //FUNCION TOGGLE FAVORITE
     async function handleToggleFavorite(e) {
         if (e && e.stopPropagation) e.stopPropagation();
         const prev = isFav;
@@ -190,16 +179,13 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
             style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
             <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 600, maxHeight: "90vh", width: "90%" }}>
 
-                {/* Header con botón cerrar */}
                 <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
                     <h5 className="mb-0">{pub.place_name}</h5>
                     <button className="btn-close" onClick={onClose}></button>
                 </div>
 
-                {/* Contenido scrolleable */}
                 <div className="p-3" style={{ overflowY: "auto", maxHeight: "calc(90vh - 70px)" }}>
 
-                    {/* Carrusel de imágenes */}
                     <div className="mb-3">
                         {pub.photos?.length > 0 ? (
                             <div id={`carousel-${pub.id}`} className="carousel slide" data-bs-ride="carousel">
@@ -229,7 +215,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                         )}
                     </div>
 
-                    {/* Información principal */}
                     <div className="mb-3">
                         <div className="d-flex justify-content-between align-items-start mb-2">
                             <div>
@@ -244,7 +229,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </button>
                         </div>
 
-                        {/* Ubicación */}
                         <div className="mb-3">
                             <h6 className="mb-2" style={{color: '#3A92B5'}}>📍 Ubicación</h6>
                             <p className="mb-2">
@@ -252,7 +236,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </p>
                         </div>
 
-                        {/* Descripción */}
                         {pub.description && (
                             <div className="mb-3">
                                 <h6 className="mb-2" style={{color: '#3A92B5'}}>📋 Descripción</h6>
@@ -260,7 +243,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </div>
                         )}
 
-                        {/* Categorías */}
                         {pub.categories && pub.categories.length > 0 && (
                             <div className="mb-3">
                                 <h6 className="text-primary mb-2">🏷️ Categorías</h6>
@@ -274,7 +256,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </div>
                         )}
 
-                        {/* Precio */}
                         <div className="mb-3">
                             <h6 className="text-primary mb-2">💰 Precio</h6>
                             {pub.cost_per_day ? (
@@ -288,7 +269,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             )}
                         </div>
 
-                        {/* Duración */}
                         {pub.duration_min && (
                             <div className="mb-3">
                                 <h6 className="text-primary mb-2">⏱️ Duración</h6>
@@ -298,7 +278,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </div>
                         )}
 
-                        {/* Actividades */}
                         {pub.activities && pub.activities.length > 0 && (
                             <div className="mb-3">
                                 <h6 className="text-primary mb-2">🎯 Actividades</h6>
@@ -312,7 +291,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </div>
                         )}
 
-                        {/* Clima */}
                         {pub.climate && (
                             <div className="mb-3">
                                 <h6 className="text-primary mb-2">🌤️ Clima</h6>
@@ -320,7 +298,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </div>
                         )}
 
-                        {/* Continente */}
                         {pub.continent && (
                             <div className="mb-3">
                                 <h6 className="text-primary mb-2">🌍 Continente</h6>
@@ -331,7 +308,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                         <hr />
                         <h6 className="text-primary mt-3 mb-2">⭐ Reseñas</h6>
 
-                        {/* Lista de reseñas */}
                         <div style={{ maxHeight: 250, overflow: "auto" }}>
                             {loading && <div className="text-muted">Cargando…</div>}
                             {err && <div className="alert alert-danger">{err}</div>}
@@ -376,7 +352,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                                         {r.comment && <div className="mt-1">{r.comment}</div>}
                                         < small className="text-muted d-block mt-1" > por {r.author_username}</small>
 
-                                        {/* Bloque de comentarios de la reseña */}
                                         <div className="mt-3 ps-3" style={{ borderLeft: '3px solid #eee' }}>
                                             {r.comments && r.comments.length > 0 && (
                                                 <ul className="list-unstyled mb-2">
@@ -418,7 +393,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                             </ul>
                         </div>
 
-                        {/* Formulario para nueva reseña */}
                         {isPremium ? (
                             <form className="p-3 border-top" onSubmit={submitReview}>
                                 <div className="row g-2">
@@ -447,10 +421,9 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                     </div>
                 </div>
             </div >
-            {/* Modal de reporte */}
             {isReportModalOpen && reportingReview && (
                 <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-                    style={{ background: "rgba(0,0,0,.6)", zIndex: 1060 }}> {/* zIndex más alto para superponer */}
+                    style={{ background: "rgba(0,0,0,.6)", zIndex: 1060 }}>
                     <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 500, width: "90%" }}>
                         <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
                             <h5 className="mb-0">Reportar Reseña</h5>
@@ -502,7 +475,6 @@ export default function PublicationDetailModal({ open, pub, onClose, onToggleFav
                     </div>
                 </div>
             )}
-            {/* === FIN MODAL DE REPORTE === */}
         </div >
     );
 }

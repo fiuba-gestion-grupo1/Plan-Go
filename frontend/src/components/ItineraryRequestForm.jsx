@@ -29,7 +29,6 @@ export default function ItineraryRequestForm({ onSubmit, isLoading = false }) {
         e.preventDefault();
         setError('');
 
-        // Validaciones básicas
         if (!destination || !startDate || !endDate || !budget || !tripType || !cantPersons) {
             setError('Por favor completa todos los campos obligatorios');
             return;
@@ -52,10 +51,9 @@ export default function ItineraryRequestForm({ onSubmit, isLoading = false }) {
 
 
         try {
-            // Asegurar que las fechas estén en formato correcto (YYYY-MM-DD) sin problemas de zona horaria
             const formatDate = (dateStr) => {
                 if (!dateStr) return null;
-                const date = new Date(dateStr + 'T00:00:00'); // Forzar medianoche local
+                const date = new Date(dateStr + 'T00:00:00');
                 return date.toISOString().split('T')[0];
             };
 

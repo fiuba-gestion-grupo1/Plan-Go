@@ -1,26 +1,21 @@
-#!/usr/bin/env python3
 """
 Test script para PASO 4: Verificar endpoint /api/itineraries/ai-list
 """
 import requests
 import json
 
-# Configuración
 BASE_URL = "http://localhost:8000"
 LOGIN_URL = f"{BASE_URL}/api/auth/login"
 AI_LIST_URL = f"{BASE_URL}/api/itineraries/ai-list"
 
-# Credenciales de prueba (usuario válido del sistema)
-TEST_EMAIL = "normal@fi.uba.ar"    # Usuario de prueba del seed
-TEST_PASSWORD = "password"         # Contraseña del usuario de prueba
+TEST_EMAIL = "normal@fi.uba.ar"
+TEST_PASSWORD = "password"
 
 def test_ai_list_endpoint():
     """Probar el endpoint /api/itineraries/ai-list para el paso 4"""
     
     print("🔍 PASO 4 - Test del endpoint /api/itineraries/ai-list")
     print("=" * 60)
-    
-    # Paso 1: Login para obtener token
     print("📋 1. Intentando login...")
     login_payload = {
         "identifier": TEST_EMAIL,
@@ -52,7 +47,6 @@ def test_ai_list_endpoint():
         print(f"❌ Error en login: {str(e)}")
         return
     
-    # Paso 2: Llamar al endpoint ai-list
     print("📋 2. Llamando al endpoint /api/itineraries/ai-list...")
     
     headers = {
@@ -69,12 +63,10 @@ def test_ai_list_endpoint():
         if response.status_code == 200:
             print("✅ Endpoint funcionando correctamente!")
             
-            # Mostrar respuesta
             data = response.json()
             print(f"📋 Respuesta:")
             print(json.dumps(data, indent=2, ensure_ascii=False))
             
-            # Análisis de datos
             total = data.get('total', 0)
             itineraries = data.get('itineraries', [])
             

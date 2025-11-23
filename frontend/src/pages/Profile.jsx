@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api, BASE_URL } from '../api';
 
-// 1. Creamos el componente para el modal de carga
 const LoadingModal = ({ status }) => {
-    // Si no hay status, no se muestra nada
     if (!status) return null;
-
-    // Textos personalizados según la acción
     const messages = {
         subscribing: 'Procesando pago de suscripción...',
         cancelling: 'Cancelando suscripción...'
@@ -17,7 +13,6 @@ const LoadingModal = ({ status }) => {
     };
 
     return (
-        // Backdrop (fondo oscuro)
         <div style={{
             position: 'fixed',
             top: 0,
@@ -28,13 +23,11 @@ const LoadingModal = ({ status }) => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            zIndex: 9999 // Asegura que esté por encima de todo
+            zIndex: 9999
         }}>
-            {/* Contenido del Modal (la tarjeta) */}
             <div className="card shadow-lg p-4" style={{ minWidth: '300px', maxWidth: '90%' }}>
                 <div className="card-body text-center">
                     <h4 className="card-title mb-3">{title[status] || 'Procesando...'}</h4>
-                    {/* La "ruedita" (spinner de Bootstrap) */}
                     <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
                         <span className="visually-hidden">Loading...</span>
                     </div>
@@ -62,14 +55,10 @@ export default function Profile({ me, token, setMe }) {
     const [previewUrl, setPreviewUrl] = useState(null);
     const fileInputRef = useRef(null);
 
-    // 1. Estado para manejar las notificaciones en pantalla
     const [notification, setNotification] = useState({ type: '', message: '' });
 
-    // 2. Añadimos el nuevo estado para el modal de carga
-    // Puede ser: null, 'subscribing', o 'cancelling'
     const [processingStatus, setProcessingStatus] = useState(null);
 
-    // Efecto para que la notificación desaparezca sola después de 5 segundos
     useEffect(() => {
         if (notification.message) {
             const timer = setTimeout(() => {
@@ -100,15 +89,13 @@ export default function Profile({ me, token, setMe }) {
         setPasswordData(prev => ({ ...prev, [name]: value }));
     }
 
-    // --- Funciones de envío actualizadas para usar notificaciones ---
 
     async function handleSubmit(e) {
         e.preventDefault();
-        setNotification({ type: '', message: '' }); // Limpiar notificaciones previas
+        setNotification({ type: '', message: '' });
         try {
             const updatedUser = await api('/api/auth/me', { method: 'PUT', token, body: formData });
             setMe(updatedUser);
-            // AQUÍ: Se establece el mensaje de éxito en el estado
             setNotification({ type: 'success', message: '¡Perfil actualizado con éxito!' });
             setViewMode('view');
         } catch (error) {
@@ -136,7 +123,6 @@ export default function Profile({ me, token, setMe }) {
 
         try {
             await api('/api/auth/change-password', { method: 'POST', token, body: { current_password, new_password } });
-            // AQUÍ: Se establece el mensaje de éxito en el estado
             setNotification({ type: 'success', message: '¡Contraseña actualizada con éxito!' });
             setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
             setViewMode('view');
@@ -156,7 +142,6 @@ export default function Profile({ me, token, setMe }) {
         try {
             const updatedUser = await api('/api/users/me/photo', { method: 'PUT', token, body: data });
             setMe(updatedUser);
-            // AQUÍ: Se establece el mensaje de éxito en el estado
             setNotification({ type: 'success', message: '¡Foto de perfil actualizada!' });
             setSelectedFile(null);
             setPreviewUrl(null);
@@ -165,53 +150,37 @@ export default function Profile({ me, token, setMe }) {
         }
     }
 
-    //Funcion de manejo de subscripcion
     async function handleSubscribe() {
         setNotification({ type: '', message: '' });
-
-        // 1. Mostrar el modal de carga
         setProcessingStatus('subscribing');
-
-        // 2. Simular espera de 5 segundos (5000 milisegundos)
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
-            // 3. Llamar a la API
             const updatedUser = await api('/api/users/me/subscribe', { method: 'POST', token });
             setMe(updatedUser);
             setNotification({ type: 'success', message: '¡Felicidades! Ahora eres un usuario Premium.' });
         } catch (error) {
             setNotification({ type: 'danger', message: error.detail || 'Error al procesar la suscripción.' });
         } finally {
-            // 4. Ocultar el modal (ya sea éxito or error)
             setProcessingStatus(null);
         }
     }
 
-    //Funcion de cancelacion de subscripcion premium
     async function handleCancelSubscription() {
         setNotification({ type: '', message: '' });
-
-        // 1. Mostrar el modal de carga
         setProcessingStatus('cancelling');
-
-        // 2. Simular espera de 5 segundos
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
-            // 3. Llamar a la API
             const updatedUser = await api('/api/users/me/cancel-subscription', { method: 'POST', token });
             setMe(updatedUser);
             setNotification({ type: 'success', message: 'Tu suscripción ha sido cancelada.' });
         } catch (error) {
             setNotification({ type: 'danger', message: error.detail || 'Error al cancelar la suscripción.' });
         } finally {
-            // 4. Ocultar el modal
             setProcessingStatus(null);
         }
     }
-
-    // --- Resto de funciones auxiliares (sin cambios) ---
 
     function handleFileChange(e) {
         const file = e.target.files[0];
@@ -230,7 +199,6 @@ export default function Profile({ me, token, setMe }) {
         } catch (e) { return 'Fecha inválida'; }
     }
 
-    // --- Estilos y URLs ---
     const photoStyle = {
         width: '150px',
         height: '150px',
@@ -248,7 +216,6 @@ export default function Profile({ me, token, setMe }) {
     };
     const imageUrl = me.profile_picture_url ? `${BASE_URL}${me.profile_picture_url}` : null;
 
-    // Componente para renderizar la notificación
     const NotificationArea = () => (
         notification.message && (
             <div className={`alert alert-${notification.type} text-center`}>
@@ -257,19 +224,15 @@ export default function Profile({ me, token, setMe }) {
         )
     );
 
-    // --- VISTAS RENDERIZADAS ---
-
     function formatTravelPreferencesDisplay(rawPrefs) {
         if (!rawPrefs) return 'No especificadas';
     
-        // Si ya es un objeto, lo uso directo; si es string intento parsear
         let obj = rawPrefs;
         try {
             if (typeof rawPrefs === 'string') {
                 obj = JSON.parse(rawPrefs);
             }
         } catch {
-            // No es JSON válido → devuelvo el texto tal cual
             return rawPrefs;
         }
     
@@ -295,12 +258,10 @@ export default function Profile({ me, token, setMe }) {
             parts.push(obj.about);
         }
     
-        // Si pude armar algo lindo, lo devuelvo; si no, el texto original
         return parts.length ? parts.join(' · ') : rawPrefs;
     }
     
 
-    // Vista para editar el perfil
     if (viewMode === 'edit') {
         return (
             <div className="container mt-4" style={{ maxWidth: '700px' }}>
@@ -309,7 +270,6 @@ export default function Profile({ me, token, setMe }) {
                         <form onSubmit={handleSubmit}>
                             <h2 className="card-title text-center mb-4">Editar Perfil</h2>
                             <NotificationArea />
-                            {/* Campos del formulario */}
                             <div className="mb-3">
                                 <label className="form-label">Nombre</label>
                                 <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} className="form-control" />
@@ -344,7 +304,6 @@ export default function Profile({ me, token, setMe }) {
         );
     }
 
-    // Vista para cambiar la contraseña
     if (viewMode === 'password') {
         return (
             <div className="container mt-4" style={{ maxWidth: '700px' }}>
@@ -353,7 +312,6 @@ export default function Profile({ me, token, setMe }) {
                         <form onSubmit={handlePasswordSubmit}>
                             <h2 className="card-title text-center mb-4">Cambiar Contraseña</h2>
                             <NotificationArea />
-                            {/* Campos del formulario */}
                             <div className="mb-3">
                                 <label className="form-label">Contraseña Actual</label>
                                 <input type="password" name="current_password" value={passwordData.current_password} onChange={handlePasswordChange} className="form-control" />
@@ -377,11 +335,9 @@ export default function Profile({ me, token, setMe }) {
         );
     }
 
-    // --- VISTA PRINCIPAL (VER PERFIL) ---
     return (
         < div className="container mt-4" style={{ maxWidth: '700px' }
         }>
-            {/*Renderizamos el modal (sólo se verá si processingStatus no es null) */}
             < LoadingModal status={processingStatus} />
 
             <div className="card shadow-sm">
@@ -389,7 +345,6 @@ export default function Profile({ me, token, setMe }) {
                     <h2 className="card-title text-center mb-4">Mi Perfil</h2>
                     <NotificationArea />
 
-                    {/* Sección de la foto de perfil */}
                     <div className="text-center mb-4">
                         <div style={{ position: 'relative', display: 'inline-block' }}>
                             <img src={previewUrl || imageUrl || 'default-avatar.png'} alt="Perfil" style={photoStyle} />
@@ -406,7 +361,6 @@ export default function Profile({ me, token, setMe }) {
                         )}
                     </div>
 
-                    {/* Información del usuario */}
                     <ul className="list-group list-group-flush">
                         <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Usuario:</strong> {me.username}</li>
                         <li className="list-group-item d-flex justify-content-between align-items-center"><strong>Email:</strong> {me.email}</li>
@@ -416,7 +370,6 @@ export default function Profile({ me, token, setMe }) {
                         <li className="list-group-item"><strong>Preferencias:</strong><p className="text-muted mb-0">{formatTravelPreferencesDisplay(me.travel_preferences)}</p></li>
                     </ul>
 
-                    {/* Sección de suscripción */}
                     <div className="card shadow-sm mt-4">
                         <div className="card-body">
                             {me.role === 'user' && (
@@ -469,7 +422,6 @@ export default function Profile({ me, token, setMe }) {
                                 </>
                             )}
 
-                            {/* Opcional: Para admin u otros roles */}
                             {me.role !== 'user' && me.role !== 'premium' && (
                                 <>
                                     <h5 className="card-title">Suscripción: <span className="badge bg-info text-dark">{me.role.charAt(0).toUpperCase() + me.role.slice(1)}</span></h5>
@@ -478,7 +430,6 @@ export default function Profile({ me, token, setMe }) {
                             )}
                         </div>
                     </div>
-                    {/* Botones de acción */}
                     <div className="d-flex justify-content-end align-items-center mt-4 gap-3">
                         <button className="btn btn-outline-secondary" onClick={() => setViewMode('password')}>
                             Modificar Contraseña

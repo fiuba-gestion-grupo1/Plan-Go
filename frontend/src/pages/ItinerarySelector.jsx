@@ -13,7 +13,6 @@ export default function ItinerarySelector({ onNavigate }) {
           </div>
 
           <div className="row g-4">
-            {/* Opción Personalizado */}
             <div className="col-md-6">
               <div className="card shadow-sm h-100 border-0 hover-card" style={{ cursor: 'pointer' }}>
                 <div className="card-body text-center p-5">
@@ -48,7 +47,6 @@ export default function ItinerarySelector({ onNavigate }) {
               </div>
             </div>
 
-            {/* Opción Con IA */}
             <div className="col-md-6">
               <div className="card shadow-sm h-100 border-0 hover-card" style={{ cursor: 'pointer' }}>
                 <div className="card-body text-center p-5">

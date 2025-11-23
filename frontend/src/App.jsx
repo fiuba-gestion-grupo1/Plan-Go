@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from "react";
 import {
   BrowserRouter,
@@ -45,10 +44,10 @@ export default function App() {
 }
 
 function AppWithRouter() {
-  const [view, setView] = useState("login"); // login | register | forgot-password
+  const [view, setView] = useState("login");
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [me, setMe] = useState(null);
-  const [authView, setAuthView] = useState("publications"); // navegación por sidebar
+  const [authView, setAuthView] = useState("publications");
 
   const navigate = useNavigate();
 
@@ -65,7 +64,6 @@ function AppWithRouter() {
           const isAdminUser =
             meResp?.role === "admin" || meResp?.username === "admin";
           
-          // Verificar si hay parámetros URL para vista específica
           const urlParams = new URLSearchParams(window.location.search);
           const viewParam = urlParams.get('view');
           const showIdParam = urlParams.get('showId');
@@ -99,7 +97,6 @@ function AppWithRouter() {
   }
 
   function handleNavigate(nextView) {
-    // bloque vistas admin a no-admin
     if (
       [
         "pending-approvals",
@@ -114,7 +111,6 @@ function AppWithRouter() {
       return;
     }
 
-    // bloque vistas usuario a admin
     if (
       [
         "my-publications",
@@ -130,7 +126,6 @@ function AppWithRouter() {
       return;
     }
 
-    // premium only
     if (nextView === "invite-friends" && !isPremium) {
       alert("Función disponible sólo para usuarios premium.");
       return;
@@ -140,7 +135,6 @@ function AppWithRouter() {
       return;
     }
 
-    // rutas especiales
     if (nextView === "search-travelers") {
       setAuthView("search-travelers");
       navigate("/viajeros");
@@ -153,7 +147,6 @@ function AppWithRouter() {
       return;
     }
 
-    // por defecto: vistas del hub principal en "/"
     setAuthView(nextView);
     navigate("/");
   }
@@ -185,18 +178,15 @@ function AppWithRouter() {
     );
   }
 
-  // -------- mainElement para ruta "/" --------
   let mainElement = null;
 
   if (token && me) {
     const hubContent = (
       <>
-        {/* HUB central */}
         {authView === "traveler-experience-hub" && (
           <TravelerExperience onNavigate={handleNavigate} me={me} />
         )}
 
-        {/* vistas anidadas del hub */}
         {authView === "favorites" && !isAdmin && (
           <Home
             key="favorites"
@@ -240,7 +230,6 @@ function AppWithRouter() {
           <TravelerProfile me={me} />
         )}
 
-        {/* publicaciones / home principal */}
         {authView === "publications" &&
           (isAdmin ? (
             <Backoffice me={me} view="publications" />
@@ -259,7 +248,6 @@ function AppWithRouter() {
             />
           ))}
 
-        {/* usuario */}
         {authView === "my-publications" && !isAdmin && (
           <Home
             key="my-publications"
@@ -291,7 +279,6 @@ function AppWithRouter() {
           <CustomItinerary me={me} token={token} />
         )}
 
-        {/* premium only */}
         {authView === "invite-friends" && !isAdmin && isPremium && (
           <InviteFriend token={token} />
         )}
@@ -300,7 +287,6 @@ function AppWithRouter() {
           <Benefits token={token} me={me} />
         )}
 
-        {/* admin */}
         {authView === "approved-publications" && isAdmin && (
           <Backoffice me={me} view="publications" />
         )}
@@ -317,7 +303,6 @@ function AppWithRouter() {
           <Backoffice me={me} view="review-reports" />
         )}
 
-        {/* comunes */}
         {authView === "profile" && (
           <Profile me={me} token={token} setMe={setMe} />
         )}
@@ -329,7 +314,6 @@ function AppWithRouter() {
 
     mainElement = renderShell(hubContent);
   } else {
-    // pantalla de login / registro
     mainElement = (
       <div
         className="d-flex flex-column align-items-center min-vh-100 py-5"
@@ -391,13 +375,10 @@ function AppWithRouter() {
     );
   }
 
-  // --------- rutas ---------
   return (
     <Routes>
-      {/* app principal */}
       <Route path="/" element={mainElement} />
 
-      {/* compartir itinerario (premium) */}
       <Route
         path="/share-itinerary/:id"
         element={
@@ -409,7 +390,6 @@ function AppWithRouter() {
         }
       />
 
-      {/* tu perfil viajero como página independiente */}
       <Route
         path="/perfil"
         element={
@@ -419,7 +399,6 @@ function AppWithRouter() {
         }
       />
 
-      {/* buscador de viajeros */}
       <Route
         path="/viajeros"
         element={
@@ -434,7 +413,6 @@ function AppWithRouter() {
         }
       />
 
-      {/* perfil de otro viajero */}
       <Route
         path="/viajeros/:userId"
         element={
@@ -444,7 +422,6 @@ function AppWithRouter() {
         }
       />
 
-      {/* fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

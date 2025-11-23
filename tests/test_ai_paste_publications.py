@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test para verificar que la búsqueda de publicaciones funciona después de pegar IA
 """
@@ -13,13 +12,11 @@ def test_publications_after_ai_paste():
     print("🚀 TEST: Publicaciones Disponibles Después de Pegar IA")
     print("=" * 60)
     
-    # 1. Login
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # 2. Obtener itinerario de IA
     ai_list_response = requests.get(f"{BASE_URL}/api/itineraries/ai-list", headers=headers)
     itineraries = ai_list_response.json()["itineraries"]
     ai_itinerary = itineraries[0]
@@ -27,7 +24,6 @@ def test_publications_after_ai_paste():
     print(f"\n📋 Itinerario IA:")
     print(f"   Destination: '{ai_itinerary['destination']}'")
     
-    # 3. Convertir a personalizado
     conversion_data = {
         "ai_itinerary_id": ai_itinerary["id"],
         "custom_destination": ai_itinerary["destination"],
@@ -46,7 +42,6 @@ def test_publications_after_ai_paste():
     print(f"\n✅ Itinerario convertido:")
     print(f"   Destination: '{converted_destination}'")
     
-    # 4. Simular búsqueda como lo haría el frontend (extrayendo ciudad)
     city_name = converted_destination.split(',')[0].strip() if ',' in converted_destination else converted_destination
     search_url = f"{BASE_URL}/api/publications/search?destination={city_name}"
     
@@ -82,7 +77,6 @@ def test_publications_after_ai_paste():
         print(f"\n❌ Error en búsqueda: {search_response.status_code}")
         success_score = 0
     
-    # 5. Instrucciones de testing manual
     print(f"\n🎯 TESTING MANUAL:")
     print(f"=" * 30)
     print(f"   1. Ir a http://localhost:8000")

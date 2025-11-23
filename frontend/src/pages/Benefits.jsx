@@ -3,7 +3,7 @@ import { request } from '../utils/api';
 import PublicationDetailModal from "../components/PublicationDetailModal";
 
 export default function Benefits({ token, me }) {
-  const [activeView, setActiveView] = useState('benefits'); // 'benefits' | 'my-benefits' | 'movements'
+  const [activeView, setActiveView] = useState('benefits');
   const [userPoints, setUserPoints] = useState(0);
   const [pointsMovements, setPointsMovements] = useState([]);
   const [premiumBenefits, setPremiumBenefits] = useState([]);
@@ -12,7 +12,6 @@ export default function Benefits({ token, me }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Estados para modales
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [showPublicationModal, setShowPublicationModal] = useState(false);
@@ -20,7 +19,6 @@ export default function Benefits({ token, me }) {
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [selectedPublication, setSelectedPublication] = useState(null);
   
-  // Estados para filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [percentageFilter, setPercentageFilter] = useState('');
   const [pointsFilter, setPointsFilter] = useState('');
@@ -29,14 +27,12 @@ export default function Benefits({ token, me }) {
 
   useEffect(() => {
     fetchUserPoints();
-    fetchPremiumBenefits(); // Cargar beneficios por defecto
+    fetchPremiumBenefits();
   }, []);
 
-  // Efecto para refrescar cuando el componente se vuelve visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // Refrescar puntos cuando la página vuelve a ser visible
         fetchUserPoints();
       }
     };
@@ -48,14 +44,12 @@ export default function Benefits({ token, me }) {
     };
   }, []);
 
-  // Efecto para refrescar cuando cambia el usuario
   useEffect(() => {
     if (me?.id) {
       fetchUserPoints();
     }
   }, [me?.id, token]);
 
-  // Efecto para filtrar beneficios
   useEffect(() => {
     if (premiumBenefits.length === 0) {
       setFilteredBenefits([]);
@@ -65,7 +59,6 @@ export default function Benefits({ token, me }) {
     try {
       let filtered = [...premiumBenefits];
 
-      // Filtro por término de búsqueda
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(benefit => {
@@ -91,7 +84,6 @@ export default function Benefits({ token, me }) {
         });
       }
 
-      // Filtro por porcentaje de descuento
       if (percentageFilter) {
         if (percentageFilter === 'no-discount') {
           filtered = filtered.filter(benefit => !benefit.discount_percentage);
@@ -104,7 +96,6 @@ export default function Benefits({ token, me }) {
         }
       }
 
-      // Filtro por costo en puntos
       if (pointsFilter) {
         const [min, max] = pointsFilter.split('-').map(Number);
         filtered = filtered.filter(benefit => {
@@ -118,7 +109,6 @@ export default function Benefits({ token, me }) {
         });
       }
 
-      // Filtro por actividad
       if (activityFilter) {
         filtered = filtered.filter(benefit => {
           try {
@@ -177,7 +167,6 @@ export default function Benefits({ token, me }) {
       const data = await request('/api/users/benefits', { token });
       setPremiumBenefits(data || []);
       
-      // Obtener beneficios ya obtenidos para marcarlos
       const userBenefitsData = await request('/api/users/my-benefits', { token });
       const obtainedIds = new Set(userBenefitsData.map(ub => ub.benefit.publication.id));
       setObtainedBenefits(obtainedIds);
@@ -211,16 +200,13 @@ export default function Benefits({ token, me }) {
         token 
       });
       
-      // Actualizar puntos
       setUserPoints(result.remaining_points);
       
-      // Marcar beneficio como obtenido
       setObtainedBenefits(prev => new Set([...prev, selectedBenefit.publication.id]));
       
       setShowConfirmModal(false);
       setSelectedBenefit(null);
       
-      // Mostrar mensaje de éxito
       alert(`¡Beneficio obtenido! Código: ${result.voucher_code}`);
       
     } catch (e) {
@@ -235,10 +221,10 @@ export default function Benefits({ token, me }) {
       if (benefit && typeof benefit.discount_percentage === 'number' && benefit.discount_percentage > 0) {
         return benefit.discount_percentage * 2;
       }
-      return 20; // Beneficios gratuitos/upgrades
+      return 20;
     } catch (e) {
       console.warn('Error calculating points cost:', e, benefit);
-      return 20; // Valor por defecto seguro
+      return 20;
     }
   }
 
@@ -314,7 +300,6 @@ export default function Benefits({ token, me }) {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* Pestañas de navegación */}
       <div className="d-flex mb-4 border-bottom">
         <button
           className={`btn pb-2 ${activeView === 'benefits' ? "border-bottom border-3 border-primary fw-bold" : "text-muted"}`}
@@ -336,10 +321,8 @@ export default function Benefits({ token, me }) {
         </button>
       </div>
 
-      {/* Vista: Beneficios disponibles */}
       {activeView === 'benefits' && (
         <div>
-          {/* Sección prominente de puntos */}
           <div className="row mb-4">
             <div className="col-lg-6">
               <div className="card shadow-sm border-warning">
@@ -386,14 +369,11 @@ export default function Benefits({ token, me }) {
             </div>
           </div>
 
-          {/* Beneficios disponibles */}
           <h5 className="mb-4">🎁 Beneficios disponibles</h5>
           
-          {/* Filtros y búsqueda */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <div className="row g-3">
-                {/* Búsqueda manual */}
                 <div className="col-12 col-md-6 col-lg-4">
                   <label className="form-label small fw-bold">🔍 Buscar beneficios</label>
                   <input
@@ -405,7 +385,6 @@ export default function Benefits({ token, me }) {
                   />
                 </div>
                 
-                {/* Filtro por porcentaje */}
                 <div className="col-12 col-md-6 col-lg-2">
                   <label className="form-label small fw-bold">💸 % Descuento</label>
                   <select
@@ -423,7 +402,6 @@ export default function Benefits({ token, me }) {
                   </select>
                 </div>
                 
-                {/* Filtro por puntos */}
                 <div className="col-12 col-md-6 col-lg-2">
                   <label className="form-label small fw-bold">💎 Puntos</label>
                   <select
@@ -440,7 +418,6 @@ export default function Benefits({ token, me }) {
                   </select>
                 </div>
                 
-                {/* Filtro por actividad */}
                 <div className="col-12 col-md-6 col-lg-2">
                   <label className="form-label small fw-bold">🎯 Actividad</label>
                   <input
@@ -452,7 +429,6 @@ export default function Benefits({ token, me }) {
                   />
                 </div>
                 
-                {/* Botón limpiar filtros */}
                 <div className="col-12 col-md-6 col-lg-2 d-flex align-items-end">
                   <button
                     type="button"
@@ -469,7 +445,6 @@ export default function Benefits({ token, me }) {
                 </div>
               </div>
               
-              {/* Contador de resultados */}
               {!loading && (
                 <div className="mt-3 text-muted small">
                   {searchTerm || percentageFilter || pointsFilter || activityFilter ? (
@@ -586,7 +561,6 @@ export default function Benefits({ token, me }) {
         </div>
       )}
 
-      {/* Vista: Mis descuentos */}
       {activeView === 'my-benefits' && (
         <div className="row g-4">
           {loading ? (
@@ -657,9 +631,6 @@ export default function Benefits({ token, me }) {
         </div>
       )}
 
-
-
-      {/* Vista: Movimientos de puntos */}
       {activeView === 'movements' && (
         <div className="card shadow-sm">
           <div className="card-header">
@@ -714,7 +685,6 @@ export default function Benefits({ token, me }) {
         </div>
       )}
 
-      {/* Modal de confirmación para obtener beneficio */}
       {showConfirmModal && selectedBenefit && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog">
@@ -769,7 +739,6 @@ export default function Benefits({ token, me }) {
         </div>
       )}
 
-      {/* Modal de comprobante */}
       {showVoucherModal && selectedVoucher && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog">
@@ -857,7 +826,6 @@ export default function Benefits({ token, me }) {
                   
                   <hr />
                   
-                  {/* Simulación de código QR. Prueba de que me funciona Github */}
                   <div className="bg-white border rounded p-3 mb-3">
                     <div style={{
                       width: '120px',
@@ -906,7 +874,6 @@ export default function Benefits({ token, me }) {
         </div>
       )}
 
-      {/* Modal de publicación */}
       {showPublicationModal && selectedPublication && (
         <PublicationDetailModal
           open={showPublicationModal}

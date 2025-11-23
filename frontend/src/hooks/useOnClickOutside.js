@@ -1,8 +1,5 @@
 import { useEffect } from "react";
 
-/**
- * Hook para detectar clicks fuera de un elemento
- */
 export function useOnClickOutside(ref, handler) {
   useEffect(() => {
     function listener(e) {

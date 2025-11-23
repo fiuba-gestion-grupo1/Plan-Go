@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test específico para simular el escenario del usuario:
 "apreto 17/11/25 y luego el itinerario se comienza a armar el 16/11/25"
@@ -29,8 +28,7 @@ def simulate_user_scenario():
     print("   ¿Aparecerá 16/11/2025 en el itinerario? (ANTES SÍ, AHORA NO)")
     print()
     
-    # Exactamente la fecha que mencionó el usuario
-    user_selected_date = "2025-11-17"  # 17/11/2025
+    user_selected_date = "2025-11-17"
     
     itinerary_data = {
         "destination": "París, Francia",
@@ -52,7 +50,6 @@ def simulate_user_scenario():
         
         print(f"📅 FECHA EN LA RESPUESTA: {received_date}")
         
-        # Verificar si el problema persiste
         if received_date != user_selected_date:
             print(f"❌ PROBLEMA PERSISTE:")
             print(f"   Seleccionó: {user_selected_date}")
@@ -64,11 +61,9 @@ def simulate_user_scenario():
             print(f"   Recibió: {received_date}")
             print(f"   → ¡Las fechas coinciden perfectamente!")
         
-        # Verificar también en el itinerario generado
         itinerary_text = data.get('generated_itinerary', '')
         print(f"\n📝 VERIFICANDO EL ITINERARIO GENERADO:")
         
-        # Buscar menciones de fechas en el itinerario
         if "2025-11-17" in itinerary_text:
             print(f"✅ El itinerario menciona la fecha correcta (17 nov)")
         elif "2025-11-16" in itinerary_text:
@@ -76,14 +71,12 @@ def simulate_user_scenario():
         else:
             print(f"ℹ️  El itinerario no menciona fechas específicas en formato ISO")
             
-        # Buscar menciones del día
         if "17" in itinerary_text and ("DÍA 1" in itinerary_text or "día 1" in itinerary_text):
             print(f"✅ El día 17 aparece en el primer día del itinerario")
         elif "16" in itinerary_text and ("DÍA 1" in itinerary_text or "día 1" in itinerary_text):
             print(f"❌ El día 16 aparece en el primer día (¡problema!)")
             
-        # Mostrar una muestra del itinerario generado
-        lines = itinerary_text.split('\n')[:10]  # Primeras 10 líneas
+        lines = itinerary_text.split('\n')[:10]
         print(f"\n📋 PRIMERA PARTE DEL ITINERARIO:")
         for line in lines:
             if line.strip():

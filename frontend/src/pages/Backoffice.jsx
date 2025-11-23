@@ -34,7 +34,7 @@ function Stars({ value = 0 }) {
 }
 
 export default function Backoffice({ me, view = "publications" }) {
-  const [subView, setSubView] = useState(null); // Para navegación interna
+  const [subView, setSubView] = useState(null);
   const [loading, setLoading] = useState(false);
   const [pubs, setPubs] = useState([]);
   const [allPubs, setAllPubs] = useState([]);
@@ -47,19 +47,17 @@ export default function Backoffice({ me, view = "publications" }) {
   const token = useMemo(() => localStorage.getItem("token") || "", []);
   const fetchedOnce = useRef(false);
 
-  const [openDetailModal, setOpenDetailModal] = useState(false); // Podrías renombrar 'open' a 'openDetailModal' por claridad
+  const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
   const [selectedPub, setSelectedPub] = useState(null);
 
-  // Modales para rechazo/eliminación
   const [reasonModal, setReasonModal] = useState(false);
-  const [reasonType, setReasonType] = useState(null); // "reject-publication", "reject-deletion", "delete-publication"
+  const [reasonType, setReasonType] = useState(null);
   const [reasonPubId, setReasonPubId] = useState(null);
   const [reasonDeletionRequestId, setReasonDeletionRequestId] = useState(null);
   const [reasonText, setReasonText] = useState("");
   const [onReasonConfirm, setOnReasonConfirm] = useState(null);
 
-  // Estados para modal de confirmación de aprobación de eliminación
   const [approveDeleteModal, setApproveDeleteModal] = useState(false);
   const [deletionRequestToApprove, setDeletionRequestToApprove] = useState(null);
 
@@ -92,7 +90,6 @@ export default function Backoffice({ me, view = "publications" }) {
     setOnReasonConfirm(null);
   }
 
-  // Función para recargar estadísticas
   async function reloadStats() {
     try {
       const [pending, deletions] = await Promise.all([
@@ -174,14 +171,11 @@ export default function Backoffice({ me, view = "publications" }) {
     }
   }
 
-  // Cargar estadísticas al inicio (siempre)
   useEffect(() => {
     if (!token) return;
     reloadStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // Cargar datos según la vista activa
   useEffect(() => {
     if (view === "publications" && !subView) {
       fetchPublications(searchQuery);
@@ -194,7 +188,6 @@ export default function Backoffice({ me, view = "publications" }) {
     } else if (view === "review-reports" && !subView) {
       fetchReviewReports();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, token]);
 
   function handleSearch(query) {
@@ -266,7 +259,6 @@ export default function Backoffice({ me, view = "publications" }) {
       await request(`/api/publications/${id}/approve`, { method: "PUT", token });
       setOkMsg("Publicación aprobada.");
       setPendingPubs((prev) => prev.filter((p) => p.id !== id));
-      // Recargar estadísticas después de aprobar
       await reloadStats();
     } catch (e) {
       setError(e.message);
@@ -288,7 +280,6 @@ export default function Backoffice({ me, view = "publications" }) {
         });
         setOkMsg("Publicación rechazada.");
         setPendingPubs((prev) => prev.filter((p) => p.id !== id));
-        // Recargar estadísticas después de rechazar
         await reloadStats();
       } catch (e) {
         setError(e.message);
@@ -300,7 +291,6 @@ export default function Backoffice({ me, view = "publications" }) {
   }
 
   async function handleApproveDeletion(requestId) {
-    // Mostrar modal de confirmación
     setDeletionRequestToApprove(requestId);
     setApproveDeleteModal(true);
   }
@@ -315,13 +305,11 @@ export default function Backoffice({ me, view = "publications" }) {
       await request(`/api/publications/deletion-requests/${deletionRequestToApprove}/approve`, { method: "PUT", token });
       setOkMsg("Solicitud aprobada. Publicación eliminada.");
       setDeletionRequests((prev) => prev.filter((r) => r.id !== deletionRequestToApprove));
-      // Recargar estadísticas después de aprobar eliminación
       await reloadStats();
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
-      // Cerrar modal
       setApproveDeleteModal(false);
       setDeletionRequestToApprove(null);
     }
@@ -340,7 +328,6 @@ export default function Backoffice({ me, view = "publications" }) {
         });
         setOkMsg("Solicitud de eliminación rechazada.");
         setDeletionRequests((prev) => prev.filter((r) => r.id !== requestId));
-        // Recargar estadísticas después de rechazar eliminación
         await reloadStats();
       } catch (e) {
         setError(e.message);
@@ -359,7 +346,6 @@ export default function Backoffice({ me, view = "publications" }) {
       await request(`/api/reviews/reports/${reportId}/approve`, { method: "PUT", token });
       setOkMsg("Reporte aprobado. Reseña eliminada.");
       setReviewReports((prev) => prev.filter((r) => r.id !== reportId));
-      // Recargar estadísticas si es necesario
       await reloadStats();
     } catch (e) {
       setError(e.message);
@@ -381,7 +367,6 @@ export default function Backoffice({ me, view = "publications" }) {
         });
         setOkMsg("Reporte rechazado.");
         setReviewReports((prev) => prev.filter((r) => r.id !== reportId));
-        // Recargar estadísticas si es necesario
         await reloadStats();
       } catch (e) {
         setError(e.message);
@@ -392,7 +377,6 @@ export default function Backoffice({ me, view = "publications" }) {
     openReasonModal("reject-review-report", null, reportId);
   }
 
-  // Mostrar formulario de crear publicación
   if (subView === 'create') {
     return (
       <CreateView
@@ -405,7 +389,6 @@ export default function Backoffice({ me, view = "publications" }) {
     );
   }
 
-  // Layout con sidebar de estadísticas
   const renderViewWithStats = (content) => (
     <div className="container-fluid py-4">
       <div className="row">
@@ -414,7 +397,6 @@ export default function Backoffice({ me, view = "publications" }) {
         </div>
       </div>
 
-      {/* Modal para solicitar motivo de rechazo/eliminación - siempre disponible */}
       {reasonModal && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
@@ -475,7 +457,6 @@ export default function Backoffice({ me, view = "publications" }) {
         </div>
       )}
 
-      {/* Modal de confirmación para aprobar eliminación */}
       {approveDeleteModal && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
@@ -504,7 +485,6 @@ export default function Backoffice({ me, view = "publications" }) {
     </div>
   );
 
-  // Vista de publicaciones aprobadas
   if (view === "publications") {
     return renderViewWithStats(
       <ListView
@@ -520,7 +500,6 @@ export default function Backoffice({ me, view = "publications" }) {
     );
   }
 
-  // Vista de TODAS las publicaciones (aprobadas, rechazadas, pendientes, eliminadas)
   if (view === "all-publications") {
     return renderViewWithStats(
       <AllPublicationsView
@@ -533,7 +512,6 @@ export default function Backoffice({ me, view = "publications" }) {
     );
   }
 
-  // Vista de aprobación de publicaciones pendientes
   if (view === "pending") {
     return renderViewWithStats(
       <PendingView
@@ -547,7 +525,6 @@ export default function Backoffice({ me, view = "publications" }) {
     );
   }
 
-  // Vista de solicitudes de eliminación
   if (view === "deletion-requests") {
     return renderViewWithStats(
       <DeletionRequestsView
@@ -561,7 +538,6 @@ export default function Backoffice({ me, view = "publications" }) {
     );
   }
 
-  // Vista de reportes de reseñas
   if (view === "review-reports") {
     return renderViewWithStats(
       <ReviewReportsView
@@ -613,7 +589,6 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
         </button>
       </div>
 
-      {/* Campo de búsqueda */}
       <form className="d-flex mt-3" onSubmit={handleSearchSubmit}>
         <input
           className="form-control"
@@ -658,12 +633,10 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
                     <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                     <div className="mt-2">
-                      {/* Renglón 1: Reseñas */}
                       <div className="mb-2">
                         <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                       </div>
 
-                      {/* Renglón 2: Categorías */}
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
                           <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -788,7 +761,6 @@ function ListView({ pubs, loading, error, okMsg, searchQuery, onDelete, onSearch
         </div>
       )}
 
-      {/* Modal de detalles */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
@@ -847,7 +819,6 @@ function CreateView({ loading, error, okMsg, onBack, onSubmit }) {
             <div className="form-text">Usá slugs: aventura, cultura, gastronomia</div>
           </div>
 
-          {/* Informacion para relacionar con preferencias*/}
           <hr className="my-3" />
           <div className="col-12">
             <h6 className="text-muted mb-0">Informacion del destino</h6>
@@ -986,7 +957,6 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
                     <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                     <div className="mt-2">
-                      {/* Renglón 1: Status y Reseñas */}
                       <div className="mb-2">
                         <div className="d-flex gap-2 align-items-center">
                           <span className="badge bg-warning text-dark">⏳ Pendiente</span>
@@ -994,7 +964,6 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
                         </div>
                       </div>
 
-                      {/* Renglón 2: Categorías */}
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
                           <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -1094,7 +1063,6 @@ function PendingView({ pubs, loading, error, okMsg, onApprove, onReject }) {
         </div>
       )}
 
-      {/* Modal de detalles */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
@@ -1151,7 +1119,6 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
                       <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                       <div className="mt-2">
-                        {/* Renglón 1: Status y Reseñas */}
                         <div className="mb-2">
                           <div className="d-flex gap-2 align-items-center">
                             <span className="badge bg-danger">🗑️ Eliminación solicitada</span>
@@ -1159,7 +1126,6 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
                           </div>
                         </div>
 
-                        {/* Renglón 2: Categorías */}
                         <div className="d-flex flex-wrap gap-1">
                           {(p.categories || []).map((c) => (
                             <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -1266,7 +1232,6 @@ function DeletionRequestsView({ requests, loading, error, okMsg, onApprove, onRe
         </div>
       )}
 
-      {/* Modal de detalles */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
@@ -1329,7 +1294,6 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
                     <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                     <div className="mt-2">
-                      {/* Renglón 1: Status y Reseñas */}
                       <div className="mb-2">
                         <div className="d-flex gap-2 align-items-center">
                           {getStatusBadge(p.status)}
@@ -1337,7 +1301,6 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
                         </div>
                       </div>
 
-                      {/* Renglón 2: Categorías */}
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
                           <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -1462,7 +1425,6 @@ function AllPublicationsView({ pubs, loading, error, okMsg, onDelete }) {
         </div>
       )}
 
-      {/* Modal de detalles */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
@@ -1485,7 +1447,6 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
     );
   }
 
-   // --- logica de reseñas---
     const [list, setList] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
     const [err, setErr] = React.useState("");
@@ -1495,10 +1456,9 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
   
     const isPremium = me?.role === "premium" || me?.username === "admin";
   
-    // Efecto para cargar reseñas cuando se abre el modal o cambia la publicación
     React.useEffect(() => {
       if (!open || !pub?.id) {
-        setList([]); // Limpiar lista si se cierra
+        setList([]);
         setErr("");
         return;
       }
@@ -1516,9 +1476,8 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
         }
       })();
       return () => { cancel = true; };
-    }, [open, pub?.id]); // Depende de 'open' y 'pub.id'
+    }, [open, pub?.id]);
   
-    // Función para enviar reseña
     async function submitReview(e) {
       e.preventDefault();
       if (!isPremium) { return; }
@@ -1530,11 +1489,8 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
           body: { rating: Number(rating), comment: comment || undefined }
         });
         setComment(""); setRating(5);
-        // Recargar la lista de reseñas
         const rows = await request(`/api/publications/${pub.id}/reviews`);
         setList(rows);
-        // Nota: El rating_avg/count de 'pub' (prop) no se actualizará
-        // hasta que se cierre y reabra el modal.
       } catch (e) {
         alert(`Error creando reseña: ${e.message}`);
       }
@@ -1544,16 +1500,13 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
       style={{ background: "rgba(0,0,0,.4)", zIndex: 1050 }}>
       <div className="bg-white rounded-3 shadow-lg border" style={{ maxWidth: 600, maxHeight: "90vh", width: "90%", display: "flex", flexDirection: "column" }}>
 
-        {/* Header con botón cerrar */}
         <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
           <h5 className="mb-0">{pub.place_name}</h5>
           <button className="btn-close" onClick={onClose}></button>
         </div>
 
-        {/* Contenido scrolleable */}
         <div style={{ overflowY: "scroll", flex: 1, padding: "1rem", minHeight: 0 }}>
 
-          {/* Carrusel de imágenes */}
           <div className="mb-3">
             {pub.photos?.length > 0 ? (
               <div id={`carousel-${pub.id}`} className="carousel slide" data-bs-ride="carousel">
@@ -1583,19 +1536,15 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
             )}
           </div>
 
-          {/* Información principal */}
           <div className="mb-3">
 
-            {/* --- BLOQUE AÑADIDO/MODIFICADO --- */}
             {pub.description && (
               <>
                 <h6 className="mt-3 mb-2">Descripción</h6>
                 <p className="mb-2" style={{ whiteSpace: "pre-wrap" }}>{pub.description}</p>
               </>
             )}
-            {/* --- FIN BLOQUE AÑADIDO/MODIFICADO --- */}
 
-            {/* Renglón 2: Categorías (MOVIDO HACIA ARRIBA) */}
             <h6 className="mt-3 mb-2">Categorías</h6>
             <div className="d-flex flex-wrap gap-1 mb-3">
               {pub.categories?.map(cat => (
@@ -1605,23 +1554,19 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
               ))}
             </div>
 
-            {/* Renglón 3: Ubicación (ANTES ESTABA EN MEDIO) */}
             <h6 className="mt-3 mb-2">Ubicación</h6>
             <p className="mb-2">
               📍 {pub.address}, {pub.city}, {pub.province}
             </p>
 
-            {/* Renglón 4: Precio */}
             <h6 className="mt-3 mb-2">Precio</h6>
             <p className="mb-2">
               ${pub.cost_per_day} por día
             </p>
 
-            {/* --- INICIO SECCIÓN DE RESEÑAS AÑADIDA --- */}
             <hr />
             <h6 className="mt-3 mb-2">Reseñas</h6>
 
-            {/* Lista de reseñas */}
             <div style={{ maxHeight: 250, overflow: "auto" }}>
               {loading && <div className="text-muted">Cargando…</div>}
               {err && <div className="alert alert-danger">{err}</div>}
@@ -1647,7 +1592,6 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
               </ul>
             </div>
 
-            {/* Formulario para nueva reseña */}
             {isPremium ? (
               <form className="p-3 border-top" onSubmit={submitReview}>
                 <div className="row g-2">
@@ -1673,7 +1617,6 @@ function PublicationDetailModal({ open, pub, onClose, onToggleFavorite, me }) {
                 </div>
               </div>
             )}
-            {/* --- FIN SECCIÓN DE RESEÑAS AÑADIDA --- */}
 
           </div>
         </div>
@@ -1716,7 +1659,6 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
           return (
             <div className="col" key={report.id}>
               <div className="card shadow-sm h-100">
-                {/* Tarjeta de publicación */}
                 <div className="card-body">
                   <div 
                     className="border rounded p-3 mb-3"
@@ -1731,12 +1673,10 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
                             <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                             <div className="mt-2">
-                              {/* Renglón 1: Reseñas */}
                               <div className="mb-2">
                                 <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                               </div>
 
-                              {/* Renglón 2: Categorías */}
                               <div className="d-flex flex-wrap gap-1">
                                 {(p.categories || []).map((c) => (
                                   <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -1767,7 +1707,6 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
                     </div>
                   </div>
 
-                  {/* Información de la reseña reportada */}
                   <div className="border rounded p-3 mb-3 bg-light">
                     <h6 className="mb-2">
                       <span className="badge bg-warning text-dark">🚨 Reseña Reportada</span>
@@ -1784,7 +1723,6 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
                     )}
                   </div>
 
-                  {/* Información del reporte */}
                   <div className="border rounded p-3 mb-3">
                     <h6 className="mb-2">Detalles del Reporte</h6>
                     <div className="mb-2">
@@ -1804,7 +1742,6 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
                     )}
                   </div>
 
-                  {/* Botones de acción */}
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-success flex-fill"
@@ -1832,7 +1769,6 @@ function ReviewReportsView({ reports, loading, error, okMsg, onApprove, onReject
         </div>
       )}
 
-      {/* Modal de detalles de publicación */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}

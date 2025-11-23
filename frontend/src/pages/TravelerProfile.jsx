@@ -1,4 +1,3 @@
-// src/pages/TravelerProfile.jsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { request } from "../utils/api";
@@ -6,17 +5,15 @@ import { RatingBadge } from "../components/shared/UIComponents";
 import PublicationDetailModal from "../components/PublicationDetailModal";
 
 export default function TravelerProfile({ me }) {
-  const { userId } = useParams(); // undefined cuando es "mi perfil" dentro del hub
+  const { userId } = useParams();
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
 
   const isMyProfile =
     !userId || (me && String(me.id) === String(userId || ""));
 
-  // --- usuario cuyo perfil se está viendo ---
   const [profileUser, setProfileUser] = useState(me || null);
 
-  // datos de cabecera
   const displayName =
     profileUser?.first_name || profileUser?.username || "Viajero";
   const username = profileUser?.username || "usuario";
@@ -32,23 +29,20 @@ export default function TravelerProfile({ me }) {
     .slice(0, 1)
     .toUpperCase();
 
-  // estados datos reales
   const [publishedItineraries, setPublishedItineraries] = useState([]);
-  const [favoritesToVisit, setFavoritesToVisit] = useState([]); // pending
-  const [favoritesVisited, setFavoritesVisited] = useState([]); // done
+  const [favoritesToVisit, setFavoritesToVisit] = useState([]);
+  const [favoritesVisited, setFavoritesVisited] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // modal publicación
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
 
-  // modal itinerario
   const [selectedItineraryDetail, setSelectedItineraryDetail] = useState(null);
   const [openItineraryDetail, setOpenItineraryDetail] = useState(false);
-  const [savingItinerary, setSavingItinerary] = useState(null); // ID del itinerario que se está guardando
-  const [convertingItinerary, setConvertingItinerary] = useState(null); // ID del itinerario que se está convirtiendo
+  const [savingItinerary, setSavingItinerary] = useState(null);
+  const [convertingItinerary, setConvertingItinerary] = useState(null);
 
   function openPublicationDetail(p) {
     setCurrentPub(p);
@@ -56,7 +50,7 @@ export default function TravelerProfile({ me }) {
   }
 
   async function saveItinerary(itineraryId) {
-    if (isMyProfile) return; // No permitir guardar propios itinerarios
+    if (isMyProfile) return;
     
     setSavingItinerary(itineraryId);
     try {
@@ -82,7 +76,7 @@ export default function TravelerProfile({ me }) {
   }
 
   async function convertItineraryToCustom(itineraryId) {
-    if (!isMyProfile) return; // Solo propios itinerarios se pueden convertir
+    if (!isMyProfile) return;
     
     setConvertingItinerary(itineraryId);
     try {
@@ -98,14 +92,12 @@ export default function TravelerProfile({ me }) {
       if (result.success) {
         alert(`¡Conversión exitosa! ${result.validation.total_days} días con ${result.validation.total_activities} actividades convertidas.`);
         
-        // Guardar datos de conversión en localStorage para que el constructor personalizado los use
         localStorage.setItem('convertedItinerary', JSON.stringify({
           custom_structure: result.custom_structure,
           original_info: result.original_itinerary,
           conversion_metadata: result.conversion_metadata
         }));
         
-        // Navegar al constructor personalizado
         window.location.href = '/itinerary-custom';
       } else {
         alert('Error en la conversión: ' + (result.error || 'Error desconocido'));
@@ -118,11 +110,9 @@ export default function TravelerProfile({ me }) {
     }
   }
 
-  // 1) cargar datos del usuario cuyo perfil se ve
   useEffect(() => {
     if (!token) return;
 
-    // si es mi propio perfil, usamos "me"
     if (isMyProfile) {
       setProfileUser(me || null);
       return;
@@ -154,7 +144,6 @@ export default function TravelerProfile({ me }) {
     };
   }, [userId, token, isMyProfile, me]);
 
-  // 2) cargar itinerarios + favoritos del usuario cuyo perfil se ve
   useEffect(() => {
     if (!token) {
       setLoading(false);
@@ -174,7 +163,6 @@ export default function TravelerProfile({ me }) {
       setError("");
 
       try {
-        // itinerarios
         const itsEndpoint = isMyProfile
           ? "/api/itineraries/my-itineraries"
           : `/api/itineraries/by-user/${targetUserId}`;
@@ -182,8 +170,6 @@ export default function TravelerProfile({ me }) {
         const its = await request(itsEndpoint, { token });
         const visibleIts = Array.isArray(its) ? its : [];
 
-        // favoritos (por visitar / visitados)
-        // para otros usuarios usamos query param user_id
         const favsEndpoint = isMyProfile
           ? "/api/publications/favorites"
           : `/api/publications/favorites?user_id=${targetUserId}`;
@@ -238,10 +224,8 @@ export default function TravelerProfile({ me }) {
 
   return (
     <div className="container-fluid py-4">
-      {/* Cabecera */}
       <div className="card border-0 shadow-sm rounded-4 mb-4">
         <div className="card-body d-flex flex-column flex-md-row align-items-md-center">
-          {/* Avatar */}
           <div
             className="d-flex align-items-center justify-content-center me-md-4 mb-3 mb-md-0"
             style={{
@@ -274,7 +258,6 @@ export default function TravelerProfile({ me }) {
             )}
           </div>
 
-          {/* Info básica */}
           <div className="flex-grow-1">
             <h1 className="h4 fw-bold mb-1">{displayName}</h1>
             <div className="text-muted small mb-1">@{username}</div>
@@ -288,7 +271,6 @@ export default function TravelerProfile({ me }) {
       )}
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* Itinerarios publicados */}
       <div
         className="card shadow-sm rounded-4 mb-4"
         style={{
@@ -377,7 +359,6 @@ export default function TravelerProfile({ me }) {
                             </button>
                           )}
                           
-                          {/* Botón MODIFICAR ITINERARIO - Solo para itinerarios propios completados */}
                           {isMyProfile && (it.status === "completed" || it.status === "completed_with_warnings") && (
                             <button
                               type="button"
@@ -411,9 +392,7 @@ export default function TravelerProfile({ me }) {
         </div>
       </div>
 
-      {/* Favoritos: Por visitar / Visitados */}
       <div className="row g-4">
-        {/* Por visitar */}
         <div className="col-12 col-lg-6">
           <div
             className="card shadow-sm rounded-4 h-100"
@@ -573,7 +552,6 @@ export default function TravelerProfile({ me }) {
           </div>
         </div>
 
-        {/* Visitados */}
         <div className="col-12 col-lg-6">
           <div
             className="card shadow-sm rounded-4 h-100"
@@ -734,7 +712,6 @@ export default function TravelerProfile({ me }) {
         </div>
       </div>
 
-      {/* Modal detalle itinerario */}
       {openItineraryDetail && selectedItineraryDetail && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -759,7 +736,6 @@ export default function TravelerProfile({ me }) {
               </button>
             </div>
 
-            {/* info básica */}
             <div className="p-3">
               <div className="card shadow-sm mb-4">
                 <div className="card-body">
@@ -821,7 +797,6 @@ export default function TravelerProfile({ me }) {
                 </div>
               </div>
 
-              {/* itinerario generado por IA, si existe */}
               {selectedItineraryDetail.generated_itinerary && (
                 <div className="card shadow-sm mb-4">
                   <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
@@ -855,7 +830,6 @@ export default function TravelerProfile({ me }) {
         </div>
       )}
 
-      {/* Modal de detalles de publicación */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}

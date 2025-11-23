@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from "react"; // Importamos React y hooks
-import { request } from "../utils/api"; // Importamos el helper de requests
-import PublicationDetailModal from "../components/PublicationDetailModal"; // Componente del modal de detalles
-import { RatingBadge, Stars } from "../components/shared/UIComponents"; // Componente de badge de rating
+import React, { useEffect, useState } from "react";
+import { request } from "../utils/api";
+import PublicationDetailModal from "../components/PublicationDetailModal";
+import { RatingBadge, Stars } from "../components/shared/UIComponents";
 
-
-/* --- COMPONENTE PRINCIPAL DE SUGERENCIAS --- */
 export default function Suggestions({ token, me }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +18,6 @@ export default function Suggestions({ token, me }) {
     setOpenDetailModal(true);
   }
 
-  /* ... (la función toggleFavorite no cambia) ... */
   async function toggleFavorite(pubId) {
     try {
       const data = await request(`/api/publications/${pubId}/favorite`, {
@@ -40,7 +37,6 @@ export default function Suggestions({ token, me }) {
     }
   }
 
-  // --- Carga de datos (Original de Suggestions) ---
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -50,7 +46,7 @@ export default function Suggestions({ token, me }) {
 
         const res = await fetch(`/api/suggestions?sort=${sortOrder}`, {
           headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store" // <-- Añadido para evitar caché del navegador
+          cache: "no-store"
         });
 
         if (!res.ok) {
@@ -71,12 +67,9 @@ export default function Suggestions({ token, me }) {
   return (
     <div className="container py-3">
 
-      {/* --- INICIO DE LA CORRECCIÓN DE ALINEACIÓN --- */}
       <div className="d-flex justify-content-between align-items-center mb-4">
-        {/* Título */}
         <h2 className="mb-0">💡 Sugerencias para {me?.first_name || me?.username}</h2>
 
-        {/* Filtro (solo se muestra si hay items) */}
         {!loading && items.length > 0 && !err && (
           <div style={{ maxWidth: '250px' }}>
             <label htmlFor="sort-select" className="form-label small text-muted mb-1">Ordenar por</label>
@@ -84,7 +77,7 @@ export default function Suggestions({ token, me }) {
               id="sort-select"
               className="form-select form-select-sm"
               value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)} // Actualiza el estado
+              onChange={(e) => setSortOrder(e.target.value)}
             >
               <option value="desc">Mayor Coincidencia</option>
               <option value="asc">Menor Coincidencia</option>
@@ -92,7 +85,6 @@ export default function Suggestions({ token, me }) {
           </div>
         )}
       </div>
-      {/* --- FIN DE LA CORRECCIÓN DE ALINEACIÓN --- */}
 
 
       <div className="alert alert-info mb-4">
@@ -109,14 +101,11 @@ export default function Suggestions({ token, me }) {
         </div>
       )}
 
-      {/* El div del filtro ya no está aquí */}
       {!loading && items.length > 0 && !err && (
         <>
-          {/* --- GRILLA DE PUBLICACIONES (el div.row original) --- */}
           <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mt-2">
             {items.map((pub) => (
               <div className="col" key={pub.id}>
-                {/* ... (El código de la tarjeta no cambia) ... */}
                 <div
                   className="card shadow-sm h-100"
                   onClick={() => openPublicationDetail(pub)}
@@ -191,7 +180,6 @@ export default function Suggestions({ token, me }) {
         </>
       )}
 
-      {/* --- El modal de detalles no cambia --- */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}

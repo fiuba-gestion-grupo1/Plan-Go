@@ -1,4 +1,3 @@
-// src/pages/ShareItineraryPage.jsx
 import React, { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { request } from "../utils/api";

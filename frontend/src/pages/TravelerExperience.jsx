@@ -1,6 +1,5 @@
 import React from "react";
 
-// Opciones del menú sin emojis
 const menuOptions = [
   {
     title: "Mis Favoritos",
@@ -32,7 +31,6 @@ const TravelerExperience = ({ onNavigate }) => {
   return (
     <div className="container-fluid py-4">
       
-      {/* CABECERA SIN FONDO */}
       <div className="mb-4 px-1">
         <h1 className="h3 fw-bold d-flex align-items-center mb-1">
           <span className="me-2">🧭</span>
@@ -43,7 +41,6 @@ const TravelerExperience = ({ onNavigate }) => {
         </p>
       </div>
 
-      {/* OPCIONES */}
       <div className="row g-3">
         {menuOptions.map((opt, index) => (
           <div className="col-12 col-md-6" key={index}>
@@ -59,7 +56,6 @@ const TravelerExperience = ({ onNavigate }) => {
         ))}
       </div>
 
-      {/* FOOTER */}
       <div className="text-center text-muted small mt-4">
         ¡Plan&Go te acompaña en cada paso de tu aventura!
       </div>

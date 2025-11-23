@@ -1,14 +1,11 @@
 import React, { useState } from 'react'
 
 export default function AuthForm({ title, onSubmit, isRegister = false }) {
-    // Estados para los campos de registro
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
 
-    // Estado para el campo de login ('identifier')
     const [identifier, setIdentifier] = useState('');
 
-    // Estado común para la contraseña
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
@@ -16,7 +13,6 @@ export default function AuthForm({ title, onSubmit, isRegister = false }) {
         e.preventDefault();
         setError('');
         try {
-            // Construye el payload correcto dependiendo de si es registro o login
             const payload = isRegister
                 ? { username, email, password }
                 : { identifier, password };
@@ -32,7 +28,6 @@ export default function AuthForm({ title, onSubmit, isRegister = false }) {
             <h2 className="text-center mb-4">{title}</h2>
 
             {isRegister ? (
-                //---CAMPOS PARA LA VISTA DE REGISTRO---
                 <>
                     <div className="mb-3">
                         <label htmlFor="usernameInput" className="form-label">Nombre de usuario</label>
@@ -60,7 +55,6 @@ export default function AuthForm({ title, onSubmit, isRegister = false }) {
                     </div>
                 </>
             ) : (
-                // ---CAMPO PARA LA VISTA DE LOGIN---
                 <div className="mb-3">
                     <label htmlFor="identifierInput" className="form-label">Email o Nombre de usuario</label>
                     <input
@@ -75,7 +69,6 @@ export default function AuthForm({ title, onSubmit, isRegister = false }) {
                 </div>
             )}
 
-            {/*---CAMPO COMÚN DE CONTRASEÑA---*/}
             <div className="mb-3">
                 <label htmlFor="passwordInput" className="form-label">Contraseña</label>
                 <input

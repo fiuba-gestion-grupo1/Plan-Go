@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script para verificar que la eliminación de actividades funciona
 """
@@ -13,14 +12,12 @@ def test_elimination_functionality():
     print("🚀 TEST: Funcionalidad de Eliminación de Actividades")
     print("=" * 55)
     
-    # 1. Login
     print("\n1. 🔐 Autenticación...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # 2. Obtener itinerarios de IA disponibles
     print("\n2. 📋 Obteniendo itinerarios de IA...")
     ai_list_response = requests.get(f"{BASE_URL}/api/itineraries/ai-list", headers=headers)
     itineraries = ai_list_response.json()["itineraries"]
@@ -32,7 +29,6 @@ def test_elimination_functionality():
     ai_itinerary = itineraries[0]
     print(f"✅ Usando itinerario: {ai_itinerary['destination']} (ID: {ai_itinerary['id']})")
     
-    # 3. Convertir a personalizado
     print("\n3. 🔄 Convirtiendo a personalizado...")
     conversion_data = {
         "ai_itinerary_id": ai_itinerary["id"],
@@ -50,12 +46,10 @@ def test_elimination_functionality():
     result = convert_response.json()
     print("✅ Conversión exitosa")
     
-    # 4. Verificar estructura de claves
     print("\n4. 🔍 Verificando estructura de claves...")
     itinerary_data = result.get("itinerary", {})
     print(f"   📋 Claves de días: {list(itinerary_data.keys())}")
     
-    # Buscar actividades principales (no continuaciones)
     main_activities = []
     for day_key, day_data in itinerary_data.items():
         for period, activities in day_data.items():
@@ -80,13 +74,11 @@ def test_elimination_functionality():
         print(f"   • Nombre: {example['name']}")
         print(f"   • Duración: {example['duration']} min")
         
-        # Verificar que la clave coincida con el formato esperado
         if example['day_key'].startswith('day_'):
             print(f"   ✅ Formato de clave correcto: {example['day_key']}")
         else:
             print(f"   ❌ Formato de clave incorrecto: {example['day_key']}")
     
-    # 5. Instrucciones para testing manual
     print(f"\n🎯 TESTING MANUAL DE ELIMINACIÓN:")
     print(f"=" * 40)
     print(f"📋 Pasos para probar:")

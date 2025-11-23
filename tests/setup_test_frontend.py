@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script para crear un itinerario de prueba específico para testing de frontend
 """
@@ -14,17 +13,15 @@ def setup_test_itinerary():
     print("🚀 SETUP: Creando itinerario de prueba para frontend")
     print("=" * 55)
     
-    # 1. Login
     print("\n1. 🔐 Autenticación...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # 2. Crear itinerario de IA específico para testing
     print("\n2. 🤖 Creando itinerario de IA de prueba...")
     tomorrow = datetime.now() + timedelta(days=1)
-    end_date = tomorrow + timedelta(days=2)  # 3 días para testing
+    end_date = tomorrow + timedelta(days=2)
     
     itinerary_request = {
         "destination": "Buenos Aires, Argentina",
@@ -48,7 +45,6 @@ def setup_test_itinerary():
     ai_itinerary = ai_response.json()
     print(f"✅ Itinerario IA creado (ID: {ai_itinerary['id']})")
     
-    # 3. Verificar que se puede convertir
     print("\n3. 🔄 Verificando conversión...")
     conversion_data = {
         "ai_itinerary_id": ai_itinerary["id"],
@@ -77,7 +73,6 @@ def setup_test_itinerary():
     
     print(f"✅ Conversión exitosa: {activities_count} actividades")
     
-    # 4. Instrucciones de testing manual
     print(f"\n🎯 TESTING MANUAL READY:")
     print(f"=" * 40)
     print(f"📋 Pasos específicos:")

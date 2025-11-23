@@ -2,10 +2,8 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 
-// === Kill-switch de pop-ups nativos ===
 if (typeof window !== "undefined") {
   window.alert = () => {};
-  // window.confirm = () => false;  // Comentado para permitir confirmaciones de eliminación
   window.prompt = () => null;
 }
 

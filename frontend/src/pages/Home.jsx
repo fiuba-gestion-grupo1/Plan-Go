@@ -8,9 +8,6 @@ import { Stars, RatingBadge } from "../components/shared/UIComponents";
 import { request } from '../utils/api';
 import ExpensesPage from "../pages/ExpensesPage";
 
-
-
-/* --- Dropdown multiselect --- */
 function useOnClickOutside(ref, handler) {
   useEffect(() => {
     function listener(e) {
@@ -82,7 +79,7 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
 
-  const isPremium = me?.role === "premium" || me?.username === "admin"; // si no querés que admin publique, quitá la segunda condición
+  const isPremium = me?.role === "premium" || me?.username === "admin";
 
   useEffect(() => {
     if (!open || !pub?.id) return;
@@ -188,7 +185,6 @@ function ReviewsModal({ open, pub, token, me, onClose }) {
   );
 }
 
-/* --- NUEVO BLOQUE: Configurar preferencias --- */
 function PreferencesBox({ token }) {
   const [prefs, setPrefs] = useState({});
   const [loading, setLoading] = useState(true);
@@ -291,7 +287,6 @@ function PreferencesBox({ token }) {
   );
 }
 
-/* --- MAIN HOME --- */
 export default function Home({ me, view = "publications", onOpenShareItinerary }) {
   const isPremium = me?.role === "premium";
   const [pubs, setPubs] = useState([]);
@@ -305,12 +300,10 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
   const [successMsg, setSuccessMsg] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Estados para modal de confirmación de eliminación de itinerarios
   const [deleteItineraryModal, setDeleteItineraryModal] = useState(false);
   const [itineraryToDelete, setItineraryToDelete] = useState(null);
 
   const token = useMemo(() => localStorage.getItem("token") || "", []);
-  // leer ?pub=ID una sola vez
   const [paramPubId] = useState(() => {
     try {
       const id = new URL(window.location.href).searchParams.get("pub");
@@ -323,9 +316,7 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
   const [cats, setCats] = useState([]);
   const [allCats, setAllCats] = useState([]);
 
-  // const [open, setOpen] = useState(false);
-  // const [current, setCurrent] = useState(null);
-  const [openDetailModal, setOpenDetailModal] = useState(false); // Podrías renombrar 'open' a 'openDetailModal' por claridad
+  const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
   const [selectedPub, setSelectedPub] = useState(null);
 
@@ -339,14 +330,12 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       const list = await request("/api/categories");
       setAllCats(list);
     } catch {
-      // si no existe endpoint, ignoramos
       setAllCats([]);
     }
   }
 
   useEffect(() => { reloadCats(); }, []);
 
-  // Construye endpoint según búsqueda o categorías
   function buildPublicationsEndpoint(query, categories) {
     if (query && query.trim().length >= 2) {
       return `/api/publications/search?q=${encodeURIComponent(query.trim())}`;
@@ -369,7 +358,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     }
   }
 
-  // carga inicial según la vista activa
   useEffect(() => {
     if (view === 'publications' && !subView) {
       fetchPublications(searchQuery, cats);
@@ -380,26 +368,21 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     } else if (view === 'my-itineraries' && !subView) {
       fetchMyItineraries();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, view, JSON.stringify(cats)]);
 
-  // Detectar si hay un itinerario recién creado para mostrar
   useEffect(() => {
     const showItineraryId = localStorage.getItem('showItineraryId');
     if (showItineraryId && view === 'my-itineraries') {
       console.log('🔄 [DEBUG] Vista my-itineraries activa, buscando itinerario recién creado:', showItineraryId);
-      // Esperar un poco más a que se carguen los itinerarios antes de buscar
       setTimeout(() => {
         const targetItinerary = myItineraries.find(it => it.id.toString() === showItineraryId);
         if (targetItinerary) {
           console.log('🔄 [DEBUG] Itinerario encontrado, abriendo automáticamente:', targetItinerary);
           setSelectedItinerary(targetItinerary);
           setSubView('view-itinerary');
-          // Limpiar el localStorage después de usar
           localStorage.removeItem('showItineraryId');
         } else {
           console.log('🔄 [DEBUG] Itinerario no encontrado, puede que aún no esté cargado');
-          // Si no se encuentra, intentar de nuevo en 2 segundos
           setTimeout(() => {
             const targetItinerary2 = myItineraries.find(it => it.id.toString() === showItineraryId);
             if (targetItinerary2) {
@@ -414,7 +397,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     }
   }, [view, myItineraries]);
 
-  // Si viene ?pub=ID en la URL, abre automáticamente esa publicación cuando hay datos
   useEffect(() => {
     if (!paramPubId) return;
     if (!Array.isArray(pubs) || pubs.length === 0) return;
@@ -495,7 +477,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         body: { status: newStatus },
       });
 
-      // Refrescamos solo el array de favoritos en memoria
       setFavPubs(prev =>
         prev.map(p => p.id === pubId ? { ...p, favorite_status: newStatus } : p)
       );
@@ -548,20 +529,16 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       const data = await request("/api/itineraries/my-itineraries", { token });
       setMyItineraries(data);
       
-      // Verificar si hay un itinerario recién creado para mostrar
       const showItineraryId = localStorage.getItem('showItineraryId');
       if (showItineraryId && data.length > 0) {
         console.log('🎯 [DEBUG] Buscando itinerario recién creado ID:', showItineraryId);
         
-        // Buscar el itinerario en la lista
         const newItinerary = data.find(it => it.id.toString() === showItineraryId);
         if (newItinerary) {
           console.log('✅ [DEBUG] Itinerario encontrado, mostrando automáticamente:', newItinerary.destination);
           
-          // Abrir automáticamente el itinerario
           setSelectedItinerary(newItinerary);
           
-          // Limpiar el localStorage para no mostrarlo de nuevo
           localStorage.removeItem('showItineraryId');
         } else {
           console.log('⚠️ [DEBUG] Itinerario no encontrado en la lista');
@@ -597,7 +574,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
   }
 
   async function handleDeleteItinerary(itineraryId) {
-    // Mostrar modal de confirmación en lugar de window.confirm
     setItineraryToDelete(itineraryId);
     setDeleteItineraryModal(true);
   }
@@ -627,7 +603,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       setError(e.message || "Error al eliminar el itinerario");
     } finally {
       setLoading(false);
-      // Cerrar modal y limpiar estado
       setDeleteItineraryModal(false);
       setItineraryToDelete(null);
     }
@@ -644,8 +619,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     setSuccessMsg("");
     const form = e.currentTarget;
     const fd = new FormData(form);
-
-    // Convertir campos numéricos de string a number
     const costPerDay = fd.get('cost_per_day');
     const durationMin = fd.get('duration_min');
 
@@ -661,7 +634,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       fd.delete('duration_min');
     }
 
-    // Debug: mostrar qué se está enviando
     console.log("Datos del formulario:");
     for (let pair of fd.entries()) {
       console.log(pair[0] + ': ' + pair[1]);
@@ -695,7 +667,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     }
   }
 
-  // Mostrar formulario de crear publicación
   if (subView === 'create-publication') {
     return (
       <CreatePublicationForm
@@ -712,7 +683,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-  // Vista de mis publicaciones
   if (view === 'my-publications' && !subView) {
     return (
       <>
@@ -726,7 +696,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
           setSubView={setSubView}
         />
 
-        {/* Modal de solicitud de eliminación */}
         {deletionReasonModal && (
           <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
             style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
@@ -779,7 +748,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-  // Vista de Favoritos
   if (view === 'favorites' && !subView) {
     return (
       <FavoritesView
@@ -791,13 +759,12 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
           await toggleFavorite(pubId);
           fetchFavorites();
         }}
-        onUpdateStatus={updateFavoriteStatus}  // ✅ sin tipos
+        onUpdateStatus={updateFavoriteStatus}
       />
     );
   }
 
 
-  // Vista de Configurar Preferencias
   if (view === 'preferences') {
     return <PreferencesBox token={token} />;
   }
@@ -806,7 +773,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     return <ExpensesPage me={me} token={token} />;
   }
 
-  // Vista del formulario de itinerario o del itinerario seleccionado
   if (view === 'itinerary' || selectedItinerary) {
     const formatDate = (dateStr) => {
       const date = new Date(dateStr);
@@ -817,7 +783,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       });
     };
 
-    // Vista de detalle de un itinerario
     if (selectedItinerary) {
       return (
         <div className="container mt-4">
@@ -912,7 +877,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
             </div>
           </div>
 
-          {/* Publicaciones utilizadas en el itinerario */}
           {selectedItinerary.publications && selectedItinerary.publications.length > 0 && (
             <div className="mt-4">
               <h4 className="mb-3">📍 Lugares incluidos en este itinerario</h4>
@@ -1000,7 +964,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
             <strong>💡 Tip:</strong> Usa el botón "📋 Copiar" para copiar todo el itinerario y pegarlo donde necesites.
           </div>
 
-          {/* Modal de confirmación de eliminación de itinerario */}
           {deleteItineraryModal && (
             <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
               style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
@@ -1029,7 +992,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       );
     }
 
-    // Vista del formulario de solicitud
     return (
       <div className="container mt-4">
         <div className="d-flex align-items-center justify-content-between mb-4">
@@ -1051,7 +1013,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     );
   }
 
-  // Vista de lista de itinerarios
   if (view === 'my-itineraries') {
     const formatDate = (dateStr) => {
       const date = new Date(dateStr);
@@ -1117,13 +1078,11 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                       Ver Itinerario
                     </button>
 
-                    {/* Compartir por email — solo Premium */}
                     {isPremium && (
                       <button
                         className="btn btn-sm btn-outline-custom"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Usar el callback que pasa App:
                           onOpenShareItinerary?.(itinerary.id);
                         }}
                         title="Compartir por mail"
@@ -1162,7 +1121,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
           </div>
         )}
 
-        {/* Modal de confirmación de eliminación de itinerario */}
         {deleteItineraryModal && (
           <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
             style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
@@ -1197,10 +1155,8 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
     handleSearch(searchValue);
   }
 
-  // Vista principal de publicaciones
   return (
     <div className="container mt-4">
-      {/* Hero */}
       <div className="p-3 mb-3 bg-light rounded-3">
         <div className="container-fluid py-2">
           <h4 className="fw-bold mb-1">¡Bienvenido a Plan&Go, {me.first_name || me.username}!</h4>
@@ -1221,7 +1177,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         </div>
       </div>
 
-      {/* Búsqueda */}
       <form className="d-flex mt-3" onSubmit={handleSearchSubmit}>
         <input
           className="form-control"
@@ -1250,7 +1205,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
       {loading && <div className="alert alert-info mt-3 mb-0">Cargando...</div>}
       {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
 
-      {/* --- UNICA GRILLA DE PUBLICACIONES (reemplaza los bloques duplicados) --- */}
       <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mt-2">
         {pubs.map((p) => (
           <div className="col" key={p.id}>
@@ -1266,12 +1220,10 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
                     <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                     <div className="mt-2">
-                      {/* Renglón 1: Reseñas */}
                       <div className="mb-2">
                         <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                       </div>
 
-                      {/* Renglón 2: Categorías */}
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
                           <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -1343,7 +1295,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         ))}
       </div>
 
-      {/* Modal de detalles */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
@@ -1353,7 +1304,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         onToggleFavorite={toggleFavorite}
       />
 
-      {/* Modal de solicitud de eliminación */}
       {deletionReasonModal && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
@@ -1403,7 +1353,6 @@ export default function Home({ me, view = "publications", onOpenShareItinerary }
         </div>
       )}
 
-      {/* Modal de confirmación de eliminación de itinerario */}
       {console.log("🎯 EVALUATING MODAL CONDITION:", deleteItineraryModal, typeof deleteItineraryModal)}
       {deleteItineraryModal ? (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -1513,12 +1462,10 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
                     <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                     <div className="mt-2">
-                      {/* Renglón 1: Reseñas */}
                       <div className="mb-2">
                         <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                       </div>
 
-                      {/* Renglón 2: Categorías */}
                       <div className="d-flex flex-wrap gap-1">
                         {(p.categories || []).map((c) => (
                           <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -1659,7 +1606,6 @@ function MySubmissionsView({ pubs, loading, error, successMsg, onLoad, onRequest
         </div>
       )}
 
-      {/* Modal de detalles */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}
@@ -1761,12 +1707,9 @@ function FavoritesView({
                       <small className="text-muted">📍 {p.address ? `${p.address}, ` : ""}{p.city}, {p.province}{p.country ? `, ${p.country}` : ""}</small>
 
                       <div className="mt-2">
-                        {/* Renglón 1: Reseñas */}
                         <div className="mb-2">
                           <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                         </div>
-
-                        {/* Renglón 2: Categorías */}
                         <div className="d-flex flex-wrap gap-1">
                           {(p.categories || []).map((c) => (
                             <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -1871,7 +1814,6 @@ function FavoritesView({
         </div>
       )}
 
-      {/* Modal de detalles */}
       <PublicationDetailModal
         open={openDetailModal}
         pub={currentPub}

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test para verificar el endpoint de guardar itinerario personalizado
 """
@@ -7,10 +6,8 @@ import requests
 import json
 from datetime import datetime, timedelta
 
-# URL base del backend
 BASE_URL = "http://localhost:8000"
 
-# Datos de prueba
 test_payload = {
     "destination": "Buenos Aires, Argentina",
     "start_date": "2025-01-15",

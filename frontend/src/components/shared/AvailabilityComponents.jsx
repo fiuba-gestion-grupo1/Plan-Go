@@ -1,8 +1,5 @@
 import React from 'react';
 
-/**
- * Componente para mostrar días de la semana con indicadores visuales
- */
 export function AvailabilityDays({ availableDays }) {
   const allDays = [
     { key: 'domingo', short: 'Dom', label: 'Domingo' },
@@ -42,9 +39,7 @@ export function AvailabilityDays({ availableDays }) {
   );
 }
 
-/**
- * Componente para mostrar horarios disponibles
- */
+
 export function AvailabilityHours({ availableHours }) {
   if (!availableHours || availableHours.length === 0) {
     return null;
@@ -68,9 +63,7 @@ export function AvailabilityHours({ availableHours }) {
   );
 }
 
-/**
- * Componente para mostrar duración formateada
- */
+
 export function DurationBadge({ durationMin }) {
   if (!durationMin || durationMin <= 0) {
     return null;
@@ -99,13 +92,10 @@ export function DurationBadge({ durationMin }) {
   );
 }
 
-/**
- * Componente combinado para mostrar toda la información de disponibilidad
- */
+
 export function PublicationAvailability({ publication }) {
   const { duration_min, available_days, available_hours } = publication;
 
-  // Si no hay ninguna información de disponibilidad, no mostrar nada
   if (!duration_min && (!available_days || available_days.length === 0) && (!available_hours || available_hours.length === 0)) {
     return null;
   }

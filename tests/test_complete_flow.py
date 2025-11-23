@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import requests
 import json
 from datetime import datetime, timedelta
@@ -10,15 +8,11 @@ TEST_USER = {"identifier": "test_validation", "password": "password123"}
 def test_complete_flow():
     print("🚀 TEST FLUJO COMPLETO: IA → Validación → Modificar → Custom")
     print("=" * 65)
-    
-    # 1. Login
-    print("\n1. 🔐 Autenticación...")
+        print("\n1. 🔐 Autenticación...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado exitosamente")
-    
-    # 2. Crear itinerario de IA con validación
     print("\n2. 🤖 Generando itinerario con IA + Validación...")
     tomorrow = datetime.now() + timedelta(days=1)
     end_date = tomorrow + timedelta(days=4)
@@ -51,14 +45,12 @@ def test_complete_flow():
     print(f"✅ Itinerario IA creado (ID: {itinerary_id})")
     print(f"   Status: {ai_itinerary['status']}")
     
-    # Verificar que tenga información de validación
     generated_text = ai_itinerary["generated_itinerary"]
     has_validation = any(keyword in generated_text for keyword in [
         "VALIDACIÓN DEL ITINERARIO", "COSTO TOTAL", "LUGARES VALIDADOS"
     ])
     print(f"   ✅ Validación incluida: {'SÍ' if has_validation else 'NO'}")
     
-    # 3. Convertir a itinerario personalizado
     print(f"\n3. 🔄 Convirtiendo a itinerario personalizado...")
     convert_response = requests.post(
         f"{BASE_URL}/api/itineraries/{itinerary_id}/convert-to-custom",
@@ -73,7 +65,6 @@ def test_complete_flow():
     conversion_result = convert_response.json()
     print("✅ Conversión exitosa")
     
-    # Analizar resultado de conversión
     custom_structure = conversion_result.get("custom_structure", {})
     validation = conversion_result.get("validation", {})
     
@@ -84,10 +75,8 @@ def test_complete_flow():
     print(f"   🎯 Actividades: {total_activities}")
     print(f"   🏛️ Publicaciones: {len(conversion_result.get('publications_used', []))}")
     
-    # 4. Simular el guardado del itinerario personalizado (endpoint custom)
     print(f"\n4. 💾 Simulando guardado de itinerario personalizado...")
     
-    # Preparar payload para itinerario personalizado
     custom_payload = {
         "destination": ai_request["destination"],
         "start_date": ai_request["start_date"],
@@ -96,11 +85,8 @@ def test_complete_flow():
         "type": "custom"
     }
     
-    # Nota: Como el itinerario personalizado requiere una estructura específica,
-    # vamos a verificar que el endpoint esté disponible
     print(f"   🔍 Verificando estructura de datos convertidos...")
     
-    # Contar actividades por día
     activities_by_day = {}
     for day_key, day_data in custom_structure.items():
         if day_key.startswith("day_") and isinstance(day_data, dict):
@@ -115,10 +101,8 @@ def test_complete_flow():
     
     print(f"   📊 Actividades por día: {dict(list(activities_by_day.items())[:3])}...")
     
-    # 5. Análisis de calidad de la conversión
     print(f"\n5. 📈 Análisis de calidad...")
     
-    # Verificar integridad de la estructura
     structure_valid = all([
         custom_structure,
         total_days > 0,
@@ -126,18 +110,16 @@ def test_complete_flow():
         conversion_result.get("success", False)
     ])
     
-    # Calcular score de calidad
     quality_score = 0
     if structure_valid: quality_score += 25
-    if total_activities >= total_days * 2: quality_score += 25  # Al menos 2 actividades por día
-    if has_validation: quality_score += 25  # Validación presente
-    if len(conversion_result.get('publications_used', [])) >= 3: quality_score += 25  # Variedad de lugares
+    if total_activities >= total_days * 2: quality_score += 25
+    if has_validation: quality_score += 25
+    if len(conversion_result.get('publications_used', [])) >= 3: quality_score += 25
     
     print(f"   🎯 Score de calidad: {quality_score}/100")
     print(f"   ✅ Estructura válida: {'SÍ' if structure_valid else 'NO'}")
     print(f"   🎭 Densidad actividades: {total_activities/total_days:.1f} por día")
     
-    # 6. Resultado final
     print(f"\n🏆 RESULTADO FINAL DEL FLUJO COMPLETO:")
     
     if quality_score >= 75:
@@ -156,7 +138,6 @@ def test_complete_flow():
     print(f"   {status} - Score: {quality_score}/100")
     print(f"   {emoji} IA → Validación → Conversión: FUNCIONAL")
     
-    # Resumen detallado
     print(f"\n📋 RESUMEN DETALLADO:")
     print(f"   • Itinerario IA ID: {itinerary_id}")
     print(f"   • Días originales: {(end_date - tomorrow).days + 1}")

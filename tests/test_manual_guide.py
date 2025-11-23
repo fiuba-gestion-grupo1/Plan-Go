@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Guía Interactiva - Testing Manual PASO 4: Pegar Itinerario de IA
 Prueba paso a paso del flujo completo en el navegador
@@ -72,7 +71,6 @@ def run_manual_testing():
     
     guide = TestingGuide()
     
-    # Paso 1: Acceso a la aplicación
     guide.next_step(
         "Acceso a la aplicación",
         "Verificar que la aplicación web esté accesible y cargue correctamente",
@@ -84,7 +82,6 @@ def run_manual_testing():
         ]
     )
     
-    # Paso 2: Login
     guide.next_step(
         "Autenticación de usuario",
         "Realizar login con las credenciales de prueba",
@@ -97,7 +94,6 @@ def run_manual_testing():
         ]
     )
     
-    # Paso 3: Navegación al constructor
     guide.next_step(
         "Navegación al Constructor Personalizado",
         "Encontrar y acceder al constructor de itinerarios personalizados",
@@ -109,7 +105,6 @@ def run_manual_testing():
         ]
     )
     
-    # Paso 4: Hacer clic en botón pegar IA
     guide.next_step(
         "Activar funcionalidad 'Pegar IA'",
         "Usar el botón 'Pegar itinerario de IA existente'",
@@ -122,7 +117,6 @@ def run_manual_testing():
         ]
     )
     
-    # Paso 5: Verificar lista de itinerarios
     guide.next_step(
         "Lista de itinerarios de IA",
         "Verificar que se muestre la lista de itinerarios disponibles",
@@ -135,7 +129,6 @@ def run_manual_testing():
         ]
     )
     
-    # Paso 6: Seleccionar itinerario
     guide.next_step(
         "Selección y conversión de itinerario",
         "Seleccionar un itinerario de IA para pegar",
@@ -148,7 +141,6 @@ def run_manual_testing():
         ]
     )
     
-    # Paso 7: Verificar carga en constructor
     guide.next_step(
         "Constructor con datos cargados",
         "Verificar que el itinerario se haya cargado correctamente en el constructor",
@@ -161,7 +153,6 @@ def run_manual_testing():
         ]
     )
     
-    # Paso 8: Funcionalidad de edición
     guide.next_step(
         "Funcionalidad de edición",
         "Probar que se pueden agregar/editar actividades manualmente",
@@ -175,10 +166,8 @@ def run_manual_testing():
         ]
     )
     
-    # Mostrar resumen final
     guide.show_summary()
     
-    # Generar reporte
     print(f"\n📄 REPORTE GENERADO:")
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     report_file = f"test_paso4_manual_report_{timestamp}.txt"

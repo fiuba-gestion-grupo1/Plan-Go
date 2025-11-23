@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useOnClickOutside } from "../../hooks/useOnClickOutside";
 import "../../styles/buttons.css";
 
-/**
- * Componente dropdown multiselect para categorías
- */
 export default function MultiCategoryDropdown({ 
   allCats = [], 
   selected = [], 

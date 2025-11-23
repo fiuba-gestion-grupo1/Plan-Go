@@ -1,8 +1,5 @@
 import React from "react";
 
-/**
- * Componente para mostrar estrellas de rating
- */
 export function Stars({ value = 0 }) {
   const pct = Math.max(0, Math.min(100, (Number(value) / 5) * 100));
   return (
@@ -15,9 +12,6 @@ export function Stars({ value = 0 }) {
   );
 }
 
-/**
- * Badge con rating promedio y cantidad de reseñas
- */
 export function RatingBadge({ avg = 0, count = 0 }) {
   return (
     <span className="badge bg-light text-dark border">
@@ -27,9 +21,6 @@ export function RatingBadge({ avg = 0, count = 0 }) {
   );
 }
 
-/**
- * Badges de estado de publicación
- */
 export function StatusBadge({ status }) {
   const badges = {
     approved: { text: "✓ Aprobada", className: "bg-success" },
@@ -43,9 +34,6 @@ export function StatusBadge({ status }) {
   return <span className={`badge ${badge.className}`}>{badge.text}</span>;
 }
 
-/**
- * Componente de loading
- */
 export function LoadingSpinner({ message = "Cargando..." }) {
   return (
     <div className="alert alert-info">
@@ -54,9 +42,6 @@ export function LoadingSpinner({ message = "Cargando..." }) {
   );
 }
 
-/**
- * Componente de error
- */
 export function ErrorAlert({ message, onDismiss }) {
   if (!message) return null;
   
@@ -70,9 +55,6 @@ export function ErrorAlert({ message, onDismiss }) {
   );
 }
 
-/**
- * Componente de éxito
- */
 export function SuccessAlert({ message, onDismiss }) {
   if (!message) return null;
   
@@ -86,9 +68,6 @@ export function SuccessAlert({ message, onDismiss }) {
   );
 }
 
-/**
- * Mensaje cuando no hay resultados
- */
 export function EmptyState({ message, icon = "📭" }) {
   return (
     <div className="alert alert-secondary mt-3 text-center">

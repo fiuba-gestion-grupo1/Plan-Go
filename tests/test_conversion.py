@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import requests
 import json
 from datetime import datetime, timedelta
@@ -11,14 +9,12 @@ def test_convert_ai_to_custom():
     print("🚀 TEST: Conversión Itinerario IA → Personalizado")
     print("=" * 55)
     
-    # 1. Login
     print("\n1. Autenticando usuario...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # 2. Crear itinerario de IA primero
     print("\n2. Creando itinerario de IA...")
     tomorrow = datetime.now() + timedelta(days=1)
     end_date = tomorrow + timedelta(days=3)
@@ -46,7 +42,6 @@ def test_convert_ai_to_custom():
     itinerary_id = ai_itinerary["id"]
     print(f"✅ Itinerario IA creado (ID: {itinerary_id})")
     
-    # 3. Convertir a personalizado
     print(f"\n3. Convirtiendo a itinerario personalizado...")
     convert_response = requests.post(
         f"{BASE_URL}/api/itineraries/{itinerary_id}/convert-to-custom",
@@ -61,7 +56,6 @@ def test_convert_ai_to_custom():
     conversion_result = convert_response.json()
     print("✅ Conversión exitosa")
     
-    # 4. Analizar el resultado
     print(f"\n4. Analizando estructura convertida...")
     
     success = conversion_result.get("success", False)
@@ -74,12 +68,11 @@ def test_convert_ai_to_custom():
     print(f"   ✅ Actividades: {validation.get('total_activities', 0)}")
     print(f"   ✅ Publicaciones: {len(conversion_result.get('publications_used', []))}")
     
-    # 5. Mostrar estructura de días
     print(f"\n5. Estructura de días convertidos:")
     day_keys = [k for k in custom_structure.keys() if k.startswith("day_")]
     day_keys.sort(key=lambda x: int(x.split("_")[1]))
     
-    for day_key in day_keys[:3]:  # Mostrar máximo 3 días
+    for day_key in day_keys[:3]:
         day_data = custom_structure[day_key]
         day_num = day_key.split("_")[1]
         print(f"\n   📅 DÍA {day_num}:")
@@ -93,12 +86,11 @@ def test_convert_ai_to_custom():
         for period_key, period_name, activities in periods:
             if activities:
                 print(f"     {period_name}: {len(activities)} actividad(es)")
-                for time_slot, activity in list(activities.items())[:2]:  # Max 2 por período
+                for time_slot, activity in list(activities.items())[:2]:
                     activity_name = activity.get("name", "Sin nombre")
                     pub_id = activity.get("id", "N/A")
                     print(f"       • {time_slot} - {activity_name} (ID: {pub_id})")
     
-    # 6. Mostrar información original
     original = conversion_result.get("original_itinerary", {})
     print(f"\n6. Información del itinerario original:")
     print(f"   • Destino: {original.get('destination', 'N/A')}")
@@ -106,7 +98,6 @@ def test_convert_ai_to_custom():
     print(f"   • Presupuesto: US${original.get('budget', 0)}")
     print(f"   • Personas: {original.get('cant_persons', 0)}")
     
-    # 7. Validaciones
     validation_errors = validation.get("errors", [])
     validation_warnings = validation.get("warnings", [])
     
@@ -120,7 +111,6 @@ def test_convert_ai_to_custom():
         for warning in validation_warnings:
             print(f"   • {warning}")
     
-    # 8. Resultado final
     print(f"\n🎯 RESULTADO FINAL:")
     
     if success and validation.get("valid", False):

@@ -11,27 +11,24 @@ export default function ExpensesPage({ token, me }) {
   const [endDate, setEndDate] = useState("");
   const [balances, setBalances] = useState([]);
   const [balancesData, setBalancesData] = useState({ total: 0, por_persona: 0, balances: [] });
-  const [view, setView] = useState("trips"); // 👈 arranca mostrando Mis viajes
+  const [view, setView] = useState("trips");
   const [editingExpense, setEditingExpense] = useState(null);
-  const [addError, setAddError] = useState(""); // Error para el formulario de 'Agregar'
-  const [editError, setEditError] = useState(""); // Error para el 'Modal de Edición'
-  const [editingTrip, setEditingTrip] = useState(null); // Para el modal de editar viaje
-  const [editTripError, setEditTripError] = useState(""); // Error para ese modal
+  const [addError, setAddError] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [editTripError, setEditTripError] = useState("");
 
-  // Determinar si el usuario es premium
   const isPremium = me?.role === "premium";
   const [deleteExpenseModal, setDeleteExpenseModal] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [deleteTripModal, setDeleteTripModal] = useState(false);
   const [tripToDelete, setTripToDelete] = useState(null);
 
-  // --- NUEVO: estados para invitación ---
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [userRole, setUserRole] = useState("user");
 
-  // --- INVITACIONES ---
   const [invitations, setInvitations] = useState([]);
   const [invitationsLoaded, setInvitationsLoaded] = useState(false);
 
@@ -53,14 +50,13 @@ export default function ExpensesPage({ token, me }) {
         token,
         body: { action },
       });
-      fetchInvitations(); // actualiza lista
-      fetchTrips(); // refresca viajes (por si se aceptó)
+      fetchInvitations();
+      fetchTrips();
     } catch (error) {
       alert(error.detail || "Error al responder invitación");
     }
   }
 
-  // --- Cargar viajes al iniciar ---
   useEffect(() => {
     fetchTrips();
   }, []);
@@ -69,7 +65,7 @@ export default function ExpensesPage({ token, me }) {
     async function fetchUser() {
       try {
         const data = await request("/api/auth/me", { token });
-        console.log("👤 Usuario cargado:", data); // para verificar
+        console.log("👤 Usuario cargado:", data);
         setUserRole(data.role || "user");
       } catch (error) {
         console.error("Error al obtener usuario:", error);
@@ -78,9 +74,8 @@ export default function ExpensesPage({ token, me }) {
     fetchUser();
   }, [token]);
 
-  // --- NUEVO: limpiar mensaje de invitación al cambiar de vista o viaje ---
   useEffect(() => {
-    setInviteMessage(""); // Limpia el cartel “Invitación enviada a…”
+    setInviteMessage("");
   }, [selectedTrip, view]);
 
   async function fetchTrips() {
@@ -110,13 +105,13 @@ export default function ExpensesPage({ token, me }) {
   }
 
   async function openTrip(tripId) {
-    setInviteMessage(""); // Limpia cartel anterior
+    setInviteMessage("");
     setBalances([]);
     setBalancesData({ total: 0, por_persona: 0, balances: [] });
     const data = await request(`/api/trips/${tripId}/expenses`, { token });
     setSelectedTrip(tripId);
     setExpenses(data);
-    setView("list"); // 👈 cuando entro a un viaje, muestro lista de gastos
+    setView("list");
   }
 
   async function addExpense() {
@@ -131,7 +126,7 @@ export default function ExpensesPage({ token, me }) {
       });
 
       setNewExpense({ name: "", category: "", amount: "", date: "" });
-      setAddError(""); // Limpiamos el error si tuvo éxito
+      setAddError("");
       openTrip(selectedTrip);
     } catch (error) {
       console.error("Error al agregar gasto:", error);
@@ -154,7 +149,7 @@ export default function ExpensesPage({ token, me }) {
         method: "DELETE",
         token,
       });
-      openTrip(selectedTrip); // Refresca la lista de gastos
+      openTrip(selectedTrip);
     } catch (error) {
       console.error("Error al eliminar gasto:", error);
       alert("Error al eliminar. Es posible que no tengas permiso para borrar este gasto.");
@@ -175,9 +170,9 @@ export default function ExpensesPage({ token, me }) {
         token,
         body: { name, category, amount: parseFloat(amount), date },
       });
-      setEditingExpense(null); // Cierra el modal
-      setEditError(""); // Limpiamos el error
-      openTrip(selectedTrip); // Refresca la lista
+      setEditingExpense(null);
+      setEditError("");
+      openTrip(selectedTrip);
     } catch (error) {
       console.error("Error al actualizar gasto:", error);
       const errorMessage =
@@ -189,12 +184,12 @@ export default function ExpensesPage({ token, me }) {
   const handleOpenEditModal = (expense) => {
     const dateFormatted = expense.date ? new Date(expense.date).toISOString().split("T")[0] : "";
     setEditingExpense({ ...expense, date: dateFormatted });
-    setEditError(""); // Limpia el error al abrir
+    setEditError("");
   };
 
   const handleCloseEditModal = () => {
     setEditingExpense(null);
-    setEditError(""); // Limpia el error al cerrar
+    setEditError("");
   };
 
   async function exportToPDF() {
@@ -237,7 +232,7 @@ export default function ExpensesPage({ token, me }) {
         method: "DELETE",
         token,
       });
-      fetchTrips(); // Refresca la lista de viajes
+      fetchTrips();
       if (selectedTrip === tripToDelete) {
         setSelectedTrip(null);
       }
@@ -280,14 +275,13 @@ export default function ExpensesPage({ token, me }) {
       });
 
       handleCloseEditTripModal();
-      fetchTrips(); // Refresca la lista de viajes
+      fetchTrips();
     } catch (error) {
       console.error("Error al actualizar el viaje:", error);
       setEditTripError(error.detail || "Error al guardar los cambios.");
     }
   }
 
-  // --- NUEVO: función para enviar invitación ---
   async function sendInvitation() {
     if (userRole !== "premium") {
       setInviteError("Para invitar a otros usuarios, suscribite al plan Premium.");
@@ -316,13 +310,9 @@ export default function ExpensesPage({ token, me }) {
     }
   }
 
-  // ─────────────────────────────────────────────────────────
-  // VISTA 1: SIN viaje seleccionado → Mis viajes / Mis invitaciones
-  // ─────────────────────────────────────────────────────────
   if (!selectedTrip) {
     return (
       <div className="container mt-4">
-        {/* Pestañas */}
         <div className="d-flex mb-4 border-bottom">
           <button
             className={`btn pb-2 ${
@@ -352,7 +342,6 @@ export default function ExpensesPage({ token, me }) {
           )}
         </div>
 
-        {/* Vista Invitaciones */}
         {view === "invitations" && isPremium && (
           <div className="card shadow-sm mb-4">
             <div className="card-body">
@@ -403,7 +392,6 @@ export default function ExpensesPage({ token, me }) {
           </div>
         )}
 
-        {/* Vista Mis viajes */}
         {view === "trips" && (
           <>
             <div className="card shadow-sm mb-4">
@@ -447,7 +435,6 @@ export default function ExpensesPage({ token, me }) {
               </div>
             </div>
 
-            {/* Tabla viajes */}
             <div className="card shadow-sm">
               <div className="card-body">
                 <h5 className="fw-semibold mb-3">Viajes creados</h5>
@@ -520,7 +507,6 @@ export default function ExpensesPage({ token, me }) {
               </div>
             </div>
 
-            {/* Modal edición viaje */}
             {editingTrip && (
               <>
                 <div className="modal-backdrop fade show"></div>
@@ -598,7 +584,6 @@ export default function ExpensesPage({ token, me }) {
               </>
             )}
 
-            {/* Modal confirmación eliminar viaje (lista) */}
             {deleteTripModal && (
               <div
                 className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -632,10 +617,6 @@ export default function ExpensesPage({ token, me }) {
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // VISTA 2: Con viaje seleccionado → gastos, reportes, saldos
-  // ─────────────────────────────────────────────────────────
-
   const totalsByCategory = expenses.reduce((acc, exp) => {
     const cat = exp.category || "Sin categoría";
     acc[cat] = (acc[cat] || 0) + parseFloat(exp.amount || 0);
@@ -648,7 +629,7 @@ export default function ExpensesPage({ token, me }) {
         className="btn btn-outline-secondary mb-3"
         onClick={() => {
           setSelectedTrip(null);
-          setView("trips"); // 👈 al volver, mostrar pestaña Mis viajes
+          setView("trips");
           setInviteMessage("");
           setBalances([]);
           setBalancesData({ total: 0, por_persona: 0, balances: [] });
@@ -657,7 +638,6 @@ export default function ExpensesPage({ token, me }) {
         ← Volver
       </button>
 
-      {/* Cabecera y acciones */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3 className="mb-0">Gastos del viaje</h3>
         <div className="d-flex gap-2">
@@ -682,7 +662,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       </div>
 
-      {/* Invitaciones (premium) */}
       {isPremium && (
         <div className="card p-3 mb-4 shadow-sm">
           <h5 className="mb-3 fw-semibold">Invitar usuario premium al viaje</h5>
@@ -712,7 +691,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       )}
 
-      {/* Form nuevo gasto */}
       <div className="card p-3 mb-4 shadow-sm">
         <div className="row g-2">
           <div className="col-md-3">
@@ -763,7 +741,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       </div>
 
-      {/* Error al agregar gasto */}
       {addError && (
         <div className="alert alert-danger alert-dismissible fade show" role="alert">
           <strong>Error:</strong> {addError}
@@ -771,7 +748,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       )}
 
-      {/* Botones de vista */}
       <div className="mb-3">
         <button
           className={`btn ${view === "list" ? "btn-light" : "btn-outline-secondary"} me-2`}
@@ -792,7 +768,6 @@ export default function ExpensesPage({ token, me }) {
         </button>
       </div>
 
-      {/* Lista de gastos */}
       {view === "list" && (
         <div className="card shadow-sm">
           <div className="card-body">
@@ -853,7 +828,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       )}
 
-      {/* Reporte por categoría */}
       {view === "report" && (
         <div className="card shadow-sm">
           <div className="card-body">
@@ -877,7 +851,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       )}
 
-      {/* Saldos */}
       {balances.length > 0 && (
         <div className="mt-4">
           <h5>💸 Saldos del viaje</h5>
@@ -909,7 +882,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       )}
 
-      {/* Modal editar gasto */}
       {editingExpense && (
         <>
           <div className="modal-backdrop fade show"></div>
@@ -1004,7 +976,6 @@ export default function ExpensesPage({ token, me }) {
         </>
       )}
 
-      {/* Modal eliminar gasto */}
       {deleteExpenseModal && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -1032,7 +1003,6 @@ export default function ExpensesPage({ token, me }) {
         </div>
       )}
 
-      {/* Modal eliminar viaje (también disponible acá si quedó abierto) */}
       {deleteTripModal && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"

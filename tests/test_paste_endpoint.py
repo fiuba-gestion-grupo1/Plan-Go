@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import requests
 import json
 from datetime import datetime, timedelta
@@ -11,14 +9,12 @@ def test_paste_endpoint():
     print("🚀 TEST: Endpoint 'Pegar Itinerario de IA'")
     print("=" * 50)
     
-    # 1. Login
     print("\n1. 🔐 Autenticación...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # 2. Probar endpoint de listar itinerarios de IA
     print("\n2. 📋 Probando endpoint /my-ai-itineraries...")
     
     list_response = requests.get(f"{BASE_URL}/api/itineraries/ai-list", 
@@ -40,7 +36,6 @@ def test_paste_endpoint():
     if total_itineraries == 0:
         print("   ⚠️ No hay itinerarios de IA. Creando uno...")
         
-        # Crear un itinerario de IA rápido
         tomorrow = datetime.now() + timedelta(days=1)
         end_date = tomorrow + timedelta(days=2)
         
@@ -62,7 +57,6 @@ def test_paste_endpoint():
         if ai_response.status_code == 200:
             print("   ✅ Itinerario de IA creado")
             
-            # Volver a listar
             list_response = requests.get(f"{BASE_URL}/api/itineraries/ai-list", 
                                         headers=headers)
             list_result = list_response.json()
@@ -73,13 +67,12 @@ def test_paste_endpoint():
             print("   ❌ Error creando itinerario de IA")
             return False
     
-    # 3. Analizar los itinerarios disponibles
     print(f"\n3. 📊 Analizando itinerarios disponibles...")
     
     if itineraries:
         print(f"   📋 Listando {len(itineraries)} itinerarios:")
         
-        for i, itinerary in enumerate(itineraries[:3]):  # Mostrar máximo 3
+        for i, itinerary in enumerate(itineraries[:3]):
             print(f"\n   {i+1}. ID: {itinerary['id']}")
             print(f"      📍 Destino: {itinerary['destination']}")
             print(f"      📅 Duración: {itinerary['duration_days']} días")
@@ -89,7 +82,6 @@ def test_paste_endpoint():
             print(f"      🏛️ Lugares: {itinerary['publication_count']}")
             print(f"      📝 Preview: {itinerary['preview'][:60]}...")
         
-        # 4. Probar conversión del primer itinerario
         first_itinerary = itineraries[0]
         print(f"\n4. 🔄 Probando conversión del itinerario ID {first_itinerary['id']}...")
         
@@ -114,7 +106,6 @@ def test_paste_endpoint():
     else:
         print("   ⚠️ No hay itinerarios disponibles para probar")
     
-    # 5. Resultado final
     print(f"\n🎯 RESULTADO FINAL:")
     print(f"   ✅ Endpoint /my-ai-itineraries: FUNCIONAL")
     print(f"   ✅ Conversión disponible: SÍ")

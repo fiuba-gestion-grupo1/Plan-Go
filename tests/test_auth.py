@@ -1,9 +1,7 @@
-# tests/test_auth.py
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from backend.app import models, security
 
-# --- Tests de Registro ---
 def test_register_user_success(client: TestClient, db_session: Session, test_user_data: dict):
     response = client.post("/api/auth/register", json=test_user_data)
     assert response.status_code == 200
@@ -24,7 +22,6 @@ def test_register_duplicate_email(client: TestClient, test_user):
     assert response.status_code == 400
     assert "El correo electrónico ya está registrado" in response.json()["detail"]
 
-# --- Tests de Login ---
 def test_login_success_with_email(client: TestClient, test_user, test_user_data: dict):
     response = client.post("/api/auth/login", json={
         "identifier": test_user_data["email"],
@@ -43,7 +40,6 @@ def test_login_wrong_password(client: TestClient, test_user, test_user_data: dic
     assert response.status_code == 401
     assert "Contraseña o usuario incorrecta" in response.json()["detail"]
     
-# --- Tests de ingreso al home(/me) ---
 def test_get_me(client: TestClient, auth_headers: dict, test_user_data: dict):
     response = client.get("/api/auth/me", headers=auth_headers)
     assert response.status_code == 200
@@ -64,7 +60,6 @@ def test_update_me(client: TestClient, auth_headers: dict):
     assert data["first_name"] == "Test"
     assert data["travel_preferences"] == "Mountains"
     
-# --- Tests cambio de contrasena ---
 def test_change_password_success(client: TestClient, auth_headers: dict, test_user_data: dict):
     new_password = "newpassword123"
     response = client.post("/api/auth/change-password", headers=auth_headers, json={
@@ -74,14 +69,12 @@ def test_change_password_success(client: TestClient, auth_headers: dict, test_us
     assert response.status_code == 200
     assert "Contraseña actualizada con éxito" in response.json()["message"]
 
-    #check login con nueva contrasena
     login_response = client.post("/api/auth/login", json={
         "identifier": test_user_data["email"],
         "password": new_password
     })
     assert login_response.status_code == 200
 
-# --- Test de workflow de recuperacion de contra---
 def test_forgot_password_flow(client: TestClient, test_user, test_user_data: dict):
    
     response_get_q = client.post("/api/auth/forgot-password/get-questions", json={

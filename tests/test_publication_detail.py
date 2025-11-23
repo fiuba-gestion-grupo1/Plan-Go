@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test script para verificar la funcionalidad de detalle de publicación 
 en itinerarios personalizados
@@ -15,7 +14,6 @@ def test_publication_detail_functionality():
     print("🚀 TEST: Funcionalidad de Detalle de Publicación")
     print("=" * 55)
     
-    # 1. Login
     print("\n1. 🔐 Autenticación...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     if login_response.status_code != 200:
@@ -26,7 +24,6 @@ def test_publication_detail_functionality():
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # 2. Obtener itinerarios de IA disponibles
     print("\n2. 📋 Obteniendo itinerarios de IA...")
     ai_list_response = requests.get(f"{BASE_URL}/api/itineraries/ai-list", headers=headers)
     
@@ -42,7 +39,6 @@ def test_publication_detail_functionality():
     ai_itinerary = itineraries[0]
     print(f"✅ Itinerario seleccionado: {ai_itinerary['destination']} (ID: {ai_itinerary['id']})")
     
-    # 3. Convertir a itinerario personalizado
     print("\n3. 🔄 Convirtiendo a personalizado...")
     conversion_data = {
         "ai_itinerary_id": ai_itinerary["id"],
@@ -65,13 +61,11 @@ def test_publication_detail_functionality():
     result = convert_response.json()
     print("✅ Conversión exitosa")
     
-    # 4. Analizar estructura de datos para el frontend
     print("\n4. 🔍 Analizando datos para frontend...")
     itinerary_data = result.get("itinerary", {})
     
     print(f"   📅 Total de días: {len(itinerary_data)}")
     
-    # Buscar actividades con datos completos para el detalle
     activities_with_details = []
     
     for day_key, day_data in itinerary_data.items():
@@ -87,7 +81,6 @@ def test_publication_detail_functionality():
     
     print(f"   🏛️ Actividades con detalle: {len(activities_with_details)}")
     
-    # 5. Mostrar ejemplos de datos para PublicationCard
     if activities_with_details:
         print("\n5. 📋 Ejemplo de datos para PublicationCard:")
         example = activities_with_details[0]["activity"]
@@ -101,7 +94,6 @@ def test_publication_detail_functionality():
         print(f"   🕐 end_time: {example.get('end_time', 'N/A')}")
         print(f"   📝 original_text: {example.get('original_text', 'N/A')}")
         
-        # Verificar campos requeridos para PublicationCard
         required_fields = ["id", "place_name", "address", "city", "province", "country"]
         missing_fields = []
         
@@ -114,7 +106,6 @@ def test_publication_detail_functionality():
         else:
             print("   ✅ Todos los campos requeridos presentes")
     
-    # 6. Verificar estructura de fotos y rating
     print("\n6. 🖼️ Verificando datos adicionales...")
     
     if activities_with_details:
@@ -131,7 +122,6 @@ def test_publication_detail_functionality():
             categories = example.get("categories", [])
             print(f"   🏷️ Categorías ejemplo: {categories[:3]}")
     
-    # 7. Resumen para desarrollo frontend
     print(f"\n🎯 RESUMEN PARA FRONTEND:")
     print(f"   ✅ Datos de conversión: COMPLETOS")
     print(f"   ✅ Actividades parseadas: {len(activities_with_details)}")

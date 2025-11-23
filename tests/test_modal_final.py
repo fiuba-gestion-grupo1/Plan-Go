@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test final para verificar que el modal funciona correctamente con fotos
 """
@@ -13,13 +12,11 @@ def test_modal_with_photos():
     print("🚀 TEST: Modal de Detalle con Fotos")
     print("=" * 45)
     
-    # 1. Login
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("✅ Usuario autenticado")
     
-    # 2. Convertir itinerario de IA
     ai_list_response = requests.get(f"{BASE_URL}/api/itineraries/ai-list", headers=headers)
     itineraries = ai_list_response.json()["itineraries"]
     ai_itinerary = itineraries[0]
@@ -40,7 +37,6 @@ def test_modal_with_photos():
     result = convert_response.json()
     print("✅ Itinerario convertido")
     
-    # 3. Verificar estructura de datos para el modal
     print(f"\n🔍 Verificando datos para PublicationCard:")
     
     itinerary_data = result["itinerary"]
@@ -60,7 +56,6 @@ def test_modal_with_photos():
     print(f"   📸 Actividades CON fotos: {len(activities_with_photos)}")
     print(f"   📸 Actividades SIN fotos: {len(activities_without_photos)}")
     
-    # 4. Mostrar ejemplo de actividad con fotos
     if activities_with_photos:
         example = activities_with_photos[0]
         print(f"\n📋 Ejemplo de actividad con fotos:")
@@ -68,7 +63,6 @@ def test_modal_with_photos():
         print(f"   📸 Fotos: {len(example.get('photos', []))} imágenes")
         print(f"   🔗 URLs: {example.get('photos', [])}")
         
-        # Verificar campos requeridos para PublicationCard
         required_fields = {
             "id": example.get("id"),
             "place_name": example.get("place_name"),
@@ -83,7 +77,6 @@ def test_modal_with_photos():
             status = "✅" if value else "❌"
             print(f"   {status} {field}: {value}")
     
-    # 5. Instrucciones finales
     print(f"\n🎯 TESTING MANUAL FINAL:")
     print(f"=" * 30)
     print(f"   1. Ir a http://localhost:8000")

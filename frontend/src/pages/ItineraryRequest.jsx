@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ItineraryRequestForm from '../components/ItineraryRequestForm';
-import { request } from "../utils/api"; // Importamos el helper de requests
-import PublicationDetailModal from "../components/PublicationDetailModal"; // Componente del modal de detalles
-import { RatingBadge, Stars } from "../components/shared/UIComponents"; // Componente de badge de rating
+import { request } from "../utils/api";
+import PublicationDetailModal from "../components/PublicationDetailModal";
+import { RatingBadge, Stars } from "../components/shared/UIComponents";
 
 export default function ItineraryRequest({ initialView = 'form', me }) {
   const navigate = useNavigate();
@@ -15,15 +15,12 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   const [selectedItinerary, setSelectedItinerary] = useState(null);
   const token = localStorage.getItem('token') || '';
 
-  // Estados para modal de confirmación de eliminación
   const [deleteModal, setDeleteModal] = useState(false);
   const [itineraryToDelete, setItineraryToDelete] = useState(null);
 
-  //Estado para el modal de publicación ---
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [currentPub, setCurrentPub] = useState(null);
 
-  // Determinar si el usuario es premium
   const isPremium = me?.role === "premium";
 
   useEffect(() => {
@@ -46,7 +43,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   }
 
   async function handleDeleteItinerary(itineraryId) {
-    // Mostrar modal de confirmación
     console.log("🔥 ItineraryRequest: handleDeleteItinerary ejecutada con ID:", itineraryId);
     setItineraryToDelete(itineraryId);
     setDeleteModal(true);
@@ -78,7 +74,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
       setError(e.message || 'Error al eliminar el itinerario');
     } finally {
       setLoading(false);
-      // Cerrar modal
       setDeleteModal(false);
       setItineraryToDelete(null);
     }
@@ -127,11 +122,9 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     
-    // Si la fecha ya es solo YYYY-MM-DD, usarla directamente
     const dateOnly = dateStr.split('T')[0];
     const [year, month, day] = dateOnly.split('-');
     
-    // Crear la fecha usando los componentes por separado para evitar problemas de timezone
     const date = new Date(year, month - 1, day);
     
     return date.toLocaleDateString('es-ES', {
@@ -147,13 +140,11 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
   }
 
   async function toggleFavorite(pubId) {
-    // Actualiza el estado de favoritos en la lista de itinerarios
     try {
       const data = await request(`/api/publications/${pubId}/favorite`, {
         method: "POST",
         token
       });
-      // Actualiza la publicación dentro de selectedItinerary
       setSelectedItinerary(prev => {
         if (!prev) return null;
         return {
@@ -163,7 +154,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
           )
         };
       });
-      // Actualiza la publicación en el modal si está abierta
       if (currentPub && currentPub.id === pubId) {
         setCurrentPub(prev => ({ ...prev, is_favorite: data.is_favorite }));
       }
@@ -172,7 +162,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
     }
   }
 
-  // === Vista de la lista de itinerarios ===
   if (showList) {
     return (
       <div className="container mt-4">
@@ -245,10 +234,9 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
     );
   }
 
-  // === Vista de detalle del itinerario ===
   if (selectedItinerary) {
     return (
-      <> {/* Fragment para incluir el modal */}
+      <>
         <div className="container mt-4">
           <div className="d-flex align-items-center justify-content-between mb-4">
             <h3 className="mb-0">Itinerario: {selectedItinerary.destination}</h3>
@@ -282,7 +270,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
           {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
           <div className="card shadow-sm mb-4">
-            {/* ... (info del itinerario) ... */}
             <div className="card-body">
               <div className="row mb-3">
                 <div className="col-md-6">
@@ -306,7 +293,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
           </div>
 
           <div className="card shadow-sm">
-            {/* ... (itinerario generado por IA) ... */}
             <div className="card-header text-white d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Itinerario Generado por IA</h5>
               <button
@@ -329,7 +315,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
             </div>
           </div>
 
-          {/* Publicaciones utilizadas en el itinerario (BLOQUE MODIFICADO) */}
           {selectedItinerary.publications && selectedItinerary.publications.length > 0 && (
             <div className="mt-4">
               <h4 className="mb-3">📍 Lugares incluidos en este itinerario</h4>
@@ -337,7 +322,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
                 Estos son los lugares de nuestra plataforma que la IA utilizó para crear tu itinerario:
               </p>
 
-              {/* --- GRILLA DE PUBLICACIONES ACTUALIZADA --- */}
               <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
                 {selectedItinerary.publications.map((p) => (
                   <div className="col" key={p.id}>
@@ -354,7 +338,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
                               {p.address}, {p.city}, {p.province}, {p.country}
                             </small>
                             <div className="mt-2 d-flex flex-wrap gap-2">
-                              {/* USA EL COMPONENTE RatingBadge */}
                               <RatingBadge avg={p.rating_avg} count={p.rating_count} />
                               {(p.categories || []).map((c) => (
                                 <span key={c} className="badge bg-secondary-subtle text-secondary border text-capitalize">{c}</span>
@@ -362,7 +345,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
                             </div>
                           </div>
 
-                          {/* BOTÓN DE FAVORITO */}
                           <button
                             className="btn btn-link p-0 ms-2"
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
@@ -388,7 +370,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
                               </div>
                             ))}
                           </div>
-                          {/* Controles del carrusel (iguales a Home) */}
                           {p.photos.length > 1 && (
                             <>
                               <button className="carousel-control-prev" type="button" data-bs-target={`#itin-carousel-${p.id}`} data-bs-slide="prev">
@@ -404,7 +385,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
                         <div className="p-4 text-center text-muted">Sin fotos</div>
                       )}
 
-                      {/* BOTÓN "VER DETALLES" */}
                       <div className="card-footer bg-white d-flex justify-content-between align-items-center">
                         <small className="text-muted">Creado: {new Date(p.created_at).toLocaleString()}</small>
                         <button
@@ -422,17 +402,15 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
           )}
         </div>
 
-        {/* --- RENDER DEL MODAL --- */}
         <PublicationDetailModal
           open={openDetailModal}
           pub={currentPub}
           token={token}
-          me={me || {}} // Pasamos 'me' (si existe) o un objeto vacío
+          me={me || {}}
           onClose={() => setOpenDetailModal(false)}
           onToggleFavorite={toggleFavorite}
         />
 
-        {/* Modal de confirmación de eliminación */}
         {deleteModal && (
           <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
             style={{ background: "rgba(0,0,0,.4)", zIndex: 1051 }}>
@@ -462,7 +440,6 @@ export default function ItineraryRequest({ initialView = 'form', me }) {
     );
   }
 
-  // === Vista del formulario de solicitud ===
   return (
     <div className="container mt-4">
       <div className="row justify-content-center">
