@@ -5,6 +5,11 @@ Script de prueba para el nuevo prompt mejorado de IA con validaciones
 import requests
 import json
 from datetime import datetime, timedelta
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Test de integración manual: requiere backend levantado en http://localhost:8000"
+)
 
 def test_improved_ai_itinerary():
     """Prueba el endpoint con el nuevo prompt mejorado"""

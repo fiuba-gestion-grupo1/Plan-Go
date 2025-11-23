@@ -5,6 +5,11 @@ Script de prueba para el endpoint /api/itineraries/custom
 import requests
 import json
 from datetime import datetime, timedelta
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Test de integración manual: requiere backend levantado en http://localhost:8000"
+)
 
 def test_custom_itinerary():
     """Prueba el endpoint de itinerarios personalizados"""

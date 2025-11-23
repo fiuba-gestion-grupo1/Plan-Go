@@ -1,5 +1,10 @@
 import requests
 from datetime import datetime, timedelta
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Test de integración manual: requiere backend levantado en http://localhost:8000"
+)
 
 BASE_URL = "http://localhost:8000"
 TEST_USER = {"identifier": "test_validation", "password": "password123"}
