@@ -7,6 +7,7 @@ up:
 	@sleep 5
 	@docker exec plan-go-app python -m backend.app.seed_users
 	@docker exec plan-go-app python -m backend.app.seed_db
+	@docker exec plan-go-app python -m backend.app.seed_benefits
 
 down:
 	@docker compose down
