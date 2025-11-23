@@ -8,7 +8,7 @@ TEST_USER = {"identifier": "test_validation", "password": "password123"}
 def test_complete_flow():
     print("🚀 TEST FLUJO COMPLETO: IA → Validación → Modificar → Custom")
     print("=" * 65)
-        print("\n1. 🔐 Autenticación...")
+    print("\n1. 🔐 Autenticación...")
     login_response = requests.post(f"{BASE_URL}/api/auth/login", json=TEST_USER)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/trips", tags=["trips"])
 @router.get("")
 def get_my_trips(db: Session = Depends(get_db), user=Depends(get_current_user)):
     own_trips = db.query(models.Trip).filter_by(user_id=user.id).all()
-        participant_links = db.query(models.TripParticipant).filter_by(user_id=user.id).all()
+    participant_links = db.query(models.TripParticipant).filter_by(user_id=user.id).all()
     participant_trips = [p.trip for p in participant_links if p.trip is not None]
     all_trips = {t.id: t for t in (own_trips + participant_trips)}.values()
 
