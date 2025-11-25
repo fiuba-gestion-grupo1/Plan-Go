@@ -1504,6 +1504,8 @@ def convert_ai_to_custom_itinerary(
             "destination": destination,
             "start_date": start_date,
             "end_date": end_date,
+            "cant_persons": ai_itinerary.cant_persons,   # ← FIX
+            "budget": ai_itinerary.budget,               # ← FIX
             "days": days,
             "itinerary": custom_structure["itinerary"],
             "converted_from": {
@@ -1513,6 +1515,7 @@ def convert_ai_to_custom_itinerary(
             },
             "message": f"Itinerario convertido exitosamente para {total_days} día(s) en {destination}",
         }
+
 
     except Exception as e:
         print(f"[CONVERT] Error en conversión: {str(e)}")

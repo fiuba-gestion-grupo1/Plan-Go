@@ -767,6 +767,10 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
       setStartDate(result.start_date);
       console.log("\ud83d\udd04 Estableciendo endDate:", result.end_date);
       setEndDate(result.end_date);
+
+      setCantPersons(result.cant_persons ?? aiItinerary.cant_persons ?? 1);
+      setBudget(result.budget ?? aiItinerary.budget ?? 0);
+
       console.log("\ud83d\udd04 Estableciendo convertedFrom...");
       setConvertedFrom(aiItinerary);
 
