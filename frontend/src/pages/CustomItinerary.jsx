@@ -767,6 +767,10 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
       setStartDate(result.start_date);
       console.log("\ud83d\udd04 Estableciendo endDate:", result.end_date);
       setEndDate(result.end_date);
+
+      setCantPersons(result.cant_persons ?? aiItinerary.cant_persons ?? 1);
+      setBudget(result.budget ?? aiItinerary.budget ?? 0);
+
       console.log("\ud83d\udd04 Estableciendo convertedFrom...");
       setConvertedFrom(aiItinerary);
 
@@ -1170,13 +1174,23 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
                         el constructor personalizado:
                       </p>
                       <div className="row g-3">
-                        {aiItineraries.map((itinerary) => (
-                          <div key={itinerary.id} className="col-12">
-                            <div
-                              className="card border hover-card"
-                              style={{ cursor: "pointer" }}
-                              onClick={() => pasteAiItinerary(itinerary)}
-                            >
+                        {aiItineraries
+                          .filter((itinerary) => {
+                            // 🔥 Solo excluir itinerarios personalizados
+                            if (!itinerary.trip_type) return true;
+
+                            const type = itinerary.trip_type.toLowerCase();
+
+                            return type !== "personalizado" && type !== "custom";
+                          })
+                          .map((itinerary) => (
+                            <div key={itinerary.id} className="col-12">
+                              <div
+                                className="card border hover-card"
+                                style={{ cursor: "pointer" }}
+                                onClick={() => pasteAiItinerary(itinerary)}
+                              >
+
                               <div className="card-body">
                                 <div className="d-flex justify-content-between align-items-start">
                                   <div className="flex-grow-1">
