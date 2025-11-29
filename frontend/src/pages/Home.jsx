@@ -576,7 +576,7 @@ export default function Home({
         const url = new URL(window.location.href);
         url.searchParams.delete("pub");
         window.history.replaceState({}, "", url.pathname);
-      } catch {}
+      } catch { }
     }
   }, [paramPubId, pubs]);
 
@@ -1458,8 +1458,7 @@ export default function Home({
 
         {!loading && myItineraries.length === 0 && (
           <div className="alert alert-secondary">
-            No tienes itinerarios generados aún. ¡Crea tu primer itinerario con
-            IA!
+            No tienes itinerarios generados aún. ¡Crea tu primer itinerario en: Menu -{">"} Generar Itinerario!
           </div>
         )}
 
@@ -2097,7 +2096,7 @@ function MySubmissionsView({
         token={token}
         me={{}}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => {}}
+        onToggleFavorite={() => { }}
       />
     </div>
   );
@@ -2311,11 +2310,10 @@ function FavoritesView({
 
                 <div className="card-footer bg-white d-flex justify-content-between align-items-center">
                   <button
-                    className={`btn btn-sm ${
-                      status === "done"
+                    className={`btn btn-sm ${status === "done"
                         ? "btn-success border-success text-white"
                         : "btn-outline-secondary"
-                    }`}
+                      }`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onUpdateStatus(
@@ -2361,7 +2359,7 @@ function FavoritesView({
         me={{}}
         token={token}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => {}}
+        onToggleFavorite={() => { }}
       />
     </div>
   );

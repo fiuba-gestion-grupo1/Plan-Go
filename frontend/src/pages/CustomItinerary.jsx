@@ -367,6 +367,7 @@ export default function CustomItinerary({ me, token }) {
   };
 
   function addPublicationToSlot(publication) {
+    setError("")
     try {
       console.log("🎯 [DEBUG] ==========================================");
       console.log("🎯 [DEBUG] addPublicationToSlot INICIADO!!!");
@@ -493,12 +494,12 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
                 slotTime === time
                   ? activityData
                   : {
-                      ...publication,
-                      duration_min: durationMinutes,
-                      start_time: time,
-                      is_continuation: true,
-                      main_slot_time: time,
-                    },
+                    ...publication,
+                    duration_min: durationMinutes,
+                    start_time: time,
+                    is_continuation: true,
+                    main_slot_time: time,
+                  },
             },
           };
         });
@@ -517,10 +518,10 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
             slotTime === time
               ? activityData
               : {
-                  ...publication,
-                  is_continuation: true,
-                  main_slot_time: time,
-                };
+                ...publication,
+                is_continuation: true,
+                main_slot_time: time,
+              };
         });
         console.log(
           "📋 [DEBUG] selectedPublications actualizado:",
@@ -544,6 +545,7 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
 
   function removePublicationFromSlot(dayKey, period, time) {
     try {
+      setError("");
       console.log("🗑️ [DEBUG] Intentando eliminar actividad:", {
         dayKey,
         period,
@@ -881,7 +883,7 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
         e.message &&
         e.message.includes("NO ES POSIBLE GUARDAR EL ITINERARIO")
       ) {
-        errorMessage = e.message;
+        errorMessage = e.message.replace(/^\s*\d+\s*:\s*/g, "");
         setError(errorMessage);
 
         const validationModal = document.createElement("div");
@@ -935,7 +937,7 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
         }
 
         setError(errorMessage);
-        alert(errorMessage);
+        //alert(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -1191,57 +1193,56 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
                                 onClick={() => pasteAiItinerary(itinerary)}
                               >
 
-                              <div className="card-body">
-                                <div className="d-flex justify-content-between align-items-start">
-                                  <div className="flex-grow-1">
-                                    <h6 className="card-title mb-1">
-                                      📍 {itinerary.destination}
-                                    </h6>
-                                    <div className="mb-2">
-                                      <small className="text-muted">
-                                        📅 {itinerary.duration_days} día(s) • 💰
-                                        US${itinerary.budget} • 👥{" "}
-                                        {itinerary.cant_persons} persona(s) • 🎨{" "}
-                                        {itinerary.trip_type}
-                                      </small>
-                                    </div>
-                                    <p className="card-text text-muted small mb-1">
-                                      {itinerary.preview}
-                                    </p>
-                                    <div className="d-flex gap-2 align-items-center">
-                                      <span
-                                        className={`badge ${
-                                          itinerary.status === "completed"
+                                <div className="card-body">
+                                  <div className="d-flex justify-content-between align-items-start">
+                                    <div className="flex-grow-1">
+                                      <h6 className="card-title mb-1">
+                                        📍 {itinerary.destination}
+                                      </h6>
+                                      <div className="mb-2">
+                                        <small className="text-muted">
+                                          📅 {itinerary.duration_days} día(s) • 💰
+                                          US${itinerary.budget} • 👥{" "}
+                                          {itinerary.cant_persons} persona(s) • 🎨{" "}
+                                          {itinerary.trip_type}
+                                        </small>
+                                      </div>
+                                      <p className="card-text text-muted small mb-1">
+                                        {itinerary.preview}
+                                      </p>
+                                      <div className="d-flex gap-2 align-items-center">
+                                        <span
+                                          className={`badge ${itinerary.status === "completed"
                                             ? "bg-success"
                                             : "bg-warning"
-                                        }`}
-                                      >
-                                        {itinerary.status === "completed"
-                                          ? "✅ Completo"
-                                          : "⚠️ Con advertencias"}
-                                      </span>
-                                      {itinerary.has_validation && (
-                                        <span className="badge bg-info">
-                                          🔍 Validado
+                                            }`}
+                                        >
+                                          {itinerary.status === "completed"
+                                            ? "✅ Completo"
+                                            : "⚠️ Con advertencias"}
                                         </span>
-                                      )}
-                                      <span className="badge bg-light text-dark">
-                                        🏛️ {itinerary.publication_count} lugares
-                                      </span>
+                                        {itinerary.has_validation && (
+                                          <span className="badge bg-info">
+                                            🔍 Validado
+                                          </span>
+                                        )}
+                                        <span className="badge bg-light text-dark">
+                                          🏛️ {itinerary.publication_count} lugares
+                                        </span>
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="text-end">
-                                    <small className="text-muted">
-                                      {new Date(
-                                        itinerary.created_at,
-                                      ).toLocaleDateString("es-ES")}
-                                    </small>
+                                    <div className="text-end">
+                                      <small className="text-muted">
+                                        {new Date(
+                                          itinerary.created_at,
+                                        ).toLocaleDateString("es-ES")}
+                                      </small>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </div>
                   )}
@@ -1436,8 +1437,8 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
                                             )?.date;
                                           const dayDateString = dayDate
                                             ? dayDate
-                                                .toISOString()
-                                                .split("T")[0]
+                                              .toISOString()
+                                              .split("T")[0]
                                             : null;
                                           console.log(
                                             "📅 Fecha del slot:",
@@ -1510,7 +1511,7 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
                     </h5>
                     <small className="text-muted">
                       {selectedPublication.start_time &&
-                      selectedPublication.end_time
+                        selectedPublication.end_time
                         ? `🕐 ${selectedPublication.start_time} - ${selectedPublication.end_time}`
                         : `⏱️ ${Math.floor(selectedPublication.duration_min / 60)}h ${selectedPublication.duration_min % 60}m`}
                     </small>
@@ -1547,7 +1548,7 @@ ${conflictDetails.map((c) => `• ${c.slot}: ocupado por "${c.activity.place_nam
                           )}
                         {selectedPublication.description &&
                           selectedPublication.description !==
-                            selectedPublication.original_text && (
+                          selectedPublication.original_text && (
                             <div className="mb-3">
                               <strong>📝 Descripción completa:</strong>
                               <p

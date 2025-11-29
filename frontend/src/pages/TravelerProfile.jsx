@@ -487,9 +487,8 @@ export default function TravelerProfile({ me }) {
                             <div className="carousel-inner">
                               {p.photos.map((url, idx) => (
                                 <div
-                                  className={`carousel-item ${
-                                    idx === 0 ? "active" : ""
-                                  }`}
+                                  className={`carousel-item ${idx === 0 ? "active" : ""
+                                    }`}
                                   key={url}
                                 >
                                   <img
@@ -648,9 +647,8 @@ export default function TravelerProfile({ me }) {
                             <div className="carousel-inner">
                               {p.photos.map((url, idx) => (
                                 <div
-                                  className={`carousel-item ${
-                                    idx === 0 ? "active" : ""
-                                  }`}
+                                  className={`carousel-item ${idx === 0 ? "active" : ""
+                                    }`}
                                   key={url}
                                 >
                                   <img
@@ -814,7 +812,7 @@ export default function TravelerProfile({ me }) {
               {selectedItineraryDetail.generated_itinerary && (
                 <div className="card shadow-sm mb-4">
                   <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">Itinerario generado por IA</h5>
+                    <h5 className="mb-0">Itinerario generado</h5>
                     <button
                       className="btn btn-sm btn-light"
                       onClick={() =>
@@ -832,6 +830,7 @@ export default function TravelerProfile({ me }) {
                         whiteSpace: "pre-wrap",
                         lineHeight: "1.8",
                         fontSize: "0.95rem",
+                        color: "black",
                       }}
                     >
                       {selectedItineraryDetail.generated_itinerary}
@@ -850,7 +849,7 @@ export default function TravelerProfile({ me }) {
         token={token}
         me={me}
         onClose={() => setOpenDetailModal(false)}
-        onToggleFavorite={() => {}}
+        onToggleFavorite={() => { }}
       />
     </div>
   );

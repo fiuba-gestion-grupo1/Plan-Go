@@ -357,7 +357,7 @@ export default function ItineraryRequest({ initialView = "form", me }) {
 
           <div className="card shadow-sm">
             <div className="card-header text-white d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">Itinerario Generado por IA</h5>
+              <h5 className="mb-0">Itinerario Generado</h5>
               <button
                 className="btn btn-sm btn-light"
                 onClick={() =>
