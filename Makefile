@@ -8,6 +8,7 @@ up:
 	@docker exec plan-go-app python -m backend.app.seed_users
 	@docker exec plan-go-app python -m backend.app.seed_db
 	@docker exec plan-go-app python -m backend.app.seed_benefits
+	@docker exec plan-go-app python -m backend.app.seed_user_content
 
 down:
 	@docker compose down

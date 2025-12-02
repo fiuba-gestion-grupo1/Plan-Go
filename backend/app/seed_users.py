@@ -2,12 +2,70 @@ import json
 from sqlalchemy.orm import Session
 
 try:
-    from backend.app.db import SessionLocal
+    from backend.app.db import SessionLocal, engine
     from backend.app import models, security
 except ImportError:
     print("Error: Ejecutá este script como módulo desde la raíz del proyecto.")
     print("Ejemplo: python -m backend.app.seed_users")
     raise
+
+
+def create_or_update_user_preference(
+    db: Session,
+    *,
+    user_id: int,
+    climates: list[str],
+    activities: list[str],
+    continents: list[str],
+):
+    # asegura que exista la tabla (por si seed_users corre antes que migrations)
+    models.UserPreference.__table__.create(bind=engine, checkfirst=True)
+
+    pref = (
+        db.query(models.UserPreference)
+        .filter(models.UserPreference.user_id == user_id)
+        .first()
+    )
+
+    if pref:
+        changed = False
+        if pref.climates != climates:
+            pref.climates = climates
+            changed = True
+        if pref.activities != activities:
+            pref.activities = activities
+            changed = True
+        if pref.continents != continents:
+            pref.continents = continents
+            changed = True
+
+        if changed:
+            db.add(pref)
+            db.commit()
+            db.refresh(pref)
+            print(f"Preferencias actualizadas (user_id={user_id})")
+        else:
+            print(f"Preferencias sin cambios (user_id={user_id})")
+        return pref
+
+    pref = models.UserPreference(
+        user_id=user_id,
+        climates=climates,
+        activities=activities,
+        continents=continents,
+        # lo demás NULL como pediste
+        budget_min=None,
+        budget_max=None,
+        duration_min_days=None,
+        duration_max_days=None,
+        publication_type="all",
+    )
+    db.add(pref)
+    db.commit()
+    db.refresh(pref)
+    print(f"Preferencias creadas (user_id={user_id})")
+    return pref
+
 
 
 def create_or_update_user(
@@ -91,8 +149,72 @@ def create_or_update_user(
 
 def seed_users(db: Session):
     print("--- Iniciando Seeding de Usuarios ---")
-    create_or_update_user(
-        db,
+
+    # OJO: usá exactamente los mismos strings que tu frontend/filters esperan
+    # (si en tu app es "gastronomia" sin tilde, dejalo así acá también)
+    preferences_by_email = {
+        "admin@fi.uba.ar": {
+            "climates": ["templado", "seco", "frío"],
+            "activities": ["ciudad", "gastronomía", "noche"],
+            "continents": ["américa", "europa", "asia"],
+        },
+        "normal@fi.uba.ar": {
+            "climates": ["templado", "tropical"],
+            "activities": ["playa", "montaña", "gastronomía"],
+            "continents": ["américa", "europa"],
+        },
+        "premium@fi.uba.ar": {
+            "climates": ["templado", "tropical", "seco"],
+            "activities": ["ciudad", "gastronomía", "noche"],
+            "continents": ["europa", "américa", "asia"],
+        },
+        "premium2@fi.uba.ar": {
+            "climates": ["frío", "templado", "seco"],
+            "activities": ["montaña", "historia", "gastronomía"],
+            "continents": ["américa", "asia", "áfrica"],
+        },
+        "premium3@fi.uba.ar": {
+            "climates": ["templado", "frío"],
+            "activities": ["ciudad", "historia", "noche"],
+            "continents": ["europa", "américa"],
+        },
+        "agus.viajes@fi.uba.ar": {
+            "climates": ["templado", "tropical"],
+            "activities": ["ciudad", "gastronomía", "historia"],
+            "continents": ["europa", "américa"],
+        },
+        "viajero.nomade@fi.uba.ar": {
+            "climates": ["tropical", "seco"],
+            "activities": ["playa", "montaña", "ciudad"],
+            "continents": ["asia", "américa"],
+        },
+        "city.breaks@fi.uba.ar": {
+            "climates": ["templado", "frío"],
+            "activities": ["ciudad", "gastronomía", "noche"],
+            "continents": ["europa", "américa"],
+        },
+        "familia.onboard@fi.uba.ar": {
+            "climates": ["tropical", "templado"],
+            "activities": ["playa", "ciudad", "gastronomía"],
+            "continents": ["américa", "europa"],
+        },
+        "solo.traveler@fi.uba.ar": {
+            "climates": ["templado", "frío"],
+            "activities": ["ciudad", "historia", "gastronomía"],
+            "continents": ["europa", "américa"],
+        },
+    }
+
+    def upsert_user_with_prefs(**user_kwargs):
+        user = create_or_update_user(db, **user_kwargs)
+        prefs = preferences_by_email.get(user.email)
+        if prefs:
+            create_or_update_user_preference(db, user_id=user.id, **prefs)
+        else:
+            print(f"⚠️  No hay preferences_by_email para {user.email} (user_id={user.id})")
+        return user
+
+    upsert_user_with_prefs(
         email="admin@fi.uba.ar",
         username="admin",
         password="password",
@@ -108,8 +230,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="normal@fi.uba.ar",
         username="normal",
         password="password",
@@ -126,8 +247,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="premium@fi.uba.ar",
         username="premium",
         password="password",
@@ -144,8 +264,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="premium2@fi.uba.ar",
         username="premium2",
         password="password",
@@ -162,8 +281,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="premium3@fi.uba.ar",
         username="premium3",
         password="password",
@@ -180,8 +298,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="agus.viajes@fi.uba.ar",
         username="agus.viajes",
         password="password",
@@ -197,8 +314,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="viajero.nomade@fi.uba.ar",
         username="viajero.nomade",
         password="password",
@@ -214,8 +330,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="city.breaks@fi.uba.ar",
         username="city.breaks",
         password="password",
@@ -231,8 +346,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="familia.onboard@fi.uba.ar",
         username="familia.onboard",
         password="password",
@@ -248,8 +362,7 @@ def seed_users(db: Session):
         },
     )
 
-    create_or_update_user(
-        db,
+    upsert_user_with_prefs(
         email="solo.traveler@fi.uba.ar",
         username="solo.traveler",
         password="password",
