@@ -252,7 +252,7 @@ function AppWithRouter() {
           <Home
             key="my-publications"
             me={me}
-            view="my-publiclications"
+            view="my-publications"
             onOpenShareItinerary={(id) => {
               if (!isPremium) {
                 alert("Función disponible sólo para usuarios premium.");

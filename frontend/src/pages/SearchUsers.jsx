@@ -286,9 +286,8 @@ function SearchUsers({ me, onOpenMyProfile }) {
                     <span
                       className="badge small me-2"
                       style={{
-                        backgroundColor: "#3A92B5",
-                        opacity: 0.1,
-                        color: "#3A92B5",
+                        backgroundColor: "#118dbeff",
+                        color: "#ffffffff",
                       }}
                     >
                       ✈️ {t.style}
